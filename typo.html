@@ -208,6 +208,7 @@
           <option value="ramp">Ink: ramp</option>
           <option value="mono">Ink: mono</option>
           <option value="accent">Ink: accent</option>
+          <option value="multi">Ink: multi</option>
         </select>
       </div>
     </div>
@@ -390,9 +391,15 @@ const PALETTES = [
   { id:'noir',   name:'Noir',          light:false, bg:'#0b0b0c', ink:['#efe9df','#bdb4a6','#867e72','#514c45'], accents:['#e2c58a','#8fa3a8'] },
   { id:'chrome', name:'Chrome mint',   light:true,  bg:'#d8e0da', ink:['#0d1512','#28352f','#586a61','#93a49a'], accents:['#0d1512','#1f6f5c'] },
   { id:'glitch', name:'Glitch red',    light:false, bg:'#0a0a0b', ink:['#f3f5f7','#c1cad0','#8b969e','#49535b'], accents:['#e2231a','#00e0d0'] },
-  { id:'ink',    name:'Ink on paper',  light:true,  bg:'#eceae4', ink:['#14161a','#3a3d44','#6c717a','#a6abb3'], accents:['#14161a'] }
+  { id:'ink',    name:'Ink on paper',  light:true,  bg:'#eceae4', ink:['#14161a','#3a3d44','#6c717a','#a6abb3'], accents:['#14161a'] },
+  { id:'prism',  name:'Prism',         light:false, bg:'#0a0a0b', ink:['#f2f4f6','#c1cad0','#8b969e','#49535b'], accents:['#37e05b','#ff5470','#ffd23f','#a05cff','#2b57ff','#00e0d0','#ff7a2b'] },
+  { id:'alarm',  name:'Signal red',    light:false, bg:'#0a0a0b', ink:['#ff2e4d','#e0243f','#a01b30','#5c1420'], accents:['#ff2e4d','#ff6076'] }
 ];
 let PAL = PALETTES[0];
+
+/* vibrant multi-colour set (Prism palette + multi ink mode) */
+const PRISM = ['#37e05b','#ff5470','#ffd23f','#a05cff','#2b57ff','#00e0d0','#ff7a2b'];
+const TAU = Math.PI * 2;
 
 /* liquid-metal / chrome banding — vertical stops (0=top … 1=baseline) */
 const CHROME = [[0,'#dfe7ee'],[0.16,'#6f7c88'],[0.33,'#ffffff'],[0.5,'#2b333c'],
@@ -411,9 +418,11 @@ const PRESETS = [
   { id:'column',   name:'Column',   note:'oversized letters bleeding left, justified text column right',
     perLine:1, overlapK:0.7, rotK:0.15, serifBias:0.6, blackBias:0.3 },
   { id:'liquid',   name:'Liquid',   note:'heavy rounded letters fused in a row with dripping tails — display lettering',
-    perLine:0, overlapK:1.0, rotK:0.0, serifBias:0.0, blackBias:1.0 }
+    perLine:0, overlapK:1.0, rotK:0.0, serifBias:0.0, blackBias:1.0 },
+  { id:'fragments',name:'Fragments',note:'glyphs shattered into geometric shapes on a dot field — kinetic / motion',
+    perLine:0, overlapK:0.5, rotK:1.0, serifBias:0.0, blackBias:0.4 }
 ];
-let PRESET = PRESETS[0];
+let PRESET = PRESETS.find(p => p.id === 'grid') || PRESETS[0];
 
 /* ============================================================ lexicon (for scatter / specimen) */
 const TECH = ['MEDIUM','EXTENDED','CONDENSED','REGULAR','BOLD','ROMAN','ITALIC','36 / 10 mm','SPACEMATIC','x-height','baseline','ascender','descender','kerning','tracking','ligature','01018','↑ ↓','a b c','A a','/ / /'];
@@ -544,11 +553,12 @@ function build(O){
   if (O.dots) layDots(items, box, O);
 
   // ---- headline engine ----
-  if (P.id === 'grid')          layoutGridMode(items, box, chars, O);
-  else if (P.id === 'specimen') layoutSpecimen(items, box, chars, O);
-  else if (P.id === 'column')   layoutColumn(items, box, chars, O);
-  else if (P.id === 'liquid')   layoutLiquid(items, box, chars, O);
-  else                          layoutStack(items, box, chars, O);  // stack + weave
+  if (P.id === 'grid')            layoutGridMode(items, box, chars, O);
+  else if (P.id === 'specimen')   layoutSpecimen(items, box, chars, O);
+  else if (P.id === 'column')     layoutColumn(items, box, chars, O);
+  else if (P.id === 'liquid')     layoutLiquid(items, box, chars, O);
+  else if (P.id === 'fragments')  layoutFragments(items, box, chars, O);
+  else                            layoutStack(items, box, chars, O);  // stack + weave
 
   // ---- seam lines + mirrored glyphs (SHOP / AFTERLIFE) ----
   const seamable = P.id==='stack' || P.id==='weave' || P.id==='liquid';
@@ -579,6 +589,7 @@ function build(O){
       if (O.hital) it.italic = true;
       if (O.hcolor==='mono'){ if (it.fill) it.fill = PAL.ink[0]; if (it.stroke) it.stroke = PAL.ink[0]; }
       else if (O.hcolor==='accent'){ const a = accentCol(); if (it.fill) it.fill = a; if (it.stroke) it.stroke = a; }
+      else if (O.hcolor==='multi'){ const a = pick(PRISM); if (it.fill) it.fill = a; if (it.stroke) it.stroke = a; }
     }
   }
 
@@ -785,6 +796,69 @@ function layoutLiquid(items, box, chars, O){
     items.push({t:'glyph', ch, x, y:baseY, size, font:font.css, weight, rot:0, fill:c, anchor:'left', z:'type'});
     x += widths[i] + tr;
   });
+}
+
+/* ---------- FRAGMENTS : glyphs shattered into geometric shapes on a dot field ---------- */
+function addFragShape(items, x, y, s, col){
+  switch (rint(0,5)){
+    case 0: { const a0 = rrange(0,TAU), a1 = a0 + rrange(0.7,2.5);          // filled wedge / pie
+      items.push({t:'wedge', cx:x, cy:y, r:s, a0, a1, fill:col, z:'type'}); break; }
+    case 1:                                                                 // ring
+      items.push({t:'ring', cx:x, cy:y, r:s*0.5, lw:Math.max(3,s*0.17), stroke:col, z:'type'}); break;
+    case 2: { const a0 = rrange(0,TAU), a1 = a0 + rrange(1.6,3.8);          // open arc (c / u)
+      items.push({t:'arcline', cx:x, cy:y, r:s*0.5, a0, a1, lw:Math.max(4,s*0.24), stroke:col, cap:'butt', z:'type'}); break; }
+    case 3:                                                                 // square
+      items.push({t:'rect', x:x-s*0.25, y:y-s*0.25, w:s*0.5, h:s*0.5, fill:col, z:'type'}); break;
+    case 4: { const w=s*0.38, h=s*0.8, sk=s*0.24;                           // parallelogram
+      items.push({t:'poly', pts:[[x,y-h/2],[x+w,y-h/2],[x+w-sk,y+h/2],[x-sk,y+h/2]], fill:col, z:'type'}); break; }
+    default:                                                                // dot
+      items.push({t:'dot', x, y, r:s*0.26, fill:col, z:'type'});
+  }
+}
+function layoutFragments(items, box, chars, O){
+  const cs = chars.filter(c=>c!==' ');
+  const prism = (PAL.id==='prism' || O.hcolor==='multi');
+  const pool = prism ? PRISM.slice() : [PAL.ink[0]].concat(PAL.accents);
+  const fc = () => pool[Math.floor(R()*pool.length)];
+  let font = fontById(O.font);
+  if (font.cls==='serif' || font.cls==='slab') font = fontById('geo');  // fragments read best geometric
+  const minSide = Math.min(box.w, box.h);
+  const cxC = box.x + box.w*0.5, cyC = box.y + box.h*0.5;
+
+  // background dot field
+  const step = minSide/24;
+  const dotCol = PAL.light ? 'rgba(20,18,15,.16)' : 'rgba(120,205,215,.20)';
+  for (let gx=box.x+step; gx<box.x+box.w; gx+=step)
+    for (let gy=box.y+step; gy<box.y+box.h; gy+=step)
+      if (chance(0.9)) items.push({t:'dot', x:gx, y:gy, r:Math.max(1.1, step*0.05), fill:dotCol, z:'under'});
+
+  // hero glyph — one big letter pushed to a side
+  const hero = cs.length ? cs[rint(0, cs.length-1)] : 'T';
+  const hsize = box.h * rrange(0.42, 0.58) * O.scale;
+  const hw = textW(hero, hsize, font.css, 800, false);
+  const hx = chance(0.5) ? box.x + box.w*rrange(0.72,0.82) - hw*0.2
+                         : box.x + box.w*rrange(0.06,0.14);
+  const hy = box.y + box.h*rrange(0.36,0.52);
+  items.push({t:'glyph', ch:hero, x:hx, y:hy, size:hsize, font:font.css, weight:800, rot:0, fill:fc(), anchor:'left', z:'type'});
+
+  // fragment cluster — the word set small in a broken row near the centre
+  const fsz = box.h * rrange(0.05, 0.075);
+  let fx = cxC - cs.length*fsz*0.45;
+  const fy = cyC - box.h*rrange(0.04, 0.14);
+  cs.forEach(ch=>{
+    if (chance(0.68))
+      items.push({t:'glyph', ch, x:fx, y:fy+gauss()*fsz*0.3, size:fsz*rrange(0.8,1.2),
+        font:font.css, weight:rint(4,9)*100, rot: chance(0.2)? gauss()*0.5*O.rot : 0, fill:fc(), anchor:'left', z:'type'});
+    else
+      addFragShape(items, fx+fsz*0.3, fy-fsz*0.35, fsz*rrange(0.7,1.1), fc());
+    fx += textW(ch, fsz, font.css, 600, false)*0.72 + fsz*rrange(0.5,1.0);
+  });
+
+  // scattered shapes across the field
+  const nShapes = Math.round(rrange(5, 11) * (0.5 + O.dens));
+  for (let i=0;i<nShapes;i++)
+    addFragShape(items, box.x + rrange(0.08,0.92)*box.w, box.y + rrange(0.08,0.92)*box.h,
+                 minSide*rrange(0.03,0.12), fc());
 }
 
 /* ---------- overlays ---------- */
@@ -1073,6 +1147,23 @@ function drawItem(g, it, S){
       if (it.fill && it.fill!=='none'){ g.fillStyle=it.fill; g.fill(); }
       if (it.stroke){ g.strokeStyle=it.stroke; g.lineWidth=it.lw||1; g.stroke(); }
       break;
+    case 'wedge':
+      g.fillStyle=it.fill; g.beginPath(); g.moveTo(it.cx,it.cy);
+      g.arc(it.cx,it.cy,it.r,it.a0,it.a1); g.closePath(); g.fill();
+      break;
+    case 'ring':
+      g.strokeStyle=it.stroke; g.lineWidth=it.lw; g.beginPath();
+      g.arc(it.cx,it.cy,it.r,0,6.28319); g.stroke();
+      break;
+    case 'arcline':
+      g.strokeStyle=it.stroke; g.lineWidth=it.lw; g.lineCap=it.cap||'butt';
+      g.beginPath(); g.arc(it.cx,it.cy,it.r,it.a0,it.a1); g.stroke(); g.lineCap='butt';
+      break;
+    case 'poly':
+      g.fillStyle=it.fill; g.beginPath();
+      it.pts.forEach((p,i)=> i? g.lineTo(p[0],p[1]) : g.moveTo(p[0],p[1]));
+      g.closePath(); g.fill();
+      break;
     case 'glyph': {
       g.save(); g.translate(it.x, it.y); if (it.rot) g.rotate(it.rot);
       g.font = fontStr(it.size, resolveVar(it.font), it.weight, it.italic);
@@ -1183,6 +1274,22 @@ function svgItem(it){
       return `<line x1="${it.x1.toFixed(1)}" y1="${it.y1.toFixed(1)}" x2="${it.x2.toFixed(1)}" y2="${it.y2.toFixed(1)}" stroke="${it.stroke}" stroke-width="${it.lw||1}"${it.dash?` stroke-dasharray="${it.dash.join(' ')}"`:''}/>`;
     case 'dot':
       return `<circle cx="${it.x.toFixed(1)}" cy="${it.y.toFixed(1)}" r="${it.r.toFixed(1)}" fill="${it.fill||'none'}"${it.stroke?` stroke="${it.stroke}" stroke-width="${it.lw||1}"`:''}/>`;
+    case 'wedge':{
+      const x0=it.cx+it.r*Math.cos(it.a0), y0=it.cy+it.r*Math.sin(it.a0);
+      const x1=it.cx+it.r*Math.cos(it.a1), y1=it.cy+it.r*Math.sin(it.a1);
+      const large=((it.a1-it.a0)%TAU+TAU)%TAU > Math.PI ? 1:0;
+      return `<path d="M${it.cx.toFixed(1)} ${it.cy.toFixed(1)} L${x0.toFixed(1)} ${y0.toFixed(1)} A${it.r.toFixed(1)} ${it.r.toFixed(1)} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z" fill="${it.fill}"/>`;
+    }
+    case 'ring':
+      return `<circle cx="${it.cx.toFixed(1)}" cy="${it.cy.toFixed(1)}" r="${it.r.toFixed(1)}" fill="none" stroke="${it.stroke}" stroke-width="${it.lw.toFixed(1)}"/>`;
+    case 'arcline':{
+      const x0=it.cx+it.r*Math.cos(it.a0), y0=it.cy+it.r*Math.sin(it.a0);
+      const x1=it.cx+it.r*Math.cos(it.a1), y1=it.cy+it.r*Math.sin(it.a1);
+      const large=((it.a1-it.a0)%TAU+TAU)%TAU > Math.PI ? 1:0;
+      return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${it.r.toFixed(1)} ${it.r.toFixed(1)} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}" fill="none" stroke="${it.stroke}" stroke-width="${it.lw.toFixed(1)}" stroke-linecap="${it.cap||'butt'}"/>`;
+    }
+    case 'poly':
+      return `<polygon points="${it.pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="${it.fill}"/>`;
     case 'glyph':{
       let f = it.metal ? 'fill="url(#chrome)"' : it.fill?`fill="${it.fill}"`:'fill="none"';
       if (it.stroke) f+=` stroke="${it.stroke}" stroke-width="${(it.lw||1).toFixed(2)}"`;
