@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TYPO//FORGE — typographic poster generator</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#151a21; --line:#242c37; --line-soft:#1c232c;
+    --ink:#e6ebf2; --dim:#8b97a8; --faint:#5a6675;
+    --accent:#5ec8f5; --accent-b:#4ee0c1;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:12px;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
+
+  .rail{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow-y:auto;max-height:100vh}
+  .brand{font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:2px}
+  .brand span{color:var(--accent-b)}
+  .tag{font-size:9.5px;color:var(--faint);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:20px}
+  .grp{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line-soft)}
+  .grp:last-child{border:0}
+  .lbl{font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:block}
+  select,input[type=text],textarea{
+    width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+    border-radius:3px;padding:7px 8px;font-family:var(--mono);font-size:11px;
+  }
+  textarea{resize:vertical;line-height:1.5}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:6px;align-items:center}
+  .row>*{flex:1}
+  button{
+    background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;
+    padding:8px 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.06em;cursor:pointer;
+    text-transform:uppercase;transition:border-color .15s,background .15s,color .15s;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#07222e;font-weight:700}
+  button.primary:hover{background:var(--accent-b);border-color:var(--accent-b);color:#04231c}
+  .hint{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:8px}
+
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;margin-top:-5px;
+    width:13px;height:13px;border-radius:50%;background:var(--accent);border:0;
+  }
+  input[type=range]:disabled::-webkit-slider-thumb{background:var(--faint)}
+  input[type=range]:focus{outline:none}
+  .lbl b{float:right;font-weight:400;color:var(--dim);letter-spacing:0;text-transform:none}
+
+  #dice,#lock{flex:0 0 42px;display:grid;place-items:center;padding:6px 0}
+  #dice svg,#lock svg{width:17px;height:17px;display:block}
+  .ico-stroke{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .ico-fill{fill:currentColor}
+  #lock[data-locked="1"]{border-color:var(--accent);color:var(--accent)}
+  #dice.rolling{animation:roll .45s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes roll{0%{transform:rotate(0) scale(1)}55%{transform:rotate(200deg) scale(1.18)}100%{transform:rotate(360deg) scale(1)}}
+  @media (prefers-reduced-motion: reduce){#dice.rolling{animation:none}}
+
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .chip{
+    text-align:left;text-transform:none;letter-spacing:0;padding:7px 8px;line-height:1.35;
+    font-size:10.5px;color:var(--dim);
+  }
+  .chip em{display:block;font-style:normal;font-size:8.5px;color:var(--faint);letter-spacing:.04em}
+  .chip[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0b1a22}
+  .chip[data-on="1"] em{color:var(--dim)}
+
+  .sub{margin-top:12px;padding-left:10px;border-left:1px solid var(--line-soft)}
+  .sub[hidden]{display:none}
+
+  .pick{position:relative}
+  .pick-btn{width:100%;display:flex;align-items:center;gap:8px;text-align:left;text-transform:none;letter-spacing:0;padding:6px 8px}
+  .sw{display:flex;gap:2px;flex:0 0 auto}
+  .sw i{width:8px;height:15px;border-radius:1.5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+  .pick-name{flex:1;font-size:11px;color:var(--ink)}
+  .pick-caret{color:var(--faint);font-size:8px;transition:transform .15s}
+  .pick.open .pick-caret{transform:rotate(180deg)}
+  .pick-list{
+    position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;display:none;
+    max-height:280px;overflow-y:auto;padding:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;
+    box-shadow:0 18px 46px rgba(0,0,0,.65);
+  }
+  .pick.open .pick-list{display:block}
+  .pick-row{
+    display:flex;align-items:center;gap:8px;width:100%;padding:5px 6px;border:0;border-radius:3px;
+    background:transparent;cursor:pointer;font-family:var(--mono);font-size:11px;
+    text-transform:none;letter-spacing:0;color:var(--dim);
+  }
+  .pick-row:hover{background:var(--bg);color:var(--ink)}
+  .pick-row[data-sel="1"]{color:var(--accent)}
+
+  .cwrap{position:relative;flex:0 0 34px;height:31px}
+  input[type=color]{
+    position:absolute;inset:0;width:100%;height:100%;padding:0;
+    border:1px solid var(--line);border-radius:3px;background:var(--bg);cursor:pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:2px}
+
+  .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:14px;overflow:auto}
+  .frame{
+    max-width:100%;max-height:80vh;overflow:auto;line-height:0;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);border:1px solid var(--line);
+  }
+  #out{display:block;background:#000}
+  #out.alpha{
+    background-color:#171c23;
+    background-image:
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%),
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%);
+    background-size:18px 18px;background-position:0 0,9px 9px;
+  }
+  .frame[data-zoom="fit"] #out{max-width:100%;max-height:calc(80vh - 2px);width:auto;height:auto}
+  .meta{font-size:10px;color:var(--faint);letter-spacing:0.08em}
+  .meta b{color:var(--dim);font-weight:400}
+
+  @media (max-width: 720px){
+    .app{grid-template-columns:1fr}
+    .rail{max-height:none;overflow-y:visible;border-right:0;border-bottom:1px solid var(--line)}
+    .stage{padding:18px;min-height:70vh}
+    .frame{max-height:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">TYPO<span>//</span>FORGE</div>
+    <div class="tag">typographic poster generator</div>
+
+    <div class="grp">
+      <label class="lbl" for="seed">Seed</label>
+      <div class="row">
+        <input type="text" id="seed" value="pluton" spellcheck="false" style="flex:1">
+        <button id="dice" title="Randomize seed">
+          <svg viewBox="0 0 24 24"><rect class="ico-stroke" x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle class="ico-fill" cx="8" cy="8" r="1.6"/><circle class="ico-fill" cx="16" cy="16" r="1.6"/><circle class="ico-fill" cx="12" cy="12" r="1.6"/></svg>
+        </button>
+        <button id="lock" data-locked="0" title="Lock seed while randomizing other controls">
+          <svg viewBox="0 0 24 24"><rect class="ico-stroke" x="5" y="10.5" width="14" height="9" rx="2"/><path class="ico-stroke" d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+        </button>
+      </div>
+      <button class="primary" id="reroll" style="width:100%;margin-top:8px">⟳ Regenerate composition</button>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Composition</label>
+      <select id="preset"></select>
+      <div class="hint" id="presetnote"></div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="format">Format</label>
+      <select id="format">
+        <option value="a">A-series · portrait (1:1.414)</option>
+        <option value="iso">ISO · tall (1:1.5)</option>
+        <option value="sq">Square (1:1)</option>
+        <option value="us">US · portrait (1:1.294)</option>
+        <option value="wide">Landscape (1.414:1)</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Palette</label>
+      <div class="pick" id="palPick"></div>
+      <div class="row" style="margin-top:8px">
+        <span class="pick-name" style="flex:1;color:var(--dim)">Accent override</span>
+        <div class="cwrap"><input type="color" id="accent" value="#5ec8f5"></div>
+        <button class="tgl" id="tacc" data-on="0" style="flex:0 0 62px">use</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="headline">Headline</label>
+      <input type="text" id="headline" value="PLUTON" spellcheck="false" maxlength="16">
+      <label class="lbl" for="kicker" style="margin-top:10px">Kicker</label>
+      <input type="text" id="kicker" value="astrología · otro mundo" spellcheck="false">
+      <label class="lbl" style="margin-top:10px" for="labels">Labels <b id="lblcount"></b></label>
+      <textarea id="labels" rows="3" spellcheck="false">transformación, oscuridad, escorpio, renovación, planeta, símbolo</textarea>
+      <label class="lbl" style="margin-top:10px" for="body">Body text</label>
+      <textarea id="body" rows="3" spellcheck="false">Símbolo de la transformación y de la metamorfosis. Representa la autosuperación y el perfeccionamiento, la exploración y la renovación interior.</textarea>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Typefaces</label>
+      <div class="pick" id="fontPick"></div>
+      <div class="pick" id="labelFontPick" style="margin-top:6px"></div>
+      <div class="row" style="margin-top:8px">
+        <select id="hcase">
+          <option value="upper">UPPERCASE</option>
+          <option value="lower">lowercase</option>
+          <option value="title">Title Case</option>
+          <option value="asis">As typed</option>
+        </select>
+        <button class="chip tgl" id="hital" data-on="0" style="flex:0 0 74px;text-align:center">Italic</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <select id="halign">
+          <option value="auto">Align: woven</option>
+          <option value="left">Align: left</option>
+          <option value="center">Align: center</option>
+          <option value="right">Align: right</option>
+        </select>
+        <select id="hcolor">
+          <option value="ramp">Ink: ramp</option>
+          <option value="mono">Ink: mono</option>
+          <option value="accent">Ink: accent</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Body block</label>
+      <div class="pick" id="bodyFontPick"></div>
+      <div class="row" style="margin-top:8px">
+        <select id="bodypos">
+          <option value="auto">Pos: auto</option>
+          <option value="tl">Pos: top-left</option>
+          <option value="tr">Pos: top-right</option>
+          <option value="bl">Pos: bottom-left</option>
+          <option value="br">Pos: bottom-right</option>
+          <option value="center">Pos: center</option>
+        </select>
+        <select id="bodyalign">
+          <option value="left">Flush left</option>
+          <option value="justify">Justified</option>
+        </select>
+      </div>
+      <label class="lbl" style="margin-top:10px">Body size <b id="bodysizeval">33%</b></label>
+      <input type="range" id="bodysize" min="0" max="100" value="33">
+      <label class="lbl" style="margin-top:8px">Column width <b id="bodywidthval">33%</b></label>
+      <input type="range" id="bodywidth" min="0" max="100" value="33">
+      <label class="lbl" style="margin-top:8px">Leading <b id="bodyleadval">38%</b></label>
+      <input type="range" id="bodylead" min="0" max="100" value="38">
+      <button class="chip tgl" id="bhead" data-on="1" style="width:100%;margin-top:8px;text-align:center">Show heading label</button>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Composition dials</label>
+      <label class="lbl">Type scale <b id="scaleval">100%</b></label>
+      <input type="range" id="scale" min="55" max="150" value="100">
+      <label class="lbl" style="margin-top:8px">Overlap <b id="overlapval">44%</b></label>
+      <input type="range" id="overlap" min="0" max="100" value="44">
+      <label class="lbl" style="margin-top:8px">Rotation jitter <b id="rotval">18%</b></label>
+      <input type="range" id="rot" min="0" max="100" value="18">
+      <label class="lbl" style="margin-top:8px">Baseline jitter <b id="jitterval">26%</b></label>
+      <input type="range" id="jitter" min="0" max="100" value="26">
+      <label class="lbl" style="margin-top:8px">Weight bias <b id="weightval">0</b></label>
+      <input type="range" id="weight" min="-100" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">Outline mix <b id="outlineval">22%</b></label>
+      <input type="range" id="outline" min="0" max="100" value="22">
+      <label class="lbl" style="margin-top:8px">Accent hits <b id="acchitval">14%</b></label>
+      <input type="range" id="acchit" min="0" max="100" value="14">
+      <label class="lbl" style="margin-top:8px">Margin <b id="marginval">7%</b></label>
+      <input type="range" id="margin" min="0" max="18" value="7">
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Overlays</label>
+      <div class="chips">
+        <button class="chip" id="cgrid"  data-on="1">Grid<em>modular guides</em></button>
+        <button class="chip" id="cmeasure" data-on="1">Measure<em>A/B/C marks</em></button>
+        <button class="chip" id="cticks" data-on="1">Ruler ticks<em>edge scale</em></button>
+        <button class="chip" id="cdots"  data-on="0">Dot matrix<em>field</em></button>
+        <button class="chip" id="creg"   data-on="1">Reg marks<em>corners</em></button>
+        <button class="chip" id="cframe" data-on="0">Frame<em>inner border</em></button>
+        <button class="chip" id="cscatter" data-on="1">Scatter labels<em>micro type</em></button>
+        <button class="chip" id="cbody"  data-on="1">Body block<em>paragraph</em></button>
+      </div>
+      <label class="lbl" style="margin-top:12px">Grid opacity <b id="gridopval">12%</b></label>
+      <input type="range" id="gridop" min="0" max="60" value="12">
+      <label class="lbl" style="margin-top:8px">Label density <b id="densval">50%</b></label>
+      <input type="range" id="dens" min="0" max="100" value="50">
+      <label class="lbl" style="margin-top:8px">Grain <b id="grainval">0%</b></label>
+      <input type="range" id="grain" min="0" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">Vignette <b id="vigval">0%</b></label>
+      <input type="range" id="vig" min="0" max="100" value="0">
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Effects <b style="color:var(--faint)">raster · png</b></label>
+      <div class="chips">
+        <button class="chip" id="cpanels"   data-on="0">Panels<em>frosted glass</em></button>
+        <button class="chip" id="cseam"     data-on="0">Seam cut<em>hairline slice</em></button>
+        <button class="chip" id="cdistress" data-on="0">Distress<em>dust · scratch</em></button>
+        <button class="chip" id="cchrome"   data-on="0">Chrome<em>liquid metal fill</em></button>
+      </div>
+      <label class="lbl" style="margin-top:12px">Halftone <b id="halftoneval">0%</b></label>
+      <input type="range" id="halftone" min="0" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">Scanlines <b id="scanval">0%</b></label>
+      <input type="range" id="scan" min="0" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">Defocus <b id="blurval">0%</b></label>
+      <input type="range" id="blur" min="0" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">Glitch slice <b id="glitchval">0%</b></label>
+      <input type="range" id="glitch" min="0" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">RGB split <b id="aberrval">0%</b></label>
+      <input type="range" id="aberr" min="0" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">Smear <b id="smearval">0%</b></label>
+      <input type="range" id="smear" min="0" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">Smear angle <b id="smeardirval">90°</b></label>
+      <input type="range" id="smeardir" min="0" max="360" value="90">
+      <label class="lbl" style="margin-top:8px">Mirror glyphs <b id="flipval">0%</b></label>
+      <input type="range" id="flip" min="0" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">Panel density <b id="paneldensval">50%</b></label>
+      <input type="range" id="paneldens" min="0" max="100" value="50">
+      <div class="hint">Halftone, scanlines, defocus, glitch, RGB split &amp; smear are pixel effects — PNG only. Panels, seam cuts, mirrored glyphs, distress &amp; chrome are vector and survive SVG export.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Export</label>
+      <div class="row">
+        <button id="dl1">↓ PNG 1×</button>
+        <button id="dl2">↓ PNG 2×</button>
+        <button id="dl3">↓ PNG 3×</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="dlsvg" style="flex:1">↓ SVG — vector</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="tgl" id="talpha" data-on="0" aria-pressed="false" style="flex:1">Transparent background</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <select id="zoom">
+          <option value="fit" selected>View: fit</option>
+          <option value="100">View: 100%</option>
+        </select>
+      </div>
+      <div class="hint">Plate renders at 2000 on the long edge — 3× lands at 6000. SVG writes live vector text so every glyph stays editable in Illustrator / Figma.</div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="frame" id="frame" data-zoom="fit"><canvas id="out"></canvas></div>
+    <div class="meta" id="meta"></div>
+  </main>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* ============================================================ rng */
+function hash(str){
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let R = mulberry(1);
+const rnd   = ()      => R();
+const rint  = (a, b)  => a + Math.floor(R() * (b - a + 1));
+const rrange= (a, b)  => a + R() * (b - a);
+const pick  = arr     => arr[Math.floor(R() * arr.length)];
+const chance= p       => R() < p;
+const gauss = ()      => { let u=0,v=0; while(!u)u=R(); while(!v)v=R(); return Math.sqrt(-2*Math.log(u))*Math.cos(6.28318*v); };
+
+/* ============================================================ typefaces */
+const FONTS = [
+  { id:'didone', name:'Didone serif',   css:"'Didot','Bodoni MT','Playfair Display',Georgia,'Times New Roman',serif", cls:'serif' },
+  { id:'oldsty', name:'Old-style serif', css:"Georgia,'Iowan Old Style','Times New Roman',serif", cls:'serif' },
+  { id:'grot',   name:'Grotesk sans',    css:"'Helvetica Neue',Helvetica,Arial,sans-serif", cls:'sans' },
+  { id:'cond',   name:'Condensed sans',  css:"'Arial Narrow','Helvetica Neue Condensed',Helvetica,sans-serif", cls:'sans' },
+  { id:'geo',    name:'Geometric sans',  css:"'Futura','Century Gothic','Avenir Next',sans-serif", cls:'sans' },
+  { id:'round',  name:'Rounded heavy',   css:"'Arial Rounded MT Bold','Baloo 2','Nunito','Varela Round','Helvetica Neue',sans-serif", cls:'round' },
+  { id:'slab',   name:'Slab serif',      css:"'Rockwell','Roboto Slab',Georgia,serif", cls:'slab' },
+  { id:'mono',   name:'Monospace',       css:"ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace", cls:'mono' }
+];
+const fontById = id => FONTS.find(f => f.id === id) || FONTS[0];
+
+/* ============================================================ palettes */
+/* light:true → paper stock; ink[0] is the darkest / primary. */
+const PALETTES = [
+  { id:'pluton', name:'Pluton',        light:false, bg:'#05070c', ink:['#ffffff','#c7d0dc','#8a94a4','#39445a'], accents:['#2e6bff','#4ee0c1'] },
+  { id:'void',   name:'Void',          light:false, bg:'#000000', ink:['#ffffff','#c9d2dc','#8e9aa6','#5b646d'], accents:['#ffffff'] },
+  { id:'amber',  name:'Amber CRT',     light:false, bg:'#0a0703', ink:['#ffcb6b','#c9902f','#8a5f18','#4d340b'], accents:['#fff1c0','#ff6a2b'] },
+  { id:'swiss',  name:'Swiss red',     light:true,  bg:'#ffffff', ink:['#111111','#3a3a3a','#6f6f6f','#a8a8a8'], accents:['#e2231a'] },
+  { id:'paper',  name:'Paper',         light:true,  bg:'#f4f1ea', ink:['#16130f','#4a453d','#7c766a','#b1aa9c'], accents:['#16130f'] },
+  { id:'print',  name:'Blueprint',     light:true,  bg:'#eef0f4', ink:['#152a6e','#31488c','#5f74ad','#9aa6c6'], accents:['#152a6e'] },
+  { id:'riso',   name:'Riso duotone',  light:true,  bg:'#efe9df', ink:['#16130f','#463f34','#7d7566','#b3ab9b'], accents:['#ff4d2e','#2b57ff'] },
+  { id:'noir',   name:'Noir',          light:false, bg:'#0b0b0c', ink:['#efe9df','#bdb4a6','#867e72','#514c45'], accents:['#e2c58a','#8fa3a8'] },
+  { id:'chrome', name:'Chrome mint',   light:true,  bg:'#d8e0da', ink:['#0d1512','#28352f','#586a61','#93a49a'], accents:['#0d1512','#1f6f5c'] },
+  { id:'glitch', name:'Glitch red',    light:false, bg:'#0a0a0b', ink:['#f3f5f7','#c1cad0','#8b969e','#49535b'], accents:['#e2231a','#00e0d0'] },
+  { id:'ink',    name:'Ink on paper',  light:true,  bg:'#eceae4', ink:['#14161a','#3a3d44','#6c717a','#a6abb3'], accents:['#14161a'] }
+];
+let PAL = PALETTES[0];
+
+/* liquid-metal / chrome banding — vertical stops (0=top … 1=baseline) */
+const CHROME = [[0,'#dfe7ee'],[0.16,'#6f7c88'],[0.33,'#ffffff'],[0.5,'#2b333c'],
+                [0.6,'#b3bec9'],[0.76,'#485663'],[0.9,'#e9eff4'],[1,'#8b96a1']];
+
+/* ============================================================ presets */
+const PRESETS = [
+  { id:'stack',    name:'Stack',    note:'giant letters stacked & woven down the sheet — cosmic broadsheet',
+    perLine:1, overlapK:1.0, rotK:0.5, serifBias:0.7, blackBias:0.0 },
+  { id:'weave',    name:'Weave',    note:'interlocked headline packed edge to edge — one heavy voice',
+    perLine:1, overlapK:1.35, rotK:0.25, serifBias:0.15, blackBias:0.9 },
+  { id:'grid',     name:'Grid',     note:'modular grid with A/B/C measure marks — Swiss instruction sheet',
+    perLine:0, overlapK:0.2, rotK:0.05, serifBias:0.2, blackBias:0.85 },
+  { id:'specimen', name:'Specimen', note:'deconstructed glyphs scattered across the field — type specimen',
+    perLine:0, overlapK:0.6, rotK:1.0, serifBias:0.5, blackBias:0.4 },
+  { id:'column',   name:'Column',   note:'oversized letters bleeding left, justified text column right',
+    perLine:1, overlapK:0.7, rotK:0.15, serifBias:0.6, blackBias:0.3 },
+  { id:'liquid',   name:'Liquid',   note:'heavy rounded letters fused in a row with dripping tails — display lettering',
+    perLine:0, overlapK:1.0, rotK:0.0, serifBias:0.0, blackBias:1.0 }
+];
+let PRESET = PRESETS[0];
+
+/* ============================================================ lexicon (for scatter / specimen) */
+const TECH = ['MEDIUM','EXTENDED','CONDENSED','REGULAR','BOLD','ROMAN','ITALIC','36 / 10 mm','SPACEMATIC','x-height','baseline','ascender','descender','kerning','tracking','ligature','01018','↑ ↓','a b c','A a','/ / /'];
+const GLYPHSET = 'AEGMORSTaefgorst&?!;,.24568%@'.split('');
+
+/* ============================================================ format */
+const FORMATS = {
+  a:   { r: 1/1.4142, tall:true  },
+  iso: { r: 1/1.5,    tall:true  },
+  sq:  { r: 1,        tall:true  },
+  us:  { r: 1/1.2941, tall:true  },
+  wide:{ r: 1.4142,   tall:false }
+};
+const LONG = 2000;
+function formatDims(id){
+  const f = FORMATS[id] || FORMATS.a;
+  if (f.tall) return { w: Math.round(LONG * f.r), h: LONG };
+  return { w: LONG, h: Math.round(LONG / f.r) };
+}
+
+/* ============================================================ colour helpers */
+function withAlpha(hex, a){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;
+}
+const lineCol = a => PAL.light ? `rgba(20,18,15,${a})` : `rgba(255,255,255,${a})`;
+function accentCol(){
+  if ($('tacc').dataset.on === '1') return $('accent').value;
+  return pick(PAL.accents);
+}
+/* pick an ink weighted toward the brighter/primary end */
+const inkPick = () => PAL.ink[Math.floor(Math.pow(R(), 1.7) * PAL.ink.length)];
+
+/* ============================================================ measuring context */
+const MC = document.createElement('canvas').getContext('2d');
+function fontStr(px, css, weight, italic){ return `${italic?'italic ':''}${weight} ${px}px ${css}`; }
+function textW(t, px, css, weight, italic){ MC.font = fontStr(px, css, weight, italic); return MC.measureText(t).width; }
+
+/* ============================================================ read UI state */
+function readState(){
+  return {
+    seed:    $('seed').value || 'x',
+    preset:  PRESET.id,
+    format:  $('format').value,
+    headline:$('headline').value || 'TYPO',
+    kicker:  $('kicker').value,
+    body:    $('body').value,
+    labels:  $('labels').value.split(',').map(s=>s.trim()).filter(Boolean),
+    font:    $('fontPick').dataset.val,
+    labelFont:$('labelFontPick').dataset.val,
+    bodyFont:$('bodyFontPick').dataset.val,
+    hcase:   $('hcase').value,
+    halign:  $('halign').value,
+    hcolor:  $('hcolor').value,
+    hital:   $('hital').dataset.on === '1',
+    bodypos: $('bodypos').value,
+    bodyalign:$('bodyalign').value,
+    bodysize:0.010 + (+$('bodysize').value/100)*0.020,
+    bodywidth:0.15 + (+$('bodywidth').value/100)*0.45,
+    bodylead: 1.15 + (+$('bodylead').value/100)*1.05,
+    bhead:   $('bhead').dataset.on==='1',
+    scale:   +$('scale').value/100,
+    overlap: +$('overlap').value/100,
+    rot:     +$('rot').value/100,
+    jitter:  +$('jitter').value/100,
+    weight:  +$('weight').value/100,
+    outline: +$('outline').value/100,
+    acchit:  +$('acchit').value/100,
+    margin:  +$('margin').value/100,
+    gridop:  +$('gridop').value/100,
+    dens:    +$('dens').value/100,
+    grain:   +$('grain').value/100,
+    vig:     +$('vig').value/100,
+    grid:    $('cgrid').dataset.on==='1',
+    measure: $('cmeasure').dataset.on==='1',
+    ticks:   $('cticks').dataset.on==='1',
+    dots:    $('cdots').dataset.on==='1',
+    reg:     $('creg').dataset.on==='1',
+    frame:   $('cframe').dataset.on==='1',
+    scatter: $('cscatter').dataset.on==='1',
+    bodyOn:  $('cbody').dataset.on==='1',
+    // effects
+    blur:    (+$('blur').value/100)*14,
+    glitch:  +$('glitch').value/100,
+    aberr:   +$('aberr').value/100,
+    smear:   +$('smear').value/100,
+    smeardir:+$('smeardir').value,
+    flip:    +$('flip').value/100,
+    paneldens:+$('paneldens').value/100,
+    panels:  $('cpanels').dataset.on==='1',
+    seam:    $('cseam').dataset.on==='1',
+    distress:$('cdistress').dataset.on==='1',
+    chrome:  $('cchrome').dataset.on==='1',
+    halftone:(+$('halftone').value>0) ? 4 + (+$('halftone').value/100)*16 : 0,
+    scan:    +$('scan').value/100
+  };
+}
+
+/* ============================================================ headline case */
+function applyCase(s, mode){
+  if (mode==='upper') return s.toUpperCase();
+  if (mode==='lower') return s.toLowerCase();
+  if (mode==='title') return s.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  return s;
+}
+
+/* ============================================================ weight resolution */
+function glyphWeight(O, heavyBias){
+  // heavyBias 0..1 pulls toward black; global weight dial shifts it
+  const b = Math.max(0, Math.min(1, heavyBias + O.weight*0.5));
+  const w = b < 0.5 ? rrange(200, 500) : rrange(500, 900);
+  return Math.round(w/100)*100;
+}
+
+/* ============================================================ scene builder */
+let SCENE = null;
+function build(O){
+  R = mulberry(hash(O.seed + '|' + O.preset + '|' + O.format));
+  const {w:W, h:H} = formatDims(O.format);
+  const m = Math.max(0, O.margin) * Math.min(W,H);
+  const box = { x:m, y:m, w:W-2*m, h:H-2*m };
+  const items = [];
+  const P = PRESET;
+  const chars = applyCase(O.headline, O.hcase).split('');
+
+  // ---- background layers first ----
+  if (O.grid && O.gridop>0) layGrid(items, box, O);
+  if (O.dots) layDots(items, box, O);
+
+  // ---- headline engine ----
+  if (P.id === 'grid')          layoutGridMode(items, box, chars, O);
+  else if (P.id === 'specimen') layoutSpecimen(items, box, chars, O);
+  else if (P.id === 'column')   layoutColumn(items, box, chars, O);
+  else if (P.id === 'liquid')   layoutLiquid(items, box, chars, O);
+  else                          layoutStack(items, box, chars, O);  // stack + weave
+
+  // ---- seam lines + mirrored glyphs (SHOP / AFTERLIFE) ----
+  const seamable = P.id==='stack' || P.id==='weave' || P.id==='liquid';
+  if (O.flip>0 || (O.seam && seamable)){
+    const extra = [];
+    for (const it of items){
+      if (it.z !== 'type') continue;
+      if (it.t==='glyph'){
+        if (O.flip>0 && chance(O.flip)) it.flip = 1;
+        if (O.seam && seamable){
+          const w = textW(it.ch, it.size, it.font, it.weight, it.italic);
+          const cx = it.x + w*0.5;
+          extra.push({t:'line', x1:cx, y1:it.y-it.size*0.72, x2:cx, y2:it.y+it.size*0.06,
+            stroke:PAL.bg, lw:Math.max(1.4, it.size*0.02), z:'type'});
+        }
+      } else if (it.t==='rrect' && O.seam && P.id==='liquid'){
+        const cx = it.x + it.w*0.5;
+        extra.push({t:'line', x1:cx, y1:it.y, x2:cx, y2:it.y+it.h, stroke:PAL.bg, lw:Math.max(1.4, it.w*0.03), z:'type'});
+      }
+    }
+    items.push(...extra);
+  }
+
+  // ---- headline italic + ink-colour mode ----
+  if (O.hital || O.hcolor!=='ramp'){
+    for (const it of items){
+      if (it.z!=='type' || it.t!=='glyph') continue;
+      if (O.hital) it.italic = true;
+      if (O.hcolor==='mono'){ if (it.fill) it.fill = PAL.ink[0]; if (it.stroke) it.stroke = PAL.ink[0]; }
+      else if (O.hcolor==='accent'){ const a = accentCol(); if (it.fill) it.fill = a; if (it.stroke) it.stroke = a; }
+    }
+  }
+
+  // ---- chrome / liquid-metal fill on headline type ----
+  if (O.chrome){
+    for (const it of items)
+      if (it.z==='type' && (it.t==='glyph' || it.t==='rrect')) it.metal = 1;
+  }
+
+  // ---- overlays over type ----
+  if (O.measure) layMeasure(items, box, O);
+  if (O.scatter) layScatter(items, box, O);
+  if (O.panels)  layPanels(items, box, O);
+  if (O.bodyOn && O.body.trim() && P.id!=='column') layBody(items, box, O);
+  if (O.kicker.trim()) layKicker(items, box, O);
+  if (O.ticks) layTicks(items, box, W, H, O);
+  if (O.reg)   layReg(items, box, W, H);
+  if (O.distress) layDistress(items, box);
+  if (O.frame) items.push({t:'rect', x:box.x, y:box.y, w:box.w, h:box.h, stroke:lineCol(.5), lw:1.5});
+
+  SCENE = { W, H, items, bg: PAL.bg, light: PAL.light, O };
+  return SCENE;
+}
+
+/* ---------- STACK / WEAVE : giant letters down the sheet ---------- */
+function layoutStack(items, box, chars, O){
+  const P = PRESET;
+  const n = Math.max(1, chars.length);
+  const overlap = Math.min(0.72, O.overlap * 0.55 * P.overlapK);
+  // band height so n bands (with overlap) fill the content height
+  const bandH = box.h / (n - (n-1)*overlap) * O.scale;
+  const step  = bandH * (1 - overlap);
+  let y = box.y + bandH * 0.5 + (box.h - (bandH + step*(n-1)))/2;
+
+  for (let i=0;i<n;i++){
+    const ch = chars[i];
+    if (ch === ' '){ y += step; continue; }
+    const serif = chance(P.serifBias);
+    const font = serif ? pick(FONTS.filter(f=>f.cls==='serif'||f.cls==='slab'))
+                       : fontById(O.font);
+    const size = bandH * rrange(0.86, 1.12) * (0.72); // cap-height fudge
+    const weight = glyphWeight(O, P.blackBias);
+    const gw = textW(ch, size, font.css, weight, false);
+    // horizontal placement — alignment aware
+    const free = Math.max(0, box.w - gw);
+    let x;
+    const mode = i % 3;
+    if (O.halign==='left')        x = box.x + free * rrange(0, 0.05);
+    else if (O.halign==='right')  x = box.x + free * rrange(0.95, 1.0);
+    else if (O.halign==='center') x = box.x + free * 0.5 + gauss()*free*0.05*O.jitter;
+    else if (P.id==='weave')      x = box.x + free * (0.5 + gauss()*0.16*O.jitter);
+    else if (mode===0)            x = box.x + free * rrange(0, 0.14);
+    else if (mode===1)            x = box.x + free * rrange(0.86, 1.0);
+    else                          x = box.x + free * rrange(0.30, 0.62);
+    x = Math.max(box.x - gw*0.12, Math.min(box.x+box.w - gw*0.88, x));
+    const rot = gauss() * 0.12 * O.rot * P.rotK;
+    const jit = gauss() * step * 0.20 * O.jitter;
+    const useAccent = chance(O.acchit);
+    const outline = !useAccent && chance(O.outline);
+    const col = useAccent ? accentCol() : inkPick();
+    items.push({
+      t:'glyph', ch, x, y:y+jit, size, font:font.css, weight, rot,
+      fill: outline ? null : col,
+      stroke: outline ? col : null,
+      lw: outline ? size*0.018 : 0,
+      anchor:'left', z:'type'
+    });
+    y += step;
+  }
+}
+
+/* ---------- GRID : modular cells + measure marks ---------- */
+function layoutGridMode(items, box, chars, O){
+  const n = Math.max(1, chars.length);
+  const cols = Math.min(3, Math.max(1, Math.round(Math.sqrt(n*0.9))));
+  const rows = Math.ceil(n / cols);
+  const cw = box.w/cols, ch2 = box.h/rows;
+  const font = fontById(O.font);
+  // cap-height ≈ row height so rows nearly touch; wide glyphs bleed across columns
+  const capFudge = 1.34;
+  for (let i=0;i<n;i++){
+    const c = i % cols, r = (i/cols|0);
+    const ch = chars[i];
+    if (ch===' ') continue;
+    const weight = glyphWeight(O, PRESET.blackBias);
+    let size = ch2 * rrange(0.94, 1.02) * capFudge * O.scale;
+    let gw = textW(ch, size, font.css, weight, false);
+    if (gw > cw*1.12){ size *= cw*1.12/gw; gw = textW(ch, size, font.css, weight, false); }  // clamp only the very widest
+    // pull glyphs toward the row centre so letterforms sit closer together
+    const frac = cols>1 ? c/(cols-1) : 0.5;
+    const centered = box.x + c*cw + (cw-gw)/2;
+    const pulled   = box.x + c*cw + (cw-gw)*(1-frac);
+    const cx = centered*0.35 + pulled*0.65 + gauss()*cw*0.02*O.jitter;
+    const cy = box.y + (r+1)*ch2 - ch2*0.14 + gauss()*ch2*0.02*O.jitter;
+    const useAccent = chance(O.acchit*1.3);
+    const col = useAccent ? accentCol() : inkPick();
+    const outline = !useAccent && chance(O.outline*0.7);
+    items.push({t:'glyph', ch, x:cx, y:cy, size, font:font.css, weight, rot:0,
+      fill:outline?null:col, stroke:outline?col:null, lw:outline?size*0.02:0, anchor:'left', z:'type'});
+  }
+  // faint cell gridlines
+  for (let c=1;c<cols;c++) items.push({t:'line', x1:box.x+c*cw, y1:box.y, x2:box.x+c*cw, y2:box.y+box.h, stroke:lineCol(.16), lw:1, dash:[2,5]});
+  for (let r=1;r<rows;r++) items.push({t:'line', x1:box.x, y1:box.y+r*ch2, x2:box.x+box.w, y2:box.y+r*ch2, stroke:lineCol(.16), lw:1, dash:[2,5]});
+}
+
+/* ---------- SPECIMEN : scattered glyph field ---------- */
+function layoutSpecimen(items, box, chars, O){
+  const pool = chars.filter(c=>c!==' ').concat(GLYPHSET);
+  const count = Math.round(rrange(16, 30) * (0.6 + O.scale*0.5));
+  for (let i=0;i<count;i++){
+    const ch = pick(pool);
+    const font = pick(FONTS);
+    const size = box.h * rrange(0.03, 0.16) * (1 + (i<3?1.4:0)) * O.scale;
+    const weight = glyphWeight(O, PRESET.blackBias);
+    const gw = textW(ch, size, font.css, weight, chance(0.2));
+    const x = box.x + rrange(0.04, 0.9)*box.w;
+    const y = box.y + rrange(0.1, 0.95)*box.h;
+    const rot = gauss()*1.1*O.rot + (chance(0.12)?Math.PI/2*(chance(0.5)?1:-1):0);
+    const useAccent = chance(O.acchit*1.6);
+    const outline = !useAccent && chance(O.outline);
+    const col = useAccent ? accentCol() : inkPick();
+    items.push({t:'glyph', ch, x, y, size, font:font.css, weight, rot, italic:chance(0.18),
+      fill:outline?null:col, stroke:outline?col:null, lw:outline?size*0.02:0, anchor:'left', z:'type'});
+  }
+}
+
+/* ---------- COLUMN : big left bleed + justified text right ---------- */
+function layoutColumn(items, box, chars, O){
+  const letters = chars.filter(c=>c!==' ');
+  const n = Math.max(1, letters.length);
+  const font = fontById(O.font);
+  const weight = glyphWeight(O, 0.55);
+  const splitX = box.x + box.w*0.60;              // left spine | right column
+  const spineW = splitX - box.x;
+  const bleed  = spineW * 0.14;
+
+  // ---- left spine: whole word stacked flush-left, bleeding, filling the height ----
+  const lead = box.h / n;
+  const y0 = box.y + lead*0.5;
+  letters.forEach((ch,i)=>{
+    let size = lead * 1.30 * O.scale;
+    let gw = textW(ch, size, font.css, weight, false);
+    if (gw > spineW*1.08){ size *= spineW*1.08/gw; }   // keep the widest from crossing the column
+    const col = (i===0) ? (chance(0.7)?accentCol():PAL.ink[0]) : PAL.ink[0];
+    items.push({t:'glyph', ch, x: box.x - bleed, y: y0 + i*lead + size*0.34, size,
+      font:font.css, weight, rot:0, fill:col, anchor:'left', z:'type'});
+  });
+
+  // ---- divider rule ----
+  items.push({t:'line', x1:splitX, y1:box.y, x2:splitX, y2:box.y+box.h, stroke:lineCol(.32), lw:1.4, z:'under'});
+
+  // ---- right column: heading + justified body ----
+  const lf  = fontById(O.bodyFont).css;
+  const cx  = splitX + box.w*0.035;
+  const cw  = box.x + box.w - cx;
+  const bsz = box.h * O.bodysize;
+  let by = box.y + box.h*0.13;
+  items.push({t:'text', t2:applyCase(O.headline,'upper'), x:cx, y:by,
+    size:bsz*1.2, font:lf, weight:800, fill:accentCol(), anchor:'start', track:0.5});
+  items.push({t:'line', x1:cx, y1:by+bsz*0.7, x2:cx+cw, y2:by+bsz*0.7, stroke:lineCol(.3), lw:1});
+  by += bsz*2.4;
+  if (O.kicker.trim()){
+    items.push({t:'text', t2:O.kicker, x:cx, y:by, size:bsz*0.85, font:lf, weight:600, fill:lineCol(.7), anchor:'start', track:1.4});
+    by += bsz*2.0;
+  }
+  if (O.bodyOn && O.body.trim()){
+    const lines = wrap(O.body, cw, bsz, lf, 500);
+    items.push({t:'para', lines, x:cx, y:by, size:bsz, lh:bsz*O.bodylead, font:lf, weight:500, fill:inkPick(), w:cw, align:'justify'});
+  }
+}
+
+/* ---------- LIQUID : heavy rounded row with dripping tails (SHOP) ---------- */
+function layoutLiquid(items, box, chars, O){
+  const cs = chars.filter(c=>c!==' ');
+  const n = Math.max(1, cs.length);
+  const font = fontById('round');
+  const weight = 900;
+  const trackK = -0.06;               // negative tracking → letters fuse
+  // fit the whole word across the content width
+  let total = 0;
+  for (const ch of cs) total += textW(ch, 100, font.css, weight, false) + 100*trackK;
+  total -= 100*trackK;
+  let size = (box.w/total) * 100 * O.scale;
+  size = Math.min(size, box.h*0.34);                 // keep room below for the drips
+  const tr = size*trackK;
+  const widths = cs.map(ch => textW(ch, size, font.css, weight, false));
+  let rowW = widths.reduce((a,b)=>a+b+tr, 0) - tr;
+  let x = O.halign==='left'  ? box.x
+        : O.halign==='right' ? box.x + (box.w - rowW)
+        :                      box.x + (box.w - rowW)/2;
+  const baseY = box.y + size*0.86;
+  const room = (box.y + box.h) - baseY;              // vertical space below the baseline
+  const col = PAL.ink[0];
+  cs.forEach((ch,i)=>{
+    const accent = chance(O.acchit);
+    const c = accent ? accentCol() : col;
+    // drip FIRST so the glyph caps it cleanly and the two read as one form
+    if (chance(0.6 + O.overlap*0.35)){
+      const tw = Math.max(size*0.34, Math.min(widths[i]*0.62, size*0.55));
+      const tx = x + widths[i]/2 - tw/2;
+      const th = room * rrange(0.28, 1.0) * (0.5 + O.overlap*0.6);
+      items.push({t:'rrect', x:tx, y:baseY - size*0.55, w:tw, h:size*0.55 + th, r:tw/2, fill:c, z:'type'});
+    }
+    items.push({t:'glyph', ch, x, y:baseY, size, font:font.css, weight, rot:0, fill:c, anchor:'left', z:'type'});
+    x += widths[i] + tr;
+  });
+}
+
+/* ---------- overlays ---------- */
+function layPanels(items, box, O){
+  const fill   = PAL.light ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.05)';
+  const stroke = PAL.light ? 'rgba(0,0,0,0.05)'       : 'rgba(255,255,255,0.06)';
+  const n = Math.round(rrange(4, 11) * (0.5 + O.paneldens));
+  for (let i=0;i<n;i++){
+    const w = box.w * rrange(0.16, 0.55), h = box.h * rrange(0.05, 0.24);
+    const x = box.x + rrange(-0.06, 0.92)*box.w, y = box.y + rrange(-0.03, 0.94)*box.h;
+    items.push({t:'rect', x, y, w, h, fill, stroke, lw:1});
+  }
+}
+function layDistress(items, box){
+  const n = rint(12, 28);
+  for (let i=0;i<n;i++){
+    const x = box.x + R()*box.w, y = box.y + R()*box.h, len = box.w * rrange(0.02, 0.2);
+    items.push({t:'line', x1:x, y1:y, x2:x+len, y2:y+gauss()*4, stroke:lineCol(rrange(0.04,0.14)), lw:R()<0.5?1:2});
+  }
+  for (let i=0;i<n*2;i++)
+    items.push({t:'dot', x:box.x+R()*box.w, y:box.y+R()*box.h, r:R()*1.5, fill:lineCol(rrange(0.05,0.2))});
+}
+function layGrid(items, box, O){
+  const step = box.w / rint(8, 14);
+  for (let x=box.x; x<=box.x+box.w+0.5; x+=step)
+    items.push({t:'line', x1:x, y1:box.y, x2:x, y2:box.y+box.h, stroke:lineCol(O.gridop), lw:1, z:'under'});
+  for (let y=box.y; y<=box.y+box.h+0.5; y+=step)
+    items.push({t:'line', x1:box.x, y1:y, x2:box.x+box.w, y2:y, stroke:lineCol(O.gridop), lw:1, z:'under'});
+}
+function layDots(items, box, O){
+  const step = box.w / 46;
+  for (let x=box.x; x<=box.x+box.w; x+=step)
+    for (let y=box.y; y<=box.y+box.h; y+=step)
+      items.push({t:'dot', x, y, r:1.1, fill:lineCol(0.10+O.gridop*0.3), z:'under'});
+}
+function layMeasure(items, box, O){
+  const k = accentCol();
+  const letters = 'ABCDABCD'.split('');
+  const nMarks = rint(2, 4);
+  const cap = Math.min(box.w, box.h)*0.008;   // half-length of the end caps
+  const lsz = box.h*0.016;                      // label size
+  const loff = box.w*0.014;                     // label offset from the line
+  const lc = lineCol(.55);
+  for (let i=0;i<nMarks;i++){
+    const vertical = chance(0.6);
+    const L = letters[i];
+    if (vertical){
+      const x = box.x + (i%2 ? box.w + box.w*0.035 : -box.w*0.035);
+      const y0 = box.y + rrange(0.1,0.4)*box.h, y1 = y0 + rrange(0.14,0.3)*box.h;
+      items.push({t:'line', x1:x, y1:y0, x2:x, y2:y1, stroke:lc, lw:1.4});
+      items.push({t:'line', x1:x-cap, y1:y0, x2:x+cap, y2:y0, stroke:lc, lw:1.4});
+      items.push({t:'line', x1:x-cap, y1:y1, x2:x+cap, y2:y1, stroke:lc, lw:1.4});
+      items.push({t:'text', t2:L, x:x+(i%2?-loff:loff), y:(y0+y1)/2+lsz*0.35, size:lsz, font:"var(--mono)", weight:700, fill:lineCol(.75), anchor:i%2?'end':'start'});
+    } else {
+      const y = box.y + (chance(0.5)? -box.h*0.03 : box.h*1.03);
+      const x0 = box.x + rrange(0.2,0.4)*box.w, x1 = x0 + rrange(0.16,0.34)*box.w;
+      items.push({t:'line', x1:x0, y1:y, x2:x1, y2:y, stroke:lc, lw:1.4});
+      items.push({t:'line', x1:x0, y1:y-cap, x2:x0, y2:y+cap, stroke:lc, lw:1.4});
+      items.push({t:'line', x1:x1, y1:y-cap, x2:x1, y2:y+cap, stroke:lc, lw:1.4});
+      items.push({t:'text', t2:L, x:(x0+x1)/2, y:y-loff*0.6, size:lsz, font:"var(--mono)", weight:700, fill:lineCol(.75), anchor:'middle'});
+    }
+  }
+  // one accent connector dot
+  items.push({t:'dot', x:box.x+box.w*rrange(0.4,0.9), y:box.y+box.h*rrange(0.1,0.5), r:box.w*0.005, fill:k});
+}
+function layScatter(items, box, O){
+  const src = O.labels.length ? O.labels : TECH;
+  const count = Math.round(rrange(4, 16) * O.dens);
+  const lf = fontById(O.labelFont).css;
+  for (let i=0;i<count;i++){
+    const t = pick(chance(0.5)? src : TECH);
+    const size = box.h * rrange(0.010, 0.022);
+    const x = box.x + rrange(0.02, 0.9)*box.w;
+    const y = box.y + rrange(0.06, 0.96)*box.h;
+    const rot = chance(0.75)? 0 : (Math.PI/2*(chance(0.5)?1:-1));
+    const col = chance(O.acchit*1.4)? accentCol() : lineCol(rrange(0.4,0.85));
+    // small leader line + node, like the reference posters
+    if (chance(0.5)){
+      const ll = box.w*rrange(0.03,0.09);
+      items.push({t:'line', x1:x-ll, y1:y-size*0.35, x2:x-box.w*0.004, y2:y-size*0.35, stroke:lineCol(.4), lw:1});
+      items.push({t:'dot', x:x-ll, y:y-size*0.35, r:box.w*0.0022, fill:lineCol(.6)});
+    }
+    items.push({t:'text', t2:t, x, y, size, font:lf, weight:500, fill:col, anchor:'start', rot, track:0.4});
+  }
+}
+function layBody(items, box, O){
+  const lf = fontById(O.bodyFont).css;
+  const size = box.h * O.bodysize;
+  const colW = box.w * O.bodywidth;
+  const lead = size * O.bodylead;
+  const lines = wrap(O.body, colW, size, lf, 500);
+  const blockH = lines.length * lead;
+  const pad = box.w*0.02;
+  let x, y;
+  switch (O.bodypos){
+    case 'tl': x = box.x + pad;                 y = box.y + box.h*0.10; break;
+    case 'tr': x = box.x + box.w - colW - pad;  y = box.y + box.h*0.10; break;
+    case 'bl': x = box.x + pad;                 y = box.y + box.h - blockH - box.h*0.05; break;
+    case 'br': x = box.x + box.w - colW - pad;  y = box.y + box.h - blockH - box.h*0.05; break;
+    case 'center': x = box.x + (box.w-colW)/2;  y = box.y + (box.h-blockH)/2; break;
+    default:   x = box.x + box.w - colW - pad;  y = box.y + box.h * rrange(0.58, 0.74);
+  }
+  if (O.bhead){
+    items.push({t:'text', t2:applyCase(O.headline,'upper'), x, y:y-size*1.4,
+      size:size*1.05, font:lf, weight:800, fill:accentCol(), anchor:'start', track:0.6});
+  }
+  items.push({t:'para', lines, x, y, size, lh:lead, font:lf, weight:500, fill:inkPick(), w:colW, align:O.bodyalign});
+}
+function layKicker(items, box, O){
+  const lf = fontById(O.labelFont).css;
+  const size = box.h * 0.013;
+  items.push({t:'text', t2:O.kicker, x:box.x, y:box.y - box.h*0.012, size, font:lf, weight:600, fill:lineCol(.75), anchor:'start', track:2.2});
+  items.push({t:'text', t2:'TYPO//FORGE', x:box.x+box.w, y:box.y - box.h*0.012, size:size*0.9, font:"var(--mono)", weight:700, fill:accentCol(), anchor:'end', track:1.5});
+}
+function layTicks(items, box, W, H, O){
+  const pitch = Math.min(W,H)/130;           // fine, tight ruler — constant pitch on both axes
+  const minor = pitch*0.85, major = pitch*2.4, majEvery = 10;
+  const nx = Math.floor(box.w/pitch), ny = Math.floor(box.h/pitch);
+  for (let i=0;i<=nx;i++){
+    const big = i%majEvery===0, x = box.x + i*pitch;
+    items.push({t:'line', x1:x, y1:box.y, x2:x, y2:box.y+(big?major:minor), stroke:lineCol(big?.6:.26), lw:big?1.4:1});
+  }
+  for (let i=0;i<=ny;i++){
+    const big = i%majEvery===0, y = box.y + i*pitch;
+    items.push({t:'line', x1:box.x, y1:y, x2:box.x+(big?major:minor), y2:y, stroke:lineCol(big?.6:.26), lw:big?1.4:1});
+  }
+}
+function layReg(items, box, W, H){
+  const s = Math.min(W,H)*0.02;
+  const corners = [[box.x,box.y],[box.x+box.w,box.y],[box.x,box.y+box.h],[box.x+box.w,box.y+box.h]];
+  corners.forEach(([x,y])=>{
+    items.push({t:'line', x1:x-s, y1:y, x2:x+s, y2:y, stroke:lineCol(.5), lw:1.2});
+    items.push({t:'line', x1:x, y1:y-s, x2:x, y2:y+s, stroke:lineCol(.5), lw:1.2});
+    items.push({t:'dot', x, y, r:s*0.4, fill:'none', stroke:lineCol(.5), lw:1.2});
+  });
+}
+
+/* ---------- text wrapping ---------- */
+function wrap(str, maxW, size, css, weight){
+  const words = str.split(/\s+/);
+  const lines = []; let cur = '';
+  for (const w of words){
+    const test = cur ? cur+' '+w : w;
+    if (textW(test, size, css, weight, false) > maxW && cur){ lines.push(cur); cur = w; }
+    else cur = test;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+/* ============================================================ canvas render */
+function render(scale){
+  const S = SCENE || build(readState());
+  const O = S.O;
+  const cv = $('out');
+  const alpha = $('talpha').dataset.on === '1';
+  cv.width = S.W * scale; cv.height = S.H * scale;
+  const g = cv.getContext('2d');
+  g.save(); g.scale(scale, scale);
+  if (!alpha){ g.fillStyle = S.bg; g.fillRect(0,0,S.W,S.H); }
+  g.textBaseline = 'alphabetic';
+
+  const under = S.items.filter(i => i.z==='under');
+  const type  = S.items.filter(i => i.z==='type');
+  const over  = S.items.filter(i => i.z!=='under' && i.z!=='type');
+
+  for (const it of under) drawItem(g, it, S);
+
+  const fxOn = O.smear>0 || O.blur>0 || O.glitch>0 || O.aberr>0;
+  if (fxOn){
+    const T = document.createElement('canvas'); T.width = cv.width; T.height = cv.height;
+    const tg = T.getContext('2d'); tg.scale(scale, scale); tg.textBaseline='alphabetic';
+    for (const it of type) drawItem(tg, it, S);
+    if (O.smear>0) fxSmear(T, tg, O);
+    if (O.halftone>0) fxHalftone(T, tg, O.halftone, scale);
+    if (O.glitch>0 || O.aberr>0) fxGlitch(tg, T.width, T.height, O.glitch, O.aberr, O.seed);
+    g.save(); g.setTransform(1,0,0,1,0,0);
+    if (O.blur>0) g.filter = `blur(${(O.blur*scale).toFixed(2)}px)`;
+    g.drawImage(T, 0, 0);
+    g.filter='none'; g.restore();
+  } else {
+    for (const it of type) drawItem(g, it, S);
+  }
+
+  for (const it of over) drawItem(g, it, S);
+  if (O.vig>0 && !alpha) drawVignette(g, S);
+  if (O.scan>0) drawScanlines(g, S, O.scan);
+  if (O.grain>0) drawGrain(g, S, scale);
+  g.restore();
+  cv.classList.toggle('alpha', alpha);
+  return { cv, S };
+}
+
+/* ---- raster post-effects (PNG only; SVG stays clean vector) ---- */
+function fxSmear(T, tg, O){
+  const snap = document.createElement('canvas'); snap.width=T.width; snap.height=T.height;
+  snap.getContext('2d').drawImage(T,0,0);
+  const ang = O.smeardir * Math.PI/180;
+  const dist = O.smear * T.width * 0.07;
+  const steps = Math.max(2, Math.round(O.smear*24));
+  tg.save(); tg.setTransform(1,0,0,1,0,0);
+  for (let i=1;i<=steps;i++){
+    tg.globalAlpha = (1 - i/steps) * 0.5;
+    tg.drawImage(snap, Math.cos(ang)*dist*i/steps, Math.sin(ang)*dist*i/steps);
+  }
+  tg.globalAlpha=1; tg.restore();
+}
+function fxGlitch(tg, w, h, gl, ab, seed){
+  const gr = mulberry(hash((seed||'x') + '|glitch'));
+  const src = tg.getImageData(0,0,w,h), s = src.data;
+  const out = tg.createImageData(w,h), o = out.data;
+  const rowShift = new Int32Array(h);
+  if (gl>0){
+    let y=0;
+    while (y<h){
+      const band = 3 + (gr()*70|0);
+      const on = gr() < 0.5;
+      const shift = on ? ((gr()*2-1) * gl * w*0.14)|0 : 0;
+      for (let k=0;k<band && y<h;k++,y++) rowShift[y] = shift;
+    }
+  }
+  const dr = Math.round(ab * w * 0.012), db = -dr;
+  const clr = x => x<0 ? 0 : x>=w ? w-1 : x;
+  for (let y=0;y<h;y++){
+    const rs = rowShift[y], base = y*w;
+    for (let x=0;x<w;x++){
+      const di = (base+x)*4, sx = x - rs;
+      const iR = (base + clr(sx-dr))*4;
+      const iG = (base + clr(sx))*4;
+      const iB = (base + clr(sx-db))*4;
+      o[di]   = s[iR];
+      o[di+1] = s[iG+1];
+      o[di+2] = s[iB+2];
+      o[di+3] = s[iG+3];
+    }
+  }
+  tg.putImageData(out,0,0);
+}
+function fxHalftone(T, tg, cellCss, scale){
+  const w = T.width, h = T.height;
+  const c = Math.max(3, Math.round(cellCss * scale));
+  const img = tg.getImageData(0,0,w,h), s = img.data;
+  tg.save(); tg.setTransform(1,0,0,1,0,0); tg.clearRect(0,0,w,h);
+  for (let y=0;y<h;y+=c){
+    for (let x=0;x<w;x+=c){
+      let a=0,r=0,gg=0,b=0,cnt=0;
+      const yM=Math.min(y+c,h), xM=Math.min(x+c,w);
+      for (let yy=y;yy<yM;yy+=2) for (let xx=x;xx<xM;xx+=2){
+        const i=(yy*w+xx)*4, al=s[i+3];
+        a+=al; if(al>24){ r+=s[i]; gg+=s[i+1]; b+=s[i+2]; cnt++; }
+      }
+      const samples=Math.ceil((yM-y)/2)*Math.ceil((xM-x)/2);
+      const cover = a/(samples*255);
+      if (cover<0.03 || !cnt) continue;
+      r/=cnt; gg/=cnt; b/=cnt;
+      tg.fillStyle=`rgb(${r|0},${gg|0},${b|0})`;
+      tg.beginPath(); tg.arc(x+c/2, y+c/2, (c*0.64)*Math.sqrt(cover), 0, 6.28319); tg.fill();
+    }
+  }
+  tg.restore();
+}
+function drawScanlines(g, S, amt){
+  g.save(); g.fillStyle = `rgba(0,0,0,${amt*0.55})`;
+  for (let y=0;y<S.H;y+=3) g.fillRect(0, y, S.W, 1.4);
+  g.restore();
+}
+function roundRect(g,x,y,w,h,r){
+  r = Math.min(r, w/2, h/2);
+  g.beginPath();
+  g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath();
+}
+function resolveVar(c){ return c==='var(--mono)' ? "ui-monospace,Menlo,Consolas,monospace" : c; }
+function drawItem(g, it, S){
+  switch(it.t){
+    case 'rect':
+      if (it.fill){ g.fillStyle=it.fill; g.fillRect(it.x,it.y,it.w,it.h); }
+      if (it.stroke){ g.strokeStyle=it.stroke; g.lineWidth=it.lw||1; g.setLineDash(it.dash||[]); g.strokeRect(it.x,it.y,it.w,it.h); g.setLineDash([]); }
+      break;
+    case 'line':
+      g.strokeStyle=it.stroke; g.lineWidth=it.lw||1; g.setLineDash(it.dash||[]);
+      g.beginPath(); g.moveTo(it.x1,it.y1); g.lineTo(it.x2,it.y2); g.stroke(); g.setLineDash([]);
+      break;
+    case 'dot':
+      g.beginPath(); g.arc(it.x,it.y,it.r,0,6.28319);
+      if (it.fill && it.fill!=='none'){ g.fillStyle=it.fill; g.fill(); }
+      if (it.stroke){ g.strokeStyle=it.stroke; g.lineWidth=it.lw||1; g.stroke(); }
+      break;
+    case 'glyph': {
+      g.save(); g.translate(it.x, it.y); if (it.rot) g.rotate(it.rot);
+      g.font = fontStr(it.size, resolveVar(it.font), it.weight, it.italic);
+      g.textAlign = 'left';
+      if (it.flip){ const w = g.measureText(it.ch).width; g.translate(w,0); g.scale(-1,1); }
+      if (it.metal){
+        const grd = g.createLinearGradient(0, -it.size*0.72, 0, it.size*0.12);
+        for (const [o,c] of CHROME) grd.addColorStop(o,c);
+        g.fillStyle = grd; g.fillText(it.ch, 0, 0);
+      } else if (it.fill){ g.fillStyle=it.fill; g.fillText(it.ch, 0, 0); }
+      if (it.stroke){ g.strokeStyle=it.stroke; g.lineWidth=it.lw||1; g.strokeText(it.ch, 0, 0); }
+      g.restore(); break;
+    }
+    case 'rrect': {
+      if (it.metal){
+        const grd = g.createLinearGradient(0, it.y, 0, it.y+it.h);
+        for (const [o,c] of CHROME) grd.addColorStop(o,c);
+        g.fillStyle = grd;
+      } else g.fillStyle = it.fill;
+      roundRect(g, it.x, it.y, it.w, it.h, it.r); g.fill(); break;
+    }
+    case 'text': {
+      g.save(); g.translate(it.x, it.y); if (it.rot) g.rotate(it.rot);
+      g.font = fontStr(it.size, resolveVar(it.font), it.weight, it.italic);
+      g.fillStyle = it.fill; g.textAlign = it.anchor==='middle'?'center':it.anchor==='end'?'right':'left';
+      if (it.track){ drawTracked(g, it.t2, it.size, it.track, it.anchor); }
+      else g.fillText(it.t2, 0, 0);
+      g.restore(); break;
+    }
+    case 'para': {
+      g.font = fontStr(it.size, resolveVar(it.font), it.weight, false);
+      g.fillStyle = it.fill; g.textAlign='left';
+      const last = it.lines.length - 1;
+      it.lines.forEach((ln,i)=>{
+        const yy = it.y + i*it.lh;
+        if (it.align==='justify' && i<last) drawJustified(g, ln, it.x, yy, it.w);
+        else g.fillText(ln, it.x, yy);
+      });
+      break;
+    }
+  }
+}
+function drawJustified(g, line, x, y, w){
+  const words = line.split(' ');
+  if (words.length < 2){ g.fillText(line, x, y); return; }
+  let wsum = 0; for (const wd of words) wsum += g.measureText(wd).width;
+  const gap = (w - wsum) / (words.length - 1);
+  let cx = x;
+  for (const wd of words){ g.fillText(wd, cx, y); cx += g.measureText(wd).width + gap; }
+}
+function drawTracked(g, str, size, track, anchor){
+  const px = track * size * 0.06;
+  let total = 0; for (const ch of str) total += g.measureText(ch).width + px;
+  total -= px;
+  let x = anchor==='end' ? -total : anchor==='middle' ? -total/2 : 0;
+  g.textAlign='left';
+  for (const ch of str){ g.fillText(ch, x, 0); x += g.measureText(ch).width + px; }
+}
+function drawVignette(g, S){
+  const grd = g.createRadialGradient(S.W/2,S.H/2,Math.min(S.W,S.H)*0.2, S.W/2,S.H/2,Math.max(S.W,S.H)*0.72);
+  grd.addColorStop(0,'rgba(0,0,0,0)'); grd.addColorStop(1,`rgba(0,0,0,${S.O.vig*0.7})`);
+  g.fillStyle=grd; g.fillRect(0,0,S.W,S.H);
+}
+function drawGrain(g, S, scale){
+  const n = Math.floor(S.W*S.H*0.03);
+  g.save();
+  for (let i=0;i<n;i++){
+    const a = R()*S.O.grain*0.5;
+    const tone = R()<0.5 ? '0,0,0' : '255,255,255';
+    g.fillStyle = `rgba(${tone},${a})`;
+    g.fillRect(R()*S.W, R()*S.H, 1, 1);
+  }
+  g.restore();
+}
+
+/* ============================================================ svg export */
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function buildSVG(){
+  const S = SCENE || build(readState());
+  const alpha = $('talpha').dataset.on === '1';
+  const P=[]; P.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${S.W}" height="${S.H}" viewBox="0 0 ${S.W} ${S.H}">`);
+  if (S.items.some(i => i.metal)){
+    const stops = CHROME.map(([o,c])=>`<stop offset="${o}" stop-color="${c}"/>`).join('');
+    P.push(`<defs><linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient></defs>`);
+  }
+  if (!alpha) P.push(`<rect width="${S.W}" height="${S.H}" fill="${S.bg}"/>`);
+  const zr = i => i.z==='under' ? 0 : i.z==='type' ? 1 : 2;
+  const ordered = [...S.items].sort((a,b)=> zr(a)-zr(b));
+  for (const it of ordered) P.push(svgItem(it));
+  if (S.O.vig>0 && !alpha){
+    P.push(`<radialGradient id="vg" cx="50%" cy="50%" r="72%"><stop offset="0%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity="${(S.O.vig*0.7).toFixed(3)}"/></radialGradient><rect width="${S.W}" height="${S.H}" fill="url(#vg)"/>`);
+  }
+  P.push('</svg>'); return P.join('\n');
+}
+function svgFont(it){
+  const css = resolveVar(it.font).replace(/"/g,"'");
+  return `font-family="${esc(css)}" font-size="${it.size.toFixed(2)}" font-weight="${it.weight||400}"${it.italic?' font-style="italic"':''}`;
+}
+function xfMove(x,y,rot){ return rot ? `transform="translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${(rot*180/Math.PI).toFixed(2)})"` : `transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"`; }
+function svgItem(it){
+  switch(it.t){
+    case 'rect':{
+      let a=`<rect x="${it.x.toFixed(1)}" y="${it.y.toFixed(1)}" width="${it.w.toFixed(1)}" height="${it.h.toFixed(1)}" fill="${it.fill||'none'}"`;
+      if (it.stroke) a+=` stroke="${it.stroke}" stroke-width="${it.lw||1}"${it.dash?` stroke-dasharray="${it.dash.join(' ')}"`:''}`;
+      return a+'/>';
+    }
+    case 'line':
+      return `<line x1="${it.x1.toFixed(1)}" y1="${it.y1.toFixed(1)}" x2="${it.x2.toFixed(1)}" y2="${it.y2.toFixed(1)}" stroke="${it.stroke}" stroke-width="${it.lw||1}"${it.dash?` stroke-dasharray="${it.dash.join(' ')}"`:''}/>`;
+    case 'dot':
+      return `<circle cx="${it.x.toFixed(1)}" cy="${it.y.toFixed(1)}" r="${it.r.toFixed(1)}" fill="${it.fill||'none'}"${it.stroke?` stroke="${it.stroke}" stroke-width="${it.lw||1}"`:''}/>`;
+    case 'glyph':{
+      let f = it.metal ? 'fill="url(#chrome)"' : it.fill?`fill="${it.fill}"`:'fill="none"';
+      if (it.stroke) f+=` stroke="${it.stroke}" stroke-width="${(it.lw||1).toFixed(2)}"`;
+      let xf = `translate(${it.x.toFixed(2)} ${it.y.toFixed(2)})`;
+      if (it.rot) xf += ` rotate(${(it.rot*180/Math.PI).toFixed(2)})`;
+      if (it.flip){ const w = textW(it.ch, it.size, resolveVar(it.font), it.weight, it.italic); xf += ` translate(${w.toFixed(2)} 0) scale(-1 1)`; }
+      return `<text transform="${xf}" ${svgFont(it)} ${f} text-anchor="start">${esc(it.ch)}</text>`;
+    }
+    case 'rrect':
+      return `<rect x="${it.x.toFixed(1)}" y="${it.y.toFixed(1)}" width="${it.w.toFixed(1)}" height="${it.h.toFixed(1)}" rx="${it.r.toFixed(1)}" fill="${it.metal?'url(#chrome)':it.fill}"/>`;
+    case 'text':{
+      const anc = it.anchor==='middle'?'middle':it.anchor==='end'?'end':'start';
+      const ls = it.track?` letter-spacing="${(it.track*it.size*0.06).toFixed(2)}"`:'';
+      return `<text ${xfMove(it.x,it.y,it.rot)} ${svgFont(it)} fill="${it.fill}" text-anchor="${anc}"${ls}>${esc(it.t2)}</text>`;
+    }
+    case 'para':{
+      const last = it.lines.length - 1;
+      const spans = it.lines.map((ln,i)=>{
+        const just = it.align==='justify' && i<last && ln.indexOf(' ')>=0;
+        const jt = just ? ` textLength="${it.w.toFixed(1)}" lengthAdjust="spacing"` : '';
+        return `<tspan x="${it.x.toFixed(1)}" y="${(it.y+i*it.lh).toFixed(1)}"${jt}>${esc(ln)}</tspan>`;
+      }).join('');
+      return `<text ${svgFont(it)} fill="${it.fill}" text-anchor="start">${spans}</text>`;
+    }
+  }
+  return '';
+}
+
+/* ============================================================ download ============ */
+function saveBlob(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function plateName(ext, suf){
+  const O = readState();
+  return `typo_${O.headline.toLowerCase().replace(/[^a-z0-9]+/g,'')||'plate'}_${O.preset}_${O.seed.replace(/[^a-z0-9]+/gi,'')}${suf}.${ext}`;
+}
+function downloadPNG(scale){
+  const { cv } = render(scale);
+  cv.toBlob(b => saveBlob(b, plateName('png', scale>1?'@'+scale+'x':'')), 'image/png');
+  render(currentViewScale());
+}
+function downloadSVG(){
+  const svg = buildSVG();
+  saveBlob(new Blob([svg], {type:'image/svg+xml'}), plateName('svg',''));
+}
+
+/* ============================================================ view / meta ============ */
+function currentViewScale(){ return 1; }
+function update(){
+  build(readState());
+  render(1);
+  const S = SCENE;
+  $('meta').innerHTML = `${S.W}×${S.H} px · ${PRESET.name.toUpperCase()} · ${PAL.name} · seed “${readState().seed}” · <b>${S.items.length} elements</b>`;
+  // fit vs 100
+  const frame = $('frame');
+  frame.dataset.zoom = $('zoom').value;
+  $('out').style.width = frame.dataset.zoom==='fit' ? '' : (S.W+'px');
+  $('out').style.height = frame.dataset.zoom==='fit' ? '' : (S.H+'px');
+}
+
+/* ============================================================ pick components ============ */
+function buildPalPick(){
+  const host = $('palPick'); host.dataset.val = PAL.id;
+  const swatch = p => `<span class="sw">${[p.bg,...p.ink.slice(0,3),p.accents[0]].map(c=>`<i style="background:${c}"></i>`).join('')}</span>`;
+  host.innerHTML = `
+    <button class="pick-btn" type="button">${swatch(PAL)}<span class="pick-name">${PAL.name}</span><span class="pick-caret">▼</span></button>
+    <div class="pick-list">${PALETTES.map(p=>`<button class="pick-row" data-id="${p.id}" ${p.id===PAL.id?'data-sel="1"':''}>${swatch(p)}<span>${p.name}</span></button>`).join('')}</div>`;
+  wirePick(host, id=>{ PAL = PALETTES.find(p=>p.id===id); if($('tacc').dataset.on!=='1') $('accent').value = PAL.accents[0]; buildPalPick(); update(); });
+}
+function buildFontPick(hostId, current, onPick, prefix){
+  const host = $(hostId); host.dataset.val = current;
+  const f = fontById(current);
+  host.innerHTML = `
+    <button class="pick-btn" type="button"><span class="pick-name" style="font-family:${f.css};color:var(--ink)">${prefix}: ${f.name}</span><span class="pick-caret">▼</span></button>
+    <div class="pick-list">${FONTS.map(o=>`<button class="pick-row" data-id="${o.id}" ${o.id===current?'data-sel="1"':''}><span style="font-family:${o.css};font-size:13px">Ag</span><span>${o.name}</span></button>`).join('')}</div>`;
+  wirePick(host, id=>{ host.dataset.val=id; buildFontPick(hostId, id, onPick, prefix); onPick(id); });
+}
+function wirePick(host, onPick){
+  const btn = host.querySelector('.pick-btn');
+  btn.onclick = e => { e.stopPropagation(); document.querySelectorAll('.pick.open').forEach(p=>p!==host&&p.classList.remove('open')); host.classList.toggle('open'); };
+  host.querySelectorAll('.pick-row').forEach(r => r.onclick = e => { e.stopPropagation(); host.classList.remove('open'); onPick(r.dataset.id); });
+}
+document.addEventListener('click', ()=>document.querySelectorAll('.pick.open').forEach(p=>p.classList.remove('open')));
+
+/* ============================================================ wire controls ============ */
+function fillPreset(){
+  $('preset').innerHTML = PRESETS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  $('preset').value = PRESET.id; $('presetnote').textContent = PRESET.note;
+}
+const sliders = [
+  ['scale','scaleval',v=>v+'%'],['overlap','overlapval',v=>v+'%'],['rot','rotval',v=>v+'%'],
+  ['jitter','jitterval',v=>v+'%'],['weight','weightval',v=>String(v)],['outline','outlineval',v=>v+'%'],
+  ['acchit','acchitval',v=>v+'%'],['margin','marginval',v=>v+'%'],['gridop','gridopval',v=>v+'%'],
+  ['dens','densval',v=>v+'%'],['grain','grainval',v=>v+'%'],['vig','vigval',v=>v+'%'],
+  ['halftone','halftoneval',v=>v+'%'],['scan','scanval',v=>v+'%'],
+  ['blur','blurval',v=>v+'%'],['glitch','glitchval',v=>v+'%'],['aberr','aberrval',v=>v+'%'],
+  ['smear','smearval',v=>v+'%'],['smeardir','smeardirval',v=>v+'°'],['flip','flipval',v=>v+'%'],
+  ['paneldens','paneldensval',v=>v+'%'],
+  ['bodysize','bodysizeval',v=>v+'%'],['bodywidth','bodywidthval',v=>v+'%'],['bodylead','bodyleadval',v=>v+'%']
+];
+function syncLabels(){ sliders.forEach(([id,lab,fmt])=>{ if($(lab)) $(lab).textContent = fmt($(id).value); }); $('lblcount').textContent = readState().labels.length; }
+
+function toggleChip(el){ el.dataset.on = el.dataset.on==='1'?'0':'1'; }
+
+function init(){
+  buildPalPick();
+  buildFontPick('fontPick', 'didone', id=>update(), 'Headline');
+  buildFontPick('labelFontPick', 'mono', id=>update(), 'Labels');
+  buildFontPick('bodyFontPick', 'mono', id=>update(), 'Body');
+  fillPreset();
+
+  $('preset').onchange = e => { PRESET = PRESETS.find(p=>p.id===e.target.value); $('presetnote').textContent=PRESET.note; update(); };
+
+  // text + selects
+  ['seed','headline','kicker','body','labels','format','accent',
+   'hcase','halign','hcolor','bodypos','bodyalign'].forEach(id => {
+    $(id).addEventListener('input',  ()=>{ syncLabels(); update(); });
+    $(id).addEventListener('change', ()=>{ syncLabels(); update(); });
+  });
+  // sliders
+  sliders.forEach(([id])=> $(id).addEventListener('input', ()=>{ syncLabels(); update(); }));
+
+  // chips / toggles
+  ['cgrid','cmeasure','cticks','cdots','creg','cframe','cscatter','cbody','cpanels','cseam','cdistress','cchrome','hital','bhead','tacc','talpha'].forEach(id=>{
+    $(id).addEventListener('click', ()=>{ toggleChip($(id)); if(id==='talpha'){ $(id).setAttribute('aria-pressed', $(id).dataset.on==='1'); } update(); });
+  });
+
+  // seed dice / lock / reroll
+  $('dice').onclick = () => {
+    if ($('lock').dataset.locked==='1') return;
+    $('dice').classList.add('rolling'); setTimeout(()=>$('dice').classList.remove('rolling'),450);
+    $('seed').value = Math.random().toString(36).slice(2,9); update();
+  };
+  $('lock').onclick = () => { const l=$('lock'); l.dataset.locked = l.dataset.locked==='1'?'0':'1'; };
+  $('reroll').onclick = () => {
+    if ($('lock').dataset.locked!=='1') $('seed').value = Math.random().toString(36).slice(2,9);
+    else $('seed').value = $('seed').value + '·'; // nudge so composition changes even when "locked" concept differs
+    update();
+  };
+
+  // export
+  $('dl1').onclick=()=>downloadPNG(1); $('dl2').onclick=()=>downloadPNG(2); $('dl3').onclick=()=>downloadPNG(3);
+  $('dlsvg').onclick=downloadSVG;
+  $('zoom').onchange=update;
+
+  syncLabels();
+  update();
+}
+init();
+</script>
+</body>
+</html>
