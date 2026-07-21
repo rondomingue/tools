@@ -1398,6 +1398,12 @@ for (const id of ['creg','csight','csidebar','cgrid','cframe','cscan','tacc','ta
   });
 }
 
+/* export */
+$('dl1').addEventListener('click', () => downloadPNG(1));
+$('dl2').addEventListener('click', () => downloadPNG(2));
+$('dl3').addEventListener('click', () => downloadPNG(3));
+$('dlsvg').addEventListener('click', downloadSVG);
+
 /* lexicon */
 function syncWords(){
   const w = readState().words;
