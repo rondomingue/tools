@@ -288,7 +288,7 @@
   <div class="top-right">
     <div class="top-status">
       <span class="status-dot"></span>
-      <span><strong id="live-count">4</strong> GENERATORS</span>
+      <span><strong id="live-count">5</strong> GENERATORS</span>
       <span class="top-divider"></span>
       <span>VERSION <strong>01.00.00</strong></span>
       <span class="top-divider"></span>
@@ -315,7 +315,7 @@
     <div class="hero-system-meta" aria-label="Index metadata">
       <span>Version <b>01.00.00</b></span>
       <span>Last updated <b>July 21, 2026</b></span>
-      <span><b>4</b> generators</span>
+      <span><b>5</b> generators</span>
     </div>
   </div>
 </section>
@@ -324,7 +324,7 @@
 <div class="content">
   <div class="section-header">
     <span class="section-label">Generators</span>
-    <span class="section-count">4 / ∞</span>
+    <span class="section-count">5 / ∞</span>
   </div>
 
   <div class="cards">
@@ -551,6 +551,62 @@
       </div>
     </a>
 
+    <!-- TOPO -->
+    <a href="topo.html" class="iface-card anim-5" style="--c:#d9a441;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(217,164,65,0.55),transparent 70%);"></div>
+      <div class="card-preview" style="background:#06090a;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <pattern id="gtopo" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0V22M0 22H22" stroke="#d9a441" stroke-opacity="0.045" stroke-width="1"/></pattern>
+              <path id="topolp" d="M0,-40 C16,-42 30,-30 32,-14 C34,0 42,8 36,22 C28,36 14,42 0,40 C-16,42 -30,34 -34,18 C-38,2 -34,-16 -22,-28 C-14,-38 -12,-40 0,-40 Z" fill="none" stroke-width="1.4" vector-effect="non-scaling-stroke"/>
+            </defs>
+            <rect width="400" height="225" fill="#06090a"/>
+            <rect width="400" height="225" fill="url(#gtopo)"/>
+            <!-- main peak -->
+            <g stroke="#d9a441" transform="translate(178 120)">
+              <use href="#topolp" transform="scale(2.35) rotate(4)" stroke-opacity="0.6"/>
+              <use href="#topolp" transform="scale(1.95) rotate(-3)" stroke-opacity="0.32"/>
+              <use href="#topolp" transform="scale(1.55) rotate(5)" stroke-opacity="0.32"/>
+              <use href="#topolp" transform="scale(1.15) rotate(-6)" stroke-opacity="0.32"/>
+              <use href="#topolp" transform="scale(0.78) rotate(8)" stroke-opacity="0.55"/>
+              <use href="#topolp" transform="scale(0.42) rotate(-10)" stroke-opacity="0.32"/>
+            </g>
+            <!-- secondary peak -->
+            <g stroke="#d9a441" transform="translate(312 74)">
+              <use href="#topolp" transform="scale(1.15) rotate(12)" stroke-opacity="0.5"/>
+              <use href="#topolp" transform="scale(0.72) rotate(-8)" stroke-opacity="0.3"/>
+              <use href="#topolp" transform="scale(0.34) rotate(4)" stroke-opacity="0.5"/>
+            </g>
+            <circle cx="178" cy="120" r="2" fill="#d9a441" fill-opacity="0.8"/>
+            <circle cx="312" cy="74" r="1.6" fill="#d9a441" fill-opacity="0.7"/>
+            <g font-family="'Space Mono',monospace" font-size="8" letter-spacing="1.5" fill="#d9a441" fill-opacity="0.65">
+              <text x="30" y="200">ELEV 0—1 · 14 LVL</text>
+            </g>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(217,164,65,0.07) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="card-type">Generative / Topography</span>
+          <span class="card-status live"><span class="sd"></span>ACTIVE</span>
+        </div>
+        <h2 class="card-title">TOPO<em style="color:rgba(217,164,65,0.92)">/&#47;FORGE</em></h2>
+        <p class="card-desc">
+          Topographic noise &amp; contour generator — fractal relief fields with domain-warped marbling, hillshade, ridged filaments, and marching-squares contour lines that export as live vector SVG.
+        </p>
+        <div class="card-tags">
+          <span class="tag">SVG</span>
+          <span class="tag">fBm noise</span>
+          <span class="tag">contours</span>
+          <span class="tag">hillshade</span>
+          <span class="tag">FUI</span>
+        </div>
+      </div>
+    </a>
+
   </div>
 </div>
 
@@ -586,7 +642,7 @@
 
   // Glitch the eyebrow text
   const eyebrow = document.getElementById('hero-eyebrow-data');
-  const targets = ['GENERATIVE DESIGN TOOLS / ASSET FORGES','SUB//FORGE // SUBSTRATE PLATES','TYPO//FORGE // TYPOGRAPHIC POSTERS','RET//FORGE // TARGETING RETICLES','READ//OUT // READOUTS & NODE FIELDS'];
+  const targets = ['GENERATIVE DESIGN TOOLS / ASSET FORGES','SUB//FORGE // SUBSTRATE PLATES','TYPO//FORGE // TYPOGRAPHIC POSTERS','RET//FORGE // TARGETING RETICLES','READ//OUT // READOUTS & NODE FIELDS','TOPO//FORGE // TOPOGRAPHIC NOISE & CONTOURS'];
   const glitch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/\\|<>[]{}!@#$%^&*';
   let ei=0;
   function cycleEyebrow(){
