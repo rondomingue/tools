@@ -300,7 +300,9 @@
         <button class="chip" id="cchrome"   data-on="0">Chrome<em>liquid metal fill</em></button>
         <button class="chip" id="ctypefill" data-on="0">Type collage<em>micro-type fill</em></button>
       </div>
-      <label class="lbl" style="margin-top:12px">Halftone <b id="halftoneval">0%</b></label>
+      <label class="lbl" style="margin-top:12px">Type collage density <b id="typedensval">50%</b></label>
+      <input type="range" id="typedens" min="0" max="100" value="50">
+      <label class="lbl" style="margin-top:8px">Halftone <b id="halftoneval">0%</b></label>
       <input type="range" id="halftone" min="0" max="100" value="0">
       <label class="lbl" style="margin-top:8px">Erode <b id="erodeval">0%</b></label>
       <input type="range" id="erode" min="0" max="100" value="0">
@@ -538,6 +540,7 @@ function readState(){
     distress:$('cdistress').dataset.on==='1',
     chrome:  $('cchrome').dataset.on==='1',
     typefill:$('ctypefill').dataset.on==='1',
+    typedens:+$('typedens').value/100,
     erode:   +$('erode').value/100,
     halftone:(+$('halftone').value>0) ? 4 + (+$('halftone').value/100)*16 : 0,
     scan:    +$('scan').value/100
@@ -1246,9 +1249,12 @@ function fxTypeFill(T, tg, O, scale){
   const pool = [O.headline.toUpperCase()].concat(
     O.labels.map(s=>s.toUpperCase()).filter(Boolean),
     ['CONFLICT','MENT','POS','FRAG','ITION','VIEW','IF','NFL']);
-  const nw = Math.round(W*H*0.00085);
+  // density drives both word count (up) and word size (down) — higher = finer, tighter fill
+  const d = O.typedens;
+  const nw = Math.round(W*H*0.00085 * (0.4 + d*d*4.6));
+  const smin = 10 - d*6, smax = smin + (28 - d*16);
   for (let i=0;i<nw;i++){
-    const s = 7 + Math.pow(fr(),2)*30;
+    const s = smin + Math.pow(fr(),2)*(smax-smin);
     const x = fr()*W, y = fr()*H;
     const t = pool[(fr()*pool.length)|0];
     const inv = fr() < 0.16;
@@ -1609,6 +1615,7 @@ const sliders = [
   ['dens','densval',v=>v+'%'],['grain','grainval',v=>v+'%'],['vig','vigval',v=>v+'%'],
   ['halftone','halftoneval',v=>v+'%'],['scan','scanval',v=>v+'%'],['erode','erodeval',v=>v+'%'],
   ['fmix','fmixval',v=>v+'%'],['eph','ephval',v=>v+'%'],['splat','splatval',v=>v+'%'],
+  ['typedens','typedensval',v=>v+'%'],
   ['blur','blurval',v=>v+'%'],['glitch','glitchval',v=>v+'%'],['aberr','aberrval',v=>v+'%'],
   ['smear','smearval',v=>v+'%'],['smeardir','smeardirval',v=>v+'°'],['flip','flipval',v=>v+'%'],
   ['paneldens','paneldensval',v=>v+'%'],
