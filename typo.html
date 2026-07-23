@@ -168,7 +168,7 @@
       <div class="pick" id="palPick"></div>
       <div class="row" style="margin-top:8px">
         <span class="pick-name" style="flex:1;color:var(--dim)">Accent override</span>
-        <div class="cwrap"><input type="color" id="accent" value="#5ec8f5"></div>
+        <div class="cwrap"><input type="color" id="accent" value="#0b0b0b"></div>
         <button class="tgl" id="tacc" data-on="0" style="flex:0 0 62px">use</button>
       </div>
     </div>
@@ -211,6 +211,9 @@
           <option value="multi">Ink: multi</option>
         </select>
       </div>
+      <label class="lbl" style="margin-top:10px">Font mix <b id="fmixval">0%</b></label>
+      <input type="range" id="fmix" min="0" max="100" value="0">
+      <div class="hint">Font mix lets each headline glyph roll its own face, case &amp; italic — script against didone against grotesk.</div>
     </div>
 
     <div class="grp">
@@ -262,7 +265,7 @@
     <div class="grp">
       <label class="lbl">Overlays</label>
       <div class="chips">
-        <button class="chip" id="cgrid"  data-on="1">Grid<em>modular guides</em></button>
+        <button class="chip" id="cgrid"  data-on="0">Grid<em>modular guides</em></button>
         <button class="chip" id="cmeasure" data-on="1">Measure<em>A/B/C marks</em></button>
         <button class="chip" id="cticks" data-on="1">Ruler ticks<em>edge scale</em></button>
         <button class="chip" id="cdots"  data-on="0">Dot matrix<em>field</em></button>
@@ -270,11 +273,18 @@
         <button class="chip" id="cframe" data-on="0">Frame<em>inner border</em></button>
         <button class="chip" id="cscatter" data-on="1">Scatter labels<em>micro type</em></button>
         <button class="chip" id="cbody"  data-on="1">Body block<em>paragraph</em></button>
+        <button class="chip" id="ceph"   data-on="1">Ephemera<em>scanned scraps</em></button>
+        <button class="chip" id="csplat" data-on="0">Splatter<em>ink blots</em></button>
+        <button class="chip" id="cring"  data-on="0">Ring text<em>circular digits</em></button>
       </div>
       <label class="lbl" style="margin-top:12px">Grid opacity <b id="gridopval">12%</b></label>
       <input type="range" id="gridop" min="0" max="60" value="12">
       <label class="lbl" style="margin-top:8px">Label density <b id="densval">50%</b></label>
       <input type="range" id="dens" min="0" max="100" value="50">
+      <label class="lbl" style="margin-top:8px">Ephemera density <b id="ephval">50%</b></label>
+      <input type="range" id="eph" min="0" max="100" value="50">
+      <label class="lbl" style="margin-top:8px">Splatter <b id="splatval">50%</b></label>
+      <input type="range" id="splat" min="0" max="100" value="50">
       <label class="lbl" style="margin-top:8px">Grain <b id="grainval">0%</b></label>
       <input type="range" id="grain" min="0" max="100" value="0">
       <label class="lbl" style="margin-top:8px">Vignette <b id="vigval">0%</b></label>
@@ -288,9 +298,12 @@
         <button class="chip" id="cseam"     data-on="0">Seam cut<em>hairline slice</em></button>
         <button class="chip" id="cdistress" data-on="0">Distress<em>dust · scratch</em></button>
         <button class="chip" id="cchrome"   data-on="0">Chrome<em>liquid metal fill</em></button>
+        <button class="chip" id="ctypefill" data-on="0">Type collage<em>micro-type fill</em></button>
       </div>
       <label class="lbl" style="margin-top:12px">Halftone <b id="halftoneval">0%</b></label>
       <input type="range" id="halftone" min="0" max="100" value="0">
+      <label class="lbl" style="margin-top:8px">Erode <b id="erodeval">0%</b></label>
+      <input type="range" id="erode" min="0" max="100" value="0">
       <label class="lbl" style="margin-top:8px">Scanlines <b id="scanval">0%</b></label>
       <input type="range" id="scan" min="0" max="100" value="0">
       <label class="lbl" style="margin-top:8px">Defocus <b id="blurval">0%</b></label>
@@ -307,7 +320,7 @@
       <input type="range" id="flip" min="0" max="100" value="0">
       <label class="lbl" style="margin-top:8px">Panel density <b id="paneldensval">50%</b></label>
       <input type="range" id="paneldens" min="0" max="100" value="50">
-      <div class="hint">Halftone, scanlines, defocus, glitch, RGB split &amp; smear are pixel effects — PNG only. Panels, seam cuts, mirrored glyphs, distress &amp; chrome are vector and survive SVG export.</div>
+      <div class="hint">Halftone, erode, type collage, scanlines, defocus, glitch, RGB split &amp; smear are pixel effects — PNG only. Panels, seam cuts, mirrored glyphs, distress, chrome, ephemera, splatter &amp; ring text are vector and survive SVG export.</div>
     </div>
 
     <div class="grp">
@@ -374,6 +387,7 @@ const FONTS = [
   { id:'geo',    name:'Geometric sans',  css:"'Futura','Century Gothic','Avenir Next',sans-serif", cls:'sans' },
   { id:'round',  name:'Rounded heavy',   css:"'Arial Rounded MT Bold','Baloo 2','Nunito','Varela Round','Helvetica Neue',sans-serif", cls:'round' },
   { id:'slab',   name:'Slab serif',      css:"'Rockwell','Roboto Slab',Georgia,serif", cls:'slab' },
+  { id:'script', name:'Script',          css:"'Snell Roundhand','Savoye LET','Brush Script MT','Segoe Script',cursive", cls:'script' },
   { id:'mono',   name:'Monospace',       css:"ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace", cls:'mono' }
 ];
 const fontById = id => FONTS.find(f => f.id === id) || FONTS[0];
@@ -385,6 +399,7 @@ const PALETTES = [
   { id:'void',   name:'Void',          light:false, bg:'#000000', ink:['#ffffff','#c9d2dc','#8e9aa6','#5b646d'], accents:['#ffffff'] },
   { id:'amber',  name:'Amber CRT',     light:false, bg:'#0a0703', ink:['#ffcb6b','#c9902f','#8a5f18','#4d340b'], accents:['#fff1c0','#ff6a2b'] },
   { id:'swiss',  name:'Swiss red',     light:true,  bg:'#ffffff', ink:['#111111','#3a3a3a','#6f6f6f','#a8a8a8'], accents:['#e2231a'] },
+  { id:'xerox',  name:'Xerox',         light:true,  bg:'#f7f6f2', ink:['#0b0b0b','#161616','#2e2e2e','#5a5a5a'], accents:['#0b0b0b'] },
   { id:'paper',  name:'Paper',         light:true,  bg:'#f4f1ea', ink:['#16130f','#4a453d','#7c766a','#b1aa9c'], accents:['#16130f'] },
   { id:'print',  name:'Blueprint',     light:true,  bg:'#eef0f4', ink:['#152a6e','#31488c','#5f74ad','#9aa6c6'], accents:['#152a6e'] },
   { id:'riso',   name:'Riso duotone',  light:true,  bg:'#efe9df', ink:['#16130f','#463f34','#7d7566','#b3ab9b'], accents:['#ff4d2e','#2b57ff'] },
@@ -395,7 +410,7 @@ const PALETTES = [
   { id:'prism',  name:'Prism',         light:false, bg:'#0a0a0b', ink:['#f2f4f6','#c1cad0','#8b969e','#49535b'], accents:['#37e05b','#ff5470','#ffd23f','#a05cff','#2b57ff','#00e0d0','#ff7a2b'] },
   { id:'alarm',  name:'Signal red',    light:false, bg:'#0a0a0b', ink:['#ff2e4d','#e0243f','#a01b30','#5c1420'], accents:['#ff2e4d','#ff6076'] }
 ];
-let PAL = PALETTES[0];
+let PAL = PALETTES.find(p => p.id === 'xerox') || PALETTES[0];
 
 /* vibrant multi-colour set (Prism palette + multi ink mode) */
 const PRISM = ['#37e05b','#ff5470','#ffd23f','#a05cff','#2b57ff','#00e0d0','#ff7a2b'];
@@ -411,18 +426,18 @@ const PRESETS = [
     perLine:1, overlapK:1.0, rotK:0.5, serifBias:0.7, blackBias:0.0 },
   { id:'weave',    name:'Weave',    note:'interlocked headline packed edge to edge — one heavy voice',
     perLine:1, overlapK:1.35, rotK:0.25, serifBias:0.15, blackBias:0.9 },
+  { id:'collage',  name:'Collage',  note:'mixed typefaces crashed together over scanned ephemera — photocopy poster',
+    perLine:1, overlapK:1.5, rotK:0.6, serifBias:0.5, blackBias:0.7 },
   { id:'grid',     name:'Grid',     note:'modular grid with A/B/C measure marks — Swiss instruction sheet',
     perLine:0, overlapK:0.2, rotK:0.05, serifBias:0.2, blackBias:0.85 },
   { id:'specimen', name:'Specimen', note:'deconstructed glyphs scattered across the field — type specimen',
     perLine:0, overlapK:0.6, rotK:1.0, serifBias:0.5, blackBias:0.4 },
   { id:'column',   name:'Column',   note:'oversized letters bleeding left, justified text column right',
     perLine:1, overlapK:0.7, rotK:0.15, serifBias:0.6, blackBias:0.3 },
-  { id:'liquid',   name:'Liquid',   note:'heavy rounded letters fused in a row with dripping tails — display lettering',
-    perLine:0, overlapK:1.0, rotK:0.0, serifBias:0.0, blackBias:1.0 },
   { id:'fragments',name:'Fragments',note:'glyphs shattered into geometric shapes on a dot field — kinetic / motion',
     perLine:0, overlapK:0.5, rotK:1.0, serifBias:0.0, blackBias:0.4 }
 ];
-let PRESET = PRESETS.find(p => p.id === 'grid') || PRESETS[0];
+let PRESET = PRESETS.find(p => p.id === 'collage') || PRESETS[0];
 
 /* ============================================================ lexicon (for scatter / specimen) */
 const TECH = ['MEDIUM','EXTENDED','CONDENSED','REGULAR','BOLD','ROMAN','ITALIC','36 / 10 mm','SPACEMATIC','x-height','baseline','ascender','descender','kerning','tracking','ligature','01018','↑ ↓','a b c','A a','/ / /'];
@@ -478,6 +493,7 @@ function readState(){
     halign:  $('halign').value,
     hcolor:  $('hcolor').value,
     hital:   $('hital').dataset.on === '1',
+    fmix:    +$('fmix').value/100,
     bodypos: $('bodypos').value,
     bodyalign:$('bodyalign').value,
     bodysize:0.010 + (+$('bodysize').value/100)*0.020,
@@ -494,6 +510,8 @@ function readState(){
     margin:  +$('margin').value/100,
     gridop:  +$('gridop').value/100,
     dens:    +$('dens').value/100,
+    splat:   +$('splat').value/100,
+    eph:     +$('eph').value/100,
     grain:   +$('grain').value/100,
     vig:     +$('vig').value/100,
     grid:    $('cgrid').dataset.on==='1',
@@ -504,6 +522,9 @@ function readState(){
     frame:   $('cframe').dataset.on==='1',
     scatter: $('cscatter').dataset.on==='1',
     bodyOn:  $('cbody').dataset.on==='1',
+    splatOn: $('csplat').dataset.on==='1',
+    ephOn:   $('ceph').dataset.on==='1',
+    ringOn:  $('cring').dataset.on==='1',
     // effects
     blur:    (+$('blur').value/100)*14,
     glitch:  +$('glitch').value/100,
@@ -516,6 +537,8 @@ function readState(){
     seam:    $('cseam').dataset.on==='1',
     distress:$('cdistress').dataset.on==='1',
     chrome:  $('cchrome').dataset.on==='1',
+    typefill:$('ctypefill').dataset.on==='1',
+    erode:   +$('erode').value/100,
     halftone:(+$('halftone').value>0) ? 4 + (+$('halftone').value/100)*16 : 0,
     scan:    +$('scan').value/100
   };
@@ -551,17 +574,32 @@ function build(O){
   // ---- background layers first ----
   if (O.grid && O.gridop>0) layGrid(items, box, O);
   if (O.dots) layDots(items, box, O);
+  if (O.ephOn) layEphemera(items, box, O);
 
   // ---- headline engine ----
   if (P.id === 'grid')            layoutGridMode(items, box, chars, O);
   else if (P.id === 'specimen')   layoutSpecimen(items, box, chars, O);
   else if (P.id === 'column')     layoutColumn(items, box, chars, O);
-  else if (P.id === 'liquid')     layoutLiquid(items, box, chars, O);
   else if (P.id === 'fragments')  layoutFragments(items, box, chars, O);
+  else if (P.id === 'collage')    layoutCollage(items, box, chars, O);
   else                            layoutStack(items, box, chars, O);  // stack + weave
 
+  // ---- font roulette: each headline glyph may swap face / case / italic ----
+  if (O.fmix > 0){
+    for (const it of items){
+      if (it.z!=='type' || it.t!=='glyph') continue;
+      const r = R(), f = pick(FONTS), rc = R(), ri = R();
+      if (r < O.fmix){
+        it.font = f.css;
+        if (f.cls==='script'){ it.italic = true; if (it.weight>500) it.weight = 400; }
+        else if (ri < 0.3) it.italic = true;
+        if (rc < 0.35) it.ch = /[A-Z]/.test(it.ch) ? it.ch.toLowerCase() : it.ch.toUpperCase();
+      }
+    }
+  }
+
   // ---- seam lines + mirrored glyphs (SHOP / AFTERLIFE) ----
-  const seamable = P.id==='stack' || P.id==='weave' || P.id==='liquid';
+  const seamable = P.id==='stack' || P.id==='weave';
   if (O.flip>0 || (O.seam && seamable)){
     const extra = [];
     for (const it of items){
@@ -574,9 +612,6 @@ function build(O){
           extra.push({t:'line', x1:cx, y1:it.y-it.size*0.72, x2:cx, y2:it.y+it.size*0.06,
             stroke:PAL.bg, lw:Math.max(1.4, it.size*0.02), z:'type'});
         }
-      } else if (it.t==='rrect' && O.seam && P.id==='liquid'){
-        const cx = it.x + it.w*0.5;
-        extra.push({t:'line', x1:cx, y1:it.y, x2:cx, y2:it.y+it.h, stroke:PAL.bg, lw:Math.max(1.4, it.w*0.03), z:'type'});
       }
     }
     items.push(...extra);
@@ -600,6 +635,8 @@ function build(O){
   }
 
   // ---- overlays over type ----
+  if (O.splatOn) laySplatter(items, box, O);
+  if (O.ringOn)  layRing(items, box, O);
   if (O.measure) layMeasure(items, box, O);
   if (O.scatter) layScatter(items, box, O);
   if (O.panels)  layPanels(items, box, O);
@@ -659,6 +696,43 @@ function layoutStack(items, box, chars, O){
     });
     y += step;
   }
+}
+
+/* ---------- COLLAGE : mixed faces crashed down the sheet ---------- */
+function layoutCollage(items, box, chars, O){
+  const P = PRESET;
+  const cs = chars.filter(c=>c!==' ');
+  const n = Math.max(1, cs.length);
+  // heavy vertical overlap so letterforms interlock down the sheet
+  const overlap = Math.min(0.86, 0.45 + O.overlap*0.45);
+  const bandH = box.h / (n - (n-1)*overlap) * O.scale;
+  const step = bandH*(1-overlap);
+  let y = box.y + bandH*0.55;
+  // wandering spine — each glyph advances a fraction of the previous width and bounces off the edges
+  let drift = chance(0.5) ? 1 : -1;
+  let xc = drift>0 ? rrange(0.12, 0.3) : rrange(0.7, 0.88);   // spine centre, as a fraction of box width
+  cs.forEach((ch0,i)=>{
+    const font = pick(FONTS);
+    let ch = R() < 0.30 ? ch0.toLowerCase() : ch0.toUpperCase();
+    const italic = font.cls==='script' ? true : chance(0.25);
+    const weight = font.cls==='script' ? 400 : glyphWeight(O, P.blackBias);
+    const size = bandH * rrange(0.95, 1.5);
+    const gw = textW(ch, size, font.css, weight, italic);
+    let x = box.x + xc*box.w - gw/2 + gauss()*box.w*0.03*O.jitter;
+    x = Math.max(box.x - gw*0.3, Math.min(box.x + box.w - gw*0.7, x));
+    let rot = gauss()*0.10*(0.4 + O.rot*P.rotK);
+    if (R() < 0.10*(0.5 + O.rot)) rot = (chance(0.5)?1:-1)*Math.PI/2;
+    const useAccent = chance(O.acchit);
+    const outline = !useAccent && chance(O.outline*0.7);
+    const col = useAccent ? accentCol() : inkPick();
+    items.push({t:'glyph', ch, x, y: y + gauss()*step*0.2*O.jitter, size, font:font.css, weight, italic, rot,
+      fill:outline?null:col, stroke:outline?col:null, lw:outline?size*0.02:0, anchor:'left', z:'type'});
+    // crowd the next glyph against this one: short sideways step, bounce at the margins
+    xc += drift * (gw/box.w) * rrange(0.3, 0.6);
+    if (xc > 0.85){ xc = 0.85; drift = -1; }
+    if (xc < 0.15){ xc = 0.15; drift = 1; }
+    y += step;
+  });
 }
 
 /* ---------- GRID : modular cells + measure marks ---------- */
@@ -761,43 +835,6 @@ function layoutColumn(items, box, chars, O){
   }
 }
 
-/* ---------- LIQUID : heavy rounded row with dripping tails (SHOP) ---------- */
-function layoutLiquid(items, box, chars, O){
-  const cs = chars.filter(c=>c!==' ');
-  const n = Math.max(1, cs.length);
-  const font = fontById('round');
-  const weight = 900;
-  const trackK = -0.06;               // negative tracking → letters fuse
-  // fit the whole word across the content width
-  let total = 0;
-  for (const ch of cs) total += textW(ch, 100, font.css, weight, false) + 100*trackK;
-  total -= 100*trackK;
-  let size = (box.w/total) * 100 * O.scale;
-  size = Math.min(size, box.h*0.34);                 // keep room below for the drips
-  const tr = size*trackK;
-  const widths = cs.map(ch => textW(ch, size, font.css, weight, false));
-  let rowW = widths.reduce((a,b)=>a+b+tr, 0) - tr;
-  let x = O.halign==='left'  ? box.x
-        : O.halign==='right' ? box.x + (box.w - rowW)
-        :                      box.x + (box.w - rowW)/2;
-  const baseY = box.y + size*0.86;
-  const room = (box.y + box.h) - baseY;              // vertical space below the baseline
-  const col = PAL.ink[0];
-  cs.forEach((ch,i)=>{
-    const accent = chance(O.acchit);
-    const c = accent ? accentCol() : col;
-    // drip FIRST so the glyph caps it cleanly and the two read as one form
-    if (chance(0.6 + O.overlap*0.35)){
-      const tw = Math.max(size*0.34, Math.min(widths[i]*0.62, size*0.55));
-      const tx = x + widths[i]/2 - tw/2;
-      const th = room * rrange(0.28, 1.0) * (0.5 + O.overlap*0.6);
-      items.push({t:'rrect', x:tx, y:baseY - size*0.55, w:tw, h:size*0.55 + th, r:tw/2, fill:c, z:'type'});
-    }
-    items.push({t:'glyph', ch, x, y:baseY, size, font:font.css, weight, rot:0, fill:c, anchor:'left', z:'type'});
-    x += widths[i] + tr;
-  });
-}
-
 /* ---------- FRAGMENTS : glyphs shattered into geometric shapes on a dot field ---------- */
 function addFragShape(items, x, y, s, col){
   switch (rint(0,5)){
@@ -872,6 +909,115 @@ function layPanels(items, box, O){
     items.push({t:'rect', x, y, w, h, fill, stroke, lw:1});
   }
 }
+/* ---------- SPLATTER : organic ink blots ---------- */
+/* irregular closed blob — smoothed radial noise, optionally stretched along ang */
+function splatBlob(items, cx, cy, r, ang, stretch, col, irr){
+  const n = rint(10,16);
+  const pts = [];
+  let noise = 1;
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  for (let i=0;i<n;i++){
+    const t = i/n*TAU;
+    noise = noise*0.5 + rrange(1-irr, 1+irr)*0.5;
+    const px = Math.cos(t)*r*stretch*noise, py = Math.sin(t)*r*noise;
+    pts.push([cx + px*ca - py*sa, cy + px*sa + py*ca]);
+  }
+  items.push({t:'blob', pts, fill:col, z:'type'});
+}
+function laySplatter(items, box, O){
+  const inkc = PAL.ink[0];
+  const nBlots = Math.max(1, Math.round(rrange(1,3) * (0.5 + O.splat*1.5)));
+  for (let b=0;b<nBlots;b++){
+    const cx = box.x + rrange(0.08,0.92)*box.w;
+    const cy = box.y + rrange(0.08,0.92)*box.h;
+    const rad = Math.min(box.w,box.h) * rrange(0.015,0.05) * (0.5 + O.splat);
+    const dir = R()*TAU;                                // direction of the throw
+    // core — one irregular blob plus overlapping lobes on the throw side
+    splatBlob(items, cx, cy, rad, R()*TAU, rrange(1,1.35), inkc, 0.45);
+    const lobes = rint(1,3);
+    for (let i=0;i<lobes;i++){
+      const a = dir + gauss()*0.9, d = rad*rrange(0.4,1.0);
+      splatBlob(items, cx+Math.cos(a)*d, cy+Math.sin(a)*d, rad*rrange(0.35,0.6), a, rrange(1.2,1.8), inkc, 0.5);
+    }
+    // satellites — elongated droplets thrown outward, shrinking with distance
+    const ns = rint(6,14);
+    for (let i=0;i<ns;i++){
+      const a = dir + gauss()*1.1;
+      const d = rad*rrange(1.3,5);
+      const sr = rad*rrange(0.05,0.22)*Math.pow(rad*1.5/d, 0.6);
+      splatBlob(items, cx+Math.cos(a)*d, cy+Math.sin(a)*d, Math.max(1.2,sr), a, rrange(1.6,3.2), inkc, 0.35);
+    }
+    // fine mist
+    const nm = rint(30,70);
+    for (let i=0;i<nm;i++){
+      const a = dir + gauss()*1.4;
+      const d = rad*Math.pow(R(),0.5)*6;
+      items.push({t:'dot', x:cx+Math.cos(a)*d, y:cy+Math.sin(a)*d, r:Math.max(0.6, rad*0.03*R()), fill:inkc, z:'type'});
+    }
+  }
+}
+
+/* ---------- EPHEMERA : scanned document scraps under the type ---------- */
+const EPH_WORDS = ['CARGO','GROSS','NET','FWD','PLATE','FINAL','AUTORIZADO','SKU','VIA','REF','FORM','No.','LOT','CU.FT.','KG','LB','A6','U7','1043-2','091 7 022','12:32:14','28.260','62.310','0.170','9817024502'];
+function layEphemera(items, box, O){
+  const dark = PAL.ink[0];
+  const mono = "ui-monospace,Menlo,Consolas,monospace";
+  const n = Math.round(rrange(4,8) * (0.4 + O.eph*1.4));
+  for (let k=0;k<n;k++){
+    const kind = rint(0,4);
+    const x = box.x + rrange(0,0.8)*box.w;
+    const y = box.y + rrange(0.02,0.9)*box.h;
+    if (kind===0){                                       // greeked scan strip
+      const w = box.w*rrange(0.14,0.34);
+      const rows = rint(6,18), lh = box.h*rrange(0.005,0.008);
+      const a = rrange(0.25,0.55);
+      for (let i=0;i<rows;i++){
+        const rw = w * (i===rows-1 ? rrange(0.3,0.7) : rrange(0.72,1));
+        items.push({t:'rect', x, y:y+i*lh, w:rw, h:lh*0.5, fill:withAlpha(dark,a), z:'under'});
+      }
+    } else if (kind===1){                                // manifest / receipt column
+      const size = box.h*rrange(0.009,0.014);
+      const rows = rint(3,7);
+      for (let i=0;i<rows;i++)
+        items.push({t:'text', t2:pick(EPH_WORDS)+'  '+pick(EPH_WORDS), x, y:y+i*size*1.5, size, font:mono, weight:600, fill:withAlpha(dark,rrange(0.55,0.9)), anchor:'start', track:0.4, z:'under'});
+    } else if (kind===2){                                // stamp box
+      const w = box.w*rrange(0.08,0.16), h = box.h*rrange(0.02,0.04);
+      items.push({t:'rect', x, y, w, h, stroke:withAlpha(dark,0.8), lw:2, z:'under'});
+      items.push({t:'text', t2:pick(EPH_WORDS), x:x+w*0.12, y:y+h*0.68, size:h*0.42, font:mono, weight:700, fill:withAlpha(dark,0.85), anchor:'start', track:0.8, z:'under'});
+    } else if (kind===3){                                // redaction bars
+      const bars = rint(2,4), bh = box.h*rrange(0.006,0.011);
+      for (let i=0;i<bars;i++)
+        items.push({t:'rect', x:x+gauss()*box.w*0.01, y:y+i*bh*1.8, w:box.w*rrange(0.06,0.2), h:bh, fill:withAlpha(dark,0.9), z:'under'});
+    } else {                                             // barcode ticks
+      const bars = rint(18,40), bh = box.h*rrange(0.015,0.03);
+      let bx = x;
+      for (let i=0;i<bars;i++){
+        const bw = chance(0.3)? 3 : 1.4;
+        items.push({t:'rect', x:bx, y, w:bw, h:bh, fill:withAlpha(dark,0.85), z:'under'});
+        bx += bw + rrange(1,3.4);
+      }
+    }
+  }
+}
+
+/* ---------- RING : circular digit ring ---------- */
+function layRing(items, box, O){
+  const mono = "ui-monospace,Menlo,Consolas,monospace";
+  const r = Math.min(box.w,box.h)*rrange(0.16,0.30);
+  const cx = box.x + box.w*rrange(0.2,0.8);
+  const cy = box.y + box.h*rrange(0.15,0.5);
+  let s = '';
+  while (s.length < 90) s += chance(0.2) ? '('+rint(200,209)+')' : String(rint(0,9));
+  const size = r*0.16;
+  const n = Math.max(8, Math.floor(TAU*r/(size*0.62)));
+  const a0 = R()*TAU;
+  s.slice(0,n).split('').forEach((ch,i)=>{
+    const a = a0 + i/n*TAU;
+    items.push({t:'glyph', ch, x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r, size, font:mono, weight:700,
+      rot:a+Math.PI/2, fill:withAlpha(PAL.ink[0],0.9), anchor:'left', z:'type'});
+  });
+}
+
 function layDistress(items, box){
   const n = rint(12, 28);
   for (let i=0;i<n;i++){
@@ -1027,13 +1173,15 @@ function render(scale){
 
   for (const it of under) drawItem(g, it, S);
 
-  const fxOn = O.smear>0 || O.blur>0 || O.glitch>0 || O.aberr>0;
+  const fxOn = O.smear>0 || O.blur>0 || O.glitch>0 || O.aberr>0 || O.halftone>0 || O.erode>0 || O.typefill;
   if (fxOn){
     const T = document.createElement('canvas'); T.width = cv.width; T.height = cv.height;
     const tg = T.getContext('2d'); tg.scale(scale, scale); tg.textBaseline='alphabetic';
     for (const it of type) drawItem(tg, it, S);
+    if (O.typefill) fxTypeFill(T, tg, O, scale);
     if (O.smear>0) fxSmear(T, tg, O);
     if (O.halftone>0) fxHalftone(T, tg, O.halftone, scale);
+    if (O.erode>0) fxErode(T, tg, O.erode, O.seed, scale);
     if (O.glitch>0 || O.aberr>0) fxGlitch(tg, T.width, T.height, O.glitch, O.aberr, O.seed);
     g.save(); g.setTransform(1,0,0,1,0,0);
     if (O.blur>0) g.filter = `blur(${(O.blur*scale).toFixed(2)}px)`;
@@ -1065,6 +1213,61 @@ function fxSmear(T, tg, O){
     tg.drawImage(snap, Math.cos(ang)*dist*i/steps, Math.sin(ang)*dist*i/steps);
   }
   tg.globalAlpha=1; tg.restore();
+}
+function fxErode(T, tg, amt, seed, scale){
+  const er = mulberry(hash((seed||'x') + '|erode'));
+  const w = T.width, h = T.height;
+  const cssW = w/scale, cssH = h/scale;
+  tg.save(); tg.setTransform(1,0,0,1,0,0);
+  tg.globalCompositeOperation = 'destination-out';
+  tg.fillStyle = '#000'; tg.strokeStyle = '#000';
+  const n = Math.round(cssW*cssH*0.0012*amt);
+  for (let i=0;i<n;i++){
+    const x = er()*w, y = er()*h;
+    const r = (Math.pow(er(),2.2)*(2 + amt*10) + 0.4)*scale;
+    tg.beginPath(); tg.arc(x, y, r, 0, 6.28319); tg.fill();
+  }
+  const ns = Math.round(24*amt);                        // scratch strokes
+  tg.lineWidth = 1.2*scale;
+  for (let i=0;i<ns;i++){
+    const x = er()*w, y = er()*h, len = er()*w*0.08, a = er()*TAU;
+    tg.beginPath(); tg.moveTo(x,y); tg.lineTo(x+Math.cos(a)*len, y+Math.sin(a)*len); tg.stroke();
+  }
+  tg.restore();
+}
+function fxTypeFill(T, tg, O, scale){
+  const fr = mulberry(hash((O.seed||'x') + '|typefill'));
+  const W = T.width/scale, H = T.height/scale;
+  const tex = document.createElement('canvas'); tex.width = T.width; tex.height = T.height;
+  const xg = tex.getContext('2d'); xg.scale(scale, scale); xg.textBaseline = 'alphabetic';
+  const dark = PAL.light ? '#0c0c0c' : PAL.ink[0];
+  const lite = PAL.light ? '#f6f4ef' : PAL.bg;
+  xg.fillStyle = lite; xg.fillRect(0,0,W,H);
+  const pool = [O.headline.toUpperCase()].concat(
+    O.labels.map(s=>s.toUpperCase()).filter(Boolean),
+    ['CONFLICT','MENT','POS','FRAG','ITION','VIEW','IF','NFL']);
+  const nw = Math.round(W*H*0.00085);
+  for (let i=0;i<nw;i++){
+    const s = 7 + Math.pow(fr(),2)*30;
+    const x = fr()*W, y = fr()*H;
+    const t = pool[(fr()*pool.length)|0];
+    const inv = fr() < 0.16;
+    xg.save(); xg.translate(x,y);
+    const rr = fr();
+    if (rr<0.14) xg.rotate(Math.PI/2); else if (rr<0.22) xg.rotate(-Math.PI/2);
+    xg.font = `${fr()<0.7?700:400} ${s.toFixed(1)}px 'Helvetica Neue',Helvetica,Arial,sans-serif`;
+    if (inv){
+      const tw = xg.measureText(t).width;
+      xg.fillStyle = dark; xg.fillRect(-s*0.1, -s*0.82, tw+s*0.2, s*1.05);
+      xg.fillStyle = lite;
+    } else xg.fillStyle = dark;
+    xg.fillText(t, 0, 0);
+    xg.restore();
+  }
+  tg.save(); tg.setTransform(1,0,0,1,0,0);
+  tg.globalCompositeOperation = 'source-in';
+  tg.drawImage(tex, 0, 0);
+  tg.restore();
 }
 function fxGlitch(tg, w, h, gl, ab, seed){
   const gr = mulberry(hash((seed||'x') + '|glitch'));
@@ -1164,6 +1367,16 @@ function drawItem(g, it, S){
       it.pts.forEach((p,i)=> i? g.lineTo(p[0],p[1]) : g.moveTo(p[0],p[1]));
       g.closePath(); g.fill();
       break;
+    case 'blob': {
+      const p = it.pts, n = p.length;
+      g.fillStyle = it.fill; g.beginPath();
+      g.moveTo((p[0][0]+p[n-1][0])/2, (p[0][1]+p[n-1][1])/2);
+      for (let i=0;i<n;i++){
+        const q = p[i], nx = p[(i+1)%n];
+        g.quadraticCurveTo(q[0], q[1], (q[0]+nx[0])/2, (q[1]+nx[1])/2);
+      }
+      g.closePath(); g.fill(); break;
+    }
     case 'glyph': {
       g.save(); g.translate(it.x, it.y); if (it.rot) g.rotate(it.rot);
       g.font = fontStr(it.size, resolveVar(it.font), it.weight, it.italic);
@@ -1290,6 +1503,15 @@ function svgItem(it){
     }
     case 'poly':
       return `<polygon points="${it.pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="${it.fill}"/>`;
+    case 'blob':{
+      const p = it.pts, n = p.length;
+      let d = `M${((p[0][0]+p[n-1][0])/2).toFixed(1)} ${((p[0][1]+p[n-1][1])/2).toFixed(1)}`;
+      for (let i=0;i<n;i++){
+        const q = p[i], nx = p[(i+1)%n];
+        d += ` Q${q[0].toFixed(1)} ${q[1].toFixed(1)} ${((q[0]+nx[0])/2).toFixed(1)} ${((q[1]+nx[1])/2).toFixed(1)}`;
+      }
+      return `<path d="${d} Z" fill="${it.fill}"/>`;
+    }
     case 'glyph':{
       let f = it.metal ? 'fill="url(#chrome)"' : it.fill?`fill="${it.fill}"`:'fill="none"';
       if (it.stroke) f+=` stroke="${it.stroke}" stroke-width="${(it.lw||1).toFixed(2)}"`;
@@ -1385,7 +1607,8 @@ const sliders = [
   ['jitter','jitterval',v=>v+'%'],['weight','weightval',v=>String(v)],['outline','outlineval',v=>v+'%'],
   ['acchit','acchitval',v=>v+'%'],['margin','marginval',v=>v+'%'],['gridop','gridopval',v=>v+'%'],
   ['dens','densval',v=>v+'%'],['grain','grainval',v=>v+'%'],['vig','vigval',v=>v+'%'],
-  ['halftone','halftoneval',v=>v+'%'],['scan','scanval',v=>v+'%'],
+  ['halftone','halftoneval',v=>v+'%'],['scan','scanval',v=>v+'%'],['erode','erodeval',v=>v+'%'],
+  ['fmix','fmixval',v=>v+'%'],['eph','ephval',v=>v+'%'],['splat','splatval',v=>v+'%'],
   ['blur','blurval',v=>v+'%'],['glitch','glitchval',v=>v+'%'],['aberr','aberrval',v=>v+'%'],
   ['smear','smearval',v=>v+'%'],['smeardir','smeardirval',v=>v+'°'],['flip','flipval',v=>v+'%'],
   ['paneldens','paneldensval',v=>v+'%'],
@@ -1414,7 +1637,7 @@ function init(){
   sliders.forEach(([id])=> $(id).addEventListener('input', ()=>{ syncLabels(); update(); }));
 
   // chips / toggles
-  ['cgrid','cmeasure','cticks','cdots','creg','cframe','cscatter','cbody','cpanels','cseam','cdistress','cchrome','hital','bhead','tacc','talpha'].forEach(id=>{
+  ['cgrid','cmeasure','cticks','cdots','creg','cframe','cscatter','cbody','ceph','csplat','cring','cpanels','cseam','cdistress','cchrome','ctypefill','hital','bhead','tacc','talpha'].forEach(id=>{
     $(id).addEventListener('click', ()=>{ toggleChip($(id)); if(id==='talpha'){ $(id).setAttribute('aria-pressed', $(id).dataset.on==='1'); } update(); });
   });
 
