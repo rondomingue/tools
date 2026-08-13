@@ -27,6 +27,14 @@
     border-radius:3px;padding:7px 8px;font-family:var(--mono);font-size:11px;
   }
   select:focus,input:focus{outline:none;border-color:var(--accent)}
+  select.color-select,select.skintone{
+    --swatch:var(--bg);color:var(--ink);padding-left:24px;
+    background-color:var(--bg);
+    background-image:radial-gradient(circle,var(--swatch) 0 5px,transparent 5.5px);
+    background-repeat:no-repeat;background-position:10px 50%;
+  }
+  select.color-select:focus,select.skintone:focus{color:var(--ink);background-color:var(--bg);border-color:var(--accent)}
+  select.color-select option,select.skintone option{color:var(--ink);background:var(--bg)}
   .row{display:flex;gap:6px;align-items:center}
   .row>*{flex:1}
   button{
@@ -38,6 +46,9 @@
   button.primary{background:var(--accent);border-color:var(--accent);color:#07222e;font-weight:700}
   button.primary:hover{background:var(--accent-b);border-color:var(--accent-b);color:#04231c}
   .hint{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:8px}
+  .export-guide{margin-top:10px;padding:10px;border:1px solid var(--accent);border-radius:3px;background:rgba(8,24,30,.55);color:var(--dim);font-size:9.5px;line-height:1.65}
+  .export-guide strong{display:block;color:var(--accent);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+  .export-guide b{color:var(--ink);font-weight:400}
 
   input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:pointer}
   input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:var(--line)}
@@ -49,14 +60,14 @@
   input[type=range]:focus{outline:none}
   .lbl b{float:right;font-weight:400;color:var(--dim);letter-spacing:0;text-transform:none}
 
-  #dice,#lock{flex:0 0 42px;display:grid;place-items:center;padding:6px 0}
-  #dice svg,#lock svg{width:17px;height:17px;display:block}
+  #dice,#lock,#skindice,#paldice{flex:0 0 42px;display:grid;place-items:center;padding:6px 0}
+  #dice svg,#lock svg,#skindice svg,#paldice svg{width:17px;height:17px;display:block}
   .ico-stroke{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
   .ico-fill{fill:currentColor}
   #lock[data-locked="1"]{border-color:var(--accent);color:var(--accent)}
-  #dice.rolling{animation:roll .45s cubic-bezier(.3,1.4,.5,1)}
+  #dice.rolling,#skindice.rolling,#paldice.rolling{animation:roll .45s cubic-bezier(.3,1.4,.5,1)}
   @keyframes roll{0%{transform:rotate(0) scale(1)}55%{transform:rotate(200deg) scale(1.18)}100%{transform:rotate(360deg) scale(1)}}
-  @media (prefers-reduced-motion: reduce){#dice.rolling{animation:none}}
+  @media (prefers-reduced-motion: reduce){#dice.rolling,#skindice.rolling,#paldice.rolling{animation:none}}
 
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:5px}
   .chip{
@@ -66,6 +77,26 @@
   .chip em{display:block;font-style:normal;font-size:8.5px;color:var(--faint);letter-spacing:.04em}
   .chip[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0b1a22}
   .chip[data-on="1"] em{color:var(--dim)}
+  #skinlayers{display:grid;grid-template-columns:1fr;gap:6px}
+  .skinrow{
+    display:grid;grid-template-columns:1fr;gap:6px;
+    padding:5px;border:1px solid var(--line-soft);border-radius:5px;background:rgba(8,11,15,.25);
+    position:relative;
+  }
+  .skinrow[data-open="1"]{grid-template-columns:1fr 1fr;border-color:var(--line);background:rgba(8,20,27,.42)}
+  .skinrow .chip{width:100%;min-height:42px;grid-column:1/-1}
+  .skinrow select{display:none;font-size:9.5px;padding:7px 6px;min-height:36px}
+  .skinrow[data-open="1"] select{display:block}
+  .skinrow .skinvariant{grid-column:1/-1}
+  .skinrow[data-open="1"] .skinvariant{border-color:var(--line);color:var(--accent)}
+  .skinrow[data-focus="1"]{box-shadow:inset 2px 0 var(--accent)}
+  .skinrow .skinclone-row{position:absolute;right:5px;top:5px;width:25px;height:25px;padding:0;z-index:2;font-size:15px;line-height:1}
+  .skinrow .skinchip{padding-right:38px}
+  #skincopies{display:grid;gap:5px;margin-top:6px}
+  .skin-copy{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:5px;border:1px solid var(--line-soft);border-radius:4px;background:rgba(8,11,15,.35)}
+  .skin-copy strong{grid-column:1/-1;font-size:9px;color:var(--accent);font-weight:400;letter-spacing:.08em;text-transform:uppercase}
+  .skin-copy select{font-size:9px;padding:5px 4px;min-height:29px}
+  .skin-copy button{font-size:9px;padding:5px}
 
   .tgl[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0b1a22}
   .sub{margin-top:12px;padding-left:10px;border-left:1px solid var(--line-soft)}
@@ -152,6 +183,7 @@
       </div>
       <div class="row" style="margin-top:6px">
         <button class="primary" id="gen" style="flex:1">⟳ Generate</button>
+        <button id="undo" title="Undo last change (Cmd/Ctrl+Z)" aria-label="Undo last change" disabled>↶ Undo</button>
       </div>
     </div>
 
@@ -172,14 +204,87 @@
     </div>
 
     <div class="grp">
+      <label class="lbl" for="layout">Layout</label>
+      <select id="layout">
+        <option value="center" selected>Center target</option>
+        <option value="upper">High optic</option>
+        <option value="lower">Low optic</option>
+        <option value="left">Left offset</option>
+        <option value="right">Right offset</option>
+        <option value="drift">Seeded drift</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px" for="core">Core</label>
+      <select id="core">
+        <option value="pip" selected>Pip lock</option>
+        <option value="aperture">Aperture rings</option>
+        <option value="box">Box gate</option>
+        <option value="diamond">Diamond gate</option>
+        <option value="none">None</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px" for="ringstyle">Ring style</label>
+      <select id="ringstyle">
+        <option value="preset" selected>Preset mix</option>
+        <option value="optic">Optic glass</option>
+        <option value="graduated">Graduated ticks</option>
+        <option value="segmented">Segment blocks</option>
+        <option value="gauge">Gauge arcs</option>
+        <option value="dotted">Dot constellation</option>
+        <option value="sparse">Sparse drafting</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px" for="crossstyle">Crosshair style</label>
+      <select id="crossstyle">
+        <option value="preset" selected>Preset axis</option>
+        <option value="broken">Broken axis</option>
+        <option value="mil">Mil-dot ladder</option>
+        <option value="box">Box gate</option>
+        <option value="chevron">Chevron tips</option>
+        <option value="compass">Compass rose</option>
+        <option value="hash">Hash ladder</option>
+        <option value="iris">Iris ring</option>
+        <option value="triad">Triad lock</option>
+        <option value="range">Range brackets</option>
+        <option value="offset">Offset lock</option>
+        <option value="none">None</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px" for="fontface">Tech font</label>
+      <select id="fontface">
+        <option value="ui-monospace, Menlo, Consolas, monospace" selected>System mono</option>
+        <option value="'DIN 2014', 'DIN Alternate', 'DIN Condensed', sans-serif">DIN 2014</option>
+        <option value="'DIN Condensed', 'DIN 2014', sans-serif">DIN Condensed</option>
+        <option value="'Eurostile', 'Microgramma', sans-serif">Eurostile</option>
+        <option value="'Microgramma', 'Eurostile', sans-serif">Microgramma</option>
+        <option value="'OCR A Std', 'OCR A', monospace">OCR A</option>
+        <option value="'Agency FB', 'DIN 2014', sans-serif">Agency</option>
+        <option value="'BlenderPro Book', BlenderPro-Book, 'DIN 2014', sans-serif">Blender Pro</option>
+        <option value="'BlenderPro Bold', BlenderPro-Bold, 'DIN 2014', sans-serif">Blender Bold</option>
+        <option value="'Rajdhani', 'DIN Condensed', sans-serif">Rajdhani</option>
+        <option value="'Share Tech Mono', 'OCR A', monospace">Share Tech</option>
+        <option value="'Saira Condensed', 'DIN Condensed', sans-serif">Saira Condensed</option>
+        <option value="'Electrolize', 'Eurostile', sans-serif">Electrolize</option>
+      </select>
+    </div>
+
+    <div class="grp">
       <label class="lbl">Palette</label>
-      <div class="pick" id="palpick">
+      <div class="row">
+        <div class="pick" id="palpick">
         <button class="pick-btn" id="palbtn" aria-haspopup="listbox" aria-expanded="false">
           <span class="sw" id="palsw"></span>
           <span class="pick-name" id="palname"></span>
           <span class="pick-caret">▼</span>
         </button>
         <div class="pick-list" id="pallist" role="listbox"></div>
+        </div>
+        <button id="paldice" title="Randomize color scheme" aria-label="Randomize color scheme">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="4" y="4" width="16" height="16" rx="3"/>
+            <g class="ico-fill"><circle cx="8" cy="8" r="1.4"/><circle cx="16" cy="8" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="8" cy="16" r="1.4"/><circle cx="16" cy="16" r="1.4"/></g>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -188,10 +293,40 @@
       <input type="range" id="size" min="15" max="95" step="1" value="62" aria-label="Reticle radius">
 
       <label class="lbl" style="margin-top:10px">Rings <b id="ringsval">6</b></label>
-      <input type="range" id="rings" min="0" max="14" step="1" value="6" aria-label="Ring count">
+      <input type="range" id="rings" min="0" max="100" step="1" value="6" aria-label="Ring count">
+
+      <label class="lbl" style="margin-top:10px">Ring weight <b id="ringweightval">100%</b></label>
+      <input type="range" id="ringweight" min="25" max="300" step="1" value="100" aria-label="Ring line weight">
+
+      <label class="lbl" style="margin-top:10px">Ring variation <b id="ringvarval">0%</b></label>
+      <input type="range" id="ringvar" min="0" max="200" step="1" value="0" aria-label="Ring line weight variation">
+
+      <label class="lbl" style="margin-top:10px">Line variation <b id="linevarval">0%</b></label>
+      <input type="range" id="linevar" min="0" max="250" step="1" value="0" aria-label="Overall HUD line weight variation">
+
+      <label class="lbl" style="margin-top:10px">Line scale <b id="linescaleval">100%</b></label>
+      <input type="range" id="linescale" min="10" max="400" step="1" value="100" aria-label="Overall HUD line weight scale">
+
+      <div class="row" style="margin-top:10px">
+        <button class="tgl" id="tsnap" data-on="0" aria-pressed="false" style="flex:1">Snap to grid</button>
+      </div>
+      <label class="lbl" style="margin-top:8px">Snap size <b id="snapval">10 px</b></label>
+      <input type="range" id="snap" min="2" max="40" step="1" value="10" aria-label="Construction snap grid size">
 
       <label class="lbl" style="margin-top:10px">Crosshair <b id="crossval">100%</b></label>
       <input type="range" id="cross" min="0" max="100" step="1" value="100" aria-label="Crosshair reach">
+
+      <label class="lbl" style="margin-top:10px">Crosshair variation <b id="crossvarval">0%</b></label>
+      <input type="range" id="crossvar" min="0" max="100" step="1" value="0" aria-label="Crosshair variation">
+
+      <label class="lbl" style="margin-top:10px">Crosshair rotation <b id="crossrotval">0°</b></label>
+      <input type="range" id="crossrot" min="-180" max="180" step="1" value="0" aria-label="Crosshair rotation">
+
+      <label class="lbl" style="margin-top:10px">Crosshair duplicates <b id="crosscopiesval">0</b></label>
+      <input type="range" id="crosscopies" min="0" max="4" step="1" value="0" aria-label="Crosshair duplicate count">
+
+      <label class="lbl" style="margin-top:10px">Duplicate spread <b id="crossspreadval">45°</b></label>
+      <input type="range" id="crossspread" min="5" max="180" step="5" value="45" aria-label="Crosshair duplicate rotation spread">
 
       <label class="lbl" style="margin-top:10px">Brackets <b id="brkval">100%</b></label>
       <input type="range" id="brk" min="0" max="200" step="5" value="100" aria-label="Bracket density">
@@ -205,11 +340,45 @@
       <label class="lbl" style="margin-top:10px">Connect <b id="connectval">100%</b></label>
       <input type="range" id="connect" min="0" max="250" step="5" value="100" aria-label="Connector lines and fine detail">
 
+      <label class="lbl" style="margin-top:10px" for="connectstyle">Connector style</label>
+      <select id="connectstyle">
+        <option value="mixed" selected>Mixed routing</option>
+        <option value="radial">Radial leaders</option>
+        <option value="orthogonal">Orthogonal traces</option>
+        <option value="bus">Data bus rails</option>
+        <option value="circuit">Circuit board</option>
+        <option value="tether">Tethered callouts</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px">Nodes <b id="nodeval">70%</b></label>
+      <input type="range" id="nodes" min="0" max="200" step="5" value="70" aria-label="Connector node density">
+
+      <label class="lbl" style="margin-top:10px">Bus <b id="busval">45%</b></label>
+      <input type="range" id="bus" min="0" max="200" step="5" value="45" aria-label="Connector bus density">
+
+      <label class="lbl" style="margin-top:10px">Pods <b id="podsval">50%</b></label>
+      <input type="range" id="pods" min="0" max="200" step="5" value="50" aria-label="Mini target pods">
+
+      <label class="lbl" style="margin-top:10px">Sector <b id="sectorval">45%</b></label>
+      <input type="range" id="sector" min="0" max="200" step="5" value="45" aria-label="Sector fan density">
+
+      <label class="lbl" style="margin-top:10px">Rulers <b id="rulerval">55%</b></label>
+      <input type="range" id="ruler" min="0" max="200" step="5" value="55" aria-label="Ruler bands">
+
+      <label class="lbl" style="margin-top:10px">Ref marks <b id="refval">60%</b></label>
+      <input type="range" id="refmarks" min="0" max="200" step="5" value="60" aria-label="Reference SVG inspired marks">
+
+      <label class="lbl" style="margin-top:10px">Edge codes <b id="edgeval">35%</b></label>
+      <input type="range" id="edgecodes" min="0" max="200" step="5" value="35" aria-label="Edge numeric codes and datum marks">
+
       <label class="lbl" style="margin-top:10px">Field <b id="fieldval">80%</b></label>
       <input type="range" id="field" min="0" max="200" step="5" value="80" aria-label="Ambient field density">
 
       <label class="lbl" style="margin-top:10px">Text <b id="textval">100%</b></label>
       <input type="range" id="text" min="0" max="200" step="5" value="100" aria-label="Readout text">
+
+      <label class="lbl" style="margin-top:10px">Readout size <b id="readscaleval">75%</b></label>
+      <input type="range" id="readscale" min="35" max="140" step="5" value="75" aria-label="Readout text size">
 
       <label class="lbl" style="margin-top:10px">Exposure <b id="expval">100%</b></label>
       <input type="range" id="exp" min="10" max="220" step="5" value="100" aria-label="Exposure">
@@ -228,15 +397,20 @@
       <label class="lbl">Target subject</label>
       <div class="row">
         <button class="tgl" id="tsub" data-on="1" aria-pressed="true" style="flex:1">Airframe</button>
+        <button class="tgl" id="tplane" data-on="1" aria-pressed="true" style="flex:1">Plane</button>
       </div>
 
       <div class="sub" id="subsub">
         <label class="lbl" style="margin-top:2px" for="substyle">Render</label>
         <select id="substyle">
           <option value="scan" selected>Scan lines</option>
-          <option value="matrix">Sensor matrix</option>
-          <option value="solid">Silhouette</option>
-          <option value="wire">Wireframe</option>
+        <option value="matrix">Sensor matrix</option>
+        <option value="solid">Silhouette</option>
+        <option value="wire">Wireframe</option>
+        <option value="target">Target bracket</option>
+        <option value="aperture">Aperture gate</option>
+        <option value="ladder">Range ladder</option>
+        <option value="split">Split axis</option>
         </select>
 
         <label class="lbl" style="margin-top:10px">Size <b id="subsizeval">62%</b></label>
@@ -261,10 +435,36 @@
     </div>
 
     <div class="grp">
-      <label class="lbl">Overlays</label>
+      <label class="lbl">Background fields</label>
       <div class="row">
         <button class="tgl" id="tgrid" data-on="0" aria-pressed="false">Grid</button>
         <button class="tgl" id="tdots" data-on="0" aria-pressed="false">Dots</button>
+        <button class="tgl" id="tweb" data-on="1" aria-pressed="true">Trace</button>
+        <button class="tgl" id="thex" data-on="0" aria-pressed="false">Hex</button>
+      </div>
+
+      <div class="sub" id="websub">
+        <label class="lbl" for="webstyle">Trace pattern</label>
+        <select id="webstyle">
+          <option value="network" selected>Network mesh</option>
+          <option value="golden">Golden-angle web</option>
+          <option value="hex">Hexagonal grid</option>
+          <option value="radial">Radial web</option>
+          <option value="diagonal">Diagonal weave</option>
+          <option value="orbit">Orbit mesh</option>
+        </select>
+        <label class="lbl">Trace density <b id="webval">65%</b></label>
+        <input type="range" id="webdensity" min="0" max="150" step="5" value="65" aria-label="Trace field density">
+        <label class="lbl" style="margin-top:10px">Trace opacity <b id="webopval">28%</b></label>
+        <input type="range" id="webop" min="0" max="80" step="1" value="28" aria-label="Trace field opacity">
+      </div>
+      <div class="sub" id="hexsub" hidden>
+        <label class="lbl" for="hextone">Hex color</label>
+        <select class="color-select" id="hextone" aria-label="Hex color"><option value="ink" selected>Ink</option><option value="mid">Mid ink</option><option value="accent">Accent</option><option value="accent2">Accent 2</option><option value="complement">Complement</option></select>
+        <label class="lbl">Hex density <b id="hexval">55%</b></label>
+        <input type="range" id="hexdensity" min="10" max="160" step="5" value="55" aria-label="Hex background density">
+        <label class="lbl" style="margin-top:10px">Hex opacity <b id="hexopval">18%</b></label>
+        <input type="range" id="hexop" min="0" max="70" step="1" value="18" aria-label="Hex background opacity">
       </div>
 
       <div class="sub" id="gridsub" hidden>
@@ -273,7 +473,7 @@
 
         <label class="lbl" style="margin-top:10px">Grid opacity <b id="gridopval">14%</b></label>
         <div class="row">
-          <div class="cwrap"><input type="color" id="gridcolor" value="#dfeaf5" aria-label="Grid color"></div>
+          <select class="color-select" id="gridcolor" aria-label="Grid color"><option value="ink" selected>Ink</option><option value="mid">Mid ink</option><option value="accent">Accent</option><option value="accent2">Accent 2</option><option value="complement">Complement</option></select>
           <input type="range" id="gridop" min="0" max="60" step="1" value="14" aria-label="Grid opacity">
         </div>
 
@@ -290,10 +490,94 @@
 
         <label class="lbl" style="margin-top:10px">Dot opacity <b id="dotopval">22%</b></label>
         <div class="row">
-          <div class="cwrap"><input type="color" id="dotcolor" value="#dfeaf5" aria-label="Dot color"></div>
+          <select class="color-select" id="dotcolor" aria-label="Dot color"><option value="ink" selected>Ink</option><option value="mid">Mid ink</option><option value="accent">Accent</option><option value="accent2">Accent 2</option><option value="complement">Complement</option></select>
           <input type="range" id="dotop" min="0" max="80" step="1" value="22" aria-label="Dot opacity">
         </div>
       </div>
+
+      <label class="lbl" style="margin-top:14px">Skin overlays</label>
+
+      <label class="lbl" style="margin-top:10px">Skin opacity <b id="skinopval">0%</b></label>
+      <div class="row skin-control">
+        <button class="tgl" id="tskin" data-on="0" aria-pressed="false">Skin</button>
+        <input type="range" id="skinop" min="0" max="100" step="1" value="0" aria-label="Skin opacity">
+        <button id="skindice" title="Randomize skin layers" aria-label="Randomize skin layers">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="4" y="4" width="16" height="16" rx="3"/>
+            <g class="ico-fill"><circle cx="8" cy="8" r="1.4"/><circle cx="16" cy="8" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="8" cy="16" r="1.4"/><circle cx="16" cy="16" r="1.4"/></g>
+          </svg>
+        </button>
+      </div>
+      <div class="hint">Opacity controls the solid-color skin layer only: 0% is invisible, 100% is fully saturated.</div>
+
+      <label class="lbl" style="margin-top:10px">Skin layers</label>
+      <div class="chips" id="skinlayers">
+        <div class="skinrow">
+          <button class="chip skinchip" data-layer="rings" data-on="1" aria-pressed="true">Ring bands<em>large collar</em></button>
+          <select class="skinvariant" data-layer="rings" aria-label="Ring bands pattern"><option value="collar" selected>Collar</option><option value="double">Double arc</option><option value="orbit">Orbit cuts</option><option value="segmented">Segmented</option></select>
+          <select class="skintone" data-layer="rings" aria-label="Ring bands color"><option value="accent" selected>Accent</option><option value="accent2">Accent 2</option><option value="complement">Comp</option><option value="ink">Ink +</option><option value="mid">Ink mid</option></select>
+          <select class="skinrot" data-layer="rings" aria-label="Ring bands rotation"><option value="0" selected>0°</option><option value="15">15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+        </div>
+        <div class="skinrow">
+          <button class="chip skinchip" data-layer="ringgaps" data-on="0" aria-pressed="false">Broken bands<em>indexed arcs</em></button>
+          <select class="skinvariant" data-layer="ringgaps" aria-label="Broken bands pattern"><option value="indexed" selected>Indexed</option><option value="signal">Signal gaps</option><option value="bracket">Bracket arcs</option></select>
+          <select class="skintone" data-layer="ringgaps" aria-label="Broken bands color"><option value="accent">Accent</option><option value="accent2" selected>Accent 2</option><option value="complement">Comp</option><option value="ink">Ink +</option><option value="mid">Ink mid</option></select>
+          <select class="skinrot" data-layer="ringgaps" aria-label="Broken bands rotation"><option value="0" selected>0°</option><option value="15">15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+        </div>
+        <div class="skinrow">
+          <button class="chip skinchip" data-layer="ringstack" data-on="1" aria-pressed="true">Stacked bands<em>nested arcs</em></button>
+          <select class="skinvariant" data-layer="ringstack" aria-label="Stacked bands pattern"><option value="nested" selected>Nested</option><option value="ladder">Ladder</option><option value="shards">Shards</option></select>
+          <select class="skintone" data-layer="ringstack" aria-label="Stacked bands color"><option value="accent">Accent</option><option value="accent2" selected>Accent 2</option><option value="complement">Comp</option><option value="ink">Ink +</option><option value="mid">Ink mid</option></select>
+          <select class="skinrot" data-layer="ringstack" aria-label="Stacked bands rotation"><option value="0">0°</option><option value="15">15°</option><option value="30" selected>30°</option><option value="45">45°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+        </div>
+        <div class="skinrow">
+          <button class="chip skinchip" data-layer="discs" data-on="1" aria-pressed="true">Disc nodes<em>anchor pucks</em></button>
+          <select class="skinvariant" data-layer="discs" aria-label="Disc nodes pattern"><option value="anchors" selected>Anchors</option><option value="symmetry">Symmetric</option><option value="centerline">Centerline</option><option value="micro">Micro nodes</option><option value="satellites">Satellites</option><option value="triad">Triad</option><option value="beacons">Beacons</option></select>
+          <select class="skintone" data-layer="discs" aria-label="Disc nodes color"><option value="accent" selected>Accent</option><option value="accent2">Accent 2</option><option value="complement">Comp</option><option value="ink">Ink +</option><option value="mid">Ink mid</option></select>
+          <select class="skinrot" data-layer="discs" aria-label="Disc nodes rotation"><option value="0" selected>0°</option><option value="15">15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+        </div>
+        <div class="skinrow">
+          <button class="chip skinchip" data-layer="disccompass" data-on="0" aria-pressed="false">Disc compass<em>radial pips</em></button>
+          <select class="skinvariant" data-layer="disccompass" aria-label="Disc compass pattern"><option value="pips" selected>Pips</option><option value="cardinal">Cardinal</option><option value="bezel">Bezel</option></select>
+          <select class="skintone" data-layer="disccompass" aria-label="Disc compass color"><option value="accent">Accent</option><option value="accent2">Accent 2</option><option value="complement">Comp</option><option value="ink" selected>Ink +</option><option value="mid">Ink mid</option></select>
+          <select class="skinrot" data-layer="disccompass" aria-label="Disc compass rotation"><option value="0" selected>0°</option><option value="15">15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+        </div>
+        <div class="skinrow">
+          <button class="chip skinchip" data-layer="corners" data-on="1" aria-pressed="true">Corner plates<em>radial caps</em></button>
+          <select class="skinvariant" data-layer="corners" aria-label="Corner plates pattern"><option value="caps" selected>Radial caps</option><option value="ticks">Corner ticks</option><option value="brackets">Brackets</option></select>
+          <select class="skintone" data-layer="corners" aria-label="Corner plates color"><option value="accent">Accent</option><option value="accent2">Accent 2</option><option value="complement" selected>Comp</option><option value="ink">Ink +</option><option value="mid">Ink mid</option></select>
+          <select class="skinrot" data-layer="corners" aria-label="Corner plates rotation"><option value="0">0°</option><option value="15">15°</option><option value="30">30°</option><option value="45" selected>45°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="skinclone" style="flex:1">+ Duplicate selected skin</button>
+        <button id="skinclear" title="Remove duplicated skins" aria-label="Remove duplicated skins">Clear copies</button>
+      </div>
+      <div class="hint" id="skincount">No duplicate skins</div>
+      <div id="skincopies"></div>
+
+      <label class="lbl" style="margin-top:10px">Skin detail <b id="skindetailval">65%</b></label>
+      <input type="range" id="skindetail" min="0" max="200" step="5" value="65" aria-label="Skin pattern detail">
+
+      <label class="lbl" style="margin-top:10px">Skin scale <b id="skinscaleval">100%</b></label>
+      <input type="range" id="skinscale" min="50" max="175" step="1" value="100" aria-label="Skin layer scale">
+
+      <label class="lbl" style="margin-top:10px" for="skinweight">Skin stroke profile</label>
+      <select id="skinweight">
+        <option value="uniform" selected>Uniform</option>
+        <option value="contrast">Contrast</option>
+        <option value="varied">Varied</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px" for="skinblend">Skin blend</label>
+      <select id="skinblend">
+        <option value="source-over" selected>Normal</option>
+        <option value="screen">Screen</option>
+        <option value="lighter">Additive</option>
+        <option value="multiply">Multiply</option>
+        <option value="overlay">Overlay</option>
+      </select>
+
       <div class="hint">Drop a SUB//FORGE plate underneath and switch these off — the reticle is drawn on transparent-friendly black so it composites straight over a substrate.</div>
     </div>
 
@@ -308,6 +592,15 @@
         <button id="dlsvg" style="flex:1">↓ SVG — vector</button>
       </div>
       <div class="row" style="margin-top:6px">
+        <button id="dlai" style="flex:1">↓ Illustrator — layered</button>
+      </div>
+      <div class="export-guide">
+        <strong>Make the AI file</strong>
+        1. Click <b>Illustrator — layered</b> to download the SVG and JSX.<br>
+        2. In Illustrator, choose <b>File &gt; Scripts &gt; Other Script</b> and open the downloaded <b>-illustrator-layers.jsx</b> file.<br>
+        3. Select the matching SVG when prompted. Illustrator saves <b>-layers.ai</b> beside it with editable layers.
+      </div>
+      <div class="row" style="margin-top:6px">
         <button class="tgl" id="talpha" data-on="0" aria-pressed="false" style="flex:1">Transparent background</button>
       </div>
       <div class="row" style="margin-top:6px">
@@ -316,7 +609,7 @@
           <option value="100">View: 100%</option>
         </select>
       </div>
-      <div class="hint">Plate renders at 1920 on the long edge — 3× lands at 5760. SVG writes live vector: arcs stay arcs, so the reticle scales to any optic.</div>
+      <div class="hint">Plate renders at 1920 on the long edge — 3× lands at 5760. Illustrator export downloads a layered SVG and JSX converter; run the JSX in Illustrator to save a native layered AI file.</div>
     </div>
   </aside>
 
@@ -362,6 +655,12 @@ const PALETTES = [
   { id:'violet', name:'Violet Static', bg:'#07030c', ink:['#cbb0ff','#8c6bd6','#5b3f96','#33245a'], accents:['#ff5ea8','#3fe0ff'] },
   { id:'rust',   name:'Rust Deck',     bg:'#0a0503', ink:['#e8a184','#b1634a','#7a3d2c','#472018'], accents:['#ffd18a','#4fb8c9'] },
   { id:'ice',    name:'Ice',           bg:'#04070b', ink:['#dbeaff','#96b2d1','#5f7794','#38485c'], accents:['#66f0ff','#ff8a5c'] },
+  { id:'mono-cyan',  name:'Mono Cyan',  bg:'#02090b', ink:['#b8fbff','#70d9e6','#398f9f','#1b4b58'], accents:['#b8fbff','#70d9e6'] },
+  { id:'mono-amber', name:'Mono Amber', bg:'#0b0702', ink:['#ffe8a8','#e8b85c','#9e6f25','#573b12'], accents:['#ffe8a8','#e8b85c'] },
+  { id:'mono-green', name:'Mono Green', bg:'#020a06', ink:['#b9ffd0','#68d991','#378f63','#1d503a'], accents:['#b9ffd0','#68d991'] },
+  { id:'mono-red',   name:'Mono Red',   bg:'#0b0204', ink:['#ffd0d4','#ed747d','#a33f4b','#5b202a'], accents:['#ffd0d4','#ed747d'] },
+  { id:'mono-blue',  name:'Mono Blue',  bg:'#02070f', ink:['#c5dcff','#82aee9','#4b6f9f','#293f65'], accents:['#c5dcff','#82aee9'] },
+  { id:'mono-white', name:'Mono White', bg:'#050607', ink:['#ffffff','#c8cdd1','#858d93','#4d555b'], accents:['#ffffff','#c8cdd1'] },
   /* targeting wants a threat register the substrate palettes don't cover */
   { id:'threat', name:'Threat',        bg:'#0b0304', ink:['#ffd9d9','#e06a6a','#a33b3b','#5c2020'], accents:['#ff2d2d','#ffe36a'] },
   { id:'drafting',name:'Drafting',     bg:'#d9dadb', ink:['#0a0b0c','#3d4145','#74797e','#a4a8ac'], accents:['#000000','#c8102e'] }
@@ -394,9 +693,55 @@ const PRESETS = [
 
   { id:'plate',  name:'Plate',   note:'drafting sheet',
     ringMix:{ full:3, dash:1, dot:1, pair:4, heavy:5, tick:2, seg:1, gauge:0, fine:2 },
-    cross:'mid', brackets:'chevron', sats:4, targets:0, bearing:false, ladder:true, readout:'top', frame:true, bilateral:true, diag:true, wedge:true, blocks:2 }
+    cross:'mid', brackets:'chevron', sats:4, targets:0, bearing:false, ladder:true, readout:'top', frame:true, bilateral:true, diag:true, wedge:true, blocks:2 },
+
+  { id:'heli',   name:'Heli',    note:'attack display',
+    ringMix:{ full:2, dash:1, dot:1, pair:2, heavy:2, tick:5, seg:2, gauge:4, fine:2 },
+    cross:'short', brackets:'caliper', sats:2, targets:3, bearing:true, ladder:true, readout:'top', frame:false, diag:false, matrix:true, wedge:false, blocks:3, sector:true, rulers:true, pods:2 },
+
+  { id:'spider', name:'Spider',  note:'target web',
+    ringMix:{ full:2, dash:3, dot:2, pair:1, heavy:1, tick:2, seg:5, gauge:1, fine:5 },
+    cross:'edge', brackets:'corner', sats:5, targets:8, bearing:true, ladder:false, readout:'side', frame:true, diag:true, matrix:true, wedge:true, blocks:5, sector:true, rulers:false, pods:4 },
+
+  { id:'sector', name:'Sector',  note:'fan sweep',
+    ringMix:{ full:1, dash:2, dot:4, pair:1, heavy:3, tick:3, seg:5, gauge:3, fine:3 },
+    cross:'mid', brackets:'chevron', sats:2, targets:5, bearing:false, ladder:false, readout:'big', frame:false, sweep:true, wedge:true, blocks:2, sector:true, rulers:true, pods:1 },
+
+  { id:'orbital', name:'Orbital', note:'space navigation',
+    ringMix:{ full:5, dash:3, dot:2, pair:3, heavy:1, tick:6, seg:2, gauge:2, fine:5 },
+    cross:'edge', brackets:'corner', sats:5, targets:2, bearing:true, ladder:true, readout:'top', frame:true, diag:true, matrix:true, wedge:true, blocks:4, sector:true, rulers:true, pods:2 },
+
+  { id:'docking', name:'Docking', note:'proximity approach',
+    ringMix:{ full:3, dash:2, dot:1, pair:4, heavy:2, tick:3, seg:3, gauge:4, fine:3 },
+    cross:'short', brackets:'caliper', sats:2, targets:1, bearing:true, ladder:true, readout:'side', frame:true, diag:false, matrix:true, wedge:false, blocks:3, sector:false, rulers:true, pods:2 },
+
+  { id:'telemetry', name:'Telemetry', note:'ship systems',
+    ringMix:{ full:4, dash:4, dot:3, pair:2, heavy:0, tick:5, seg:3, gauge:1, fine:6 },
+    cross:'mid', brackets:'corner', sats:6, targets:4, bearing:true, ladder:true, readout:'top', frame:true, diag:true, matrix:true, wedge:true, blocks:6, sector:true, rulers:true, pods:3 },
+
+  { id:'deep-space', name:'Deep Space', note:'long-range scan',
+    ringMix:{ full:2, dash:4, dot:3, pair:2, heavy:1, tick:4, seg:2, gauge:3, fine:7 },
+    cross:'edge', brackets:'none', sats:4, targets:6, bearing:true, ladder:false, readout:'side', frame:false, diag:true, matrix:true, wedge:true, blocks:3, sector:true, rulers:false, pods:4 },
+
+  { id:'flight-deck', name:'Flight Deck', note:'vehicle systems',
+    ringMix:{ full:4, dash:2, dot:2, pair:4, heavy:3, tick:4, seg:4, gauge:2, fine:4 },
+    cross:'mid', brackets:'chevron', sats:3, targets:3, bearing:true, ladder:true, readout:'big', frame:true, diag:true, matrix:true, wedge:true, blocks:5, sector:true, rulers:true, pods:2 },
+
+  { id:'minimal',name:'Minimal', note:'clean optic',
+    ringMix:{ full:3, dash:1, dot:0, pair:4, heavy:1, tick:1, seg:0, gauge:0, fine:1 },
+    cross:'short', brackets:'corner', sats:1, targets:1, bearing:false, ladder:false, readout:'top', frame:false, diag:false, wedge:false, blocks:1, sector:false, rulers:false, pods:0 }
 ];
 let PRESET = PRESETS[0];
+
+const RING_STYLES = {
+  preset: null,
+  optic:      { full:5, dash:1, dot:0, pair:5, heavy:1, tick:1, seg:1, gauge:0, fine:2 },
+  graduated:  { full:1, dash:1, dot:1, pair:1, heavy:0, tick:7, seg:1, gauge:0, fine:6 },
+  segmented:  { full:1, dash:1, dot:1, pair:1, heavy:3, tick:2, seg:8, gauge:2, fine:2 },
+  gauge:      { full:1, dash:1, dot:0, pair:2, heavy:4, tick:2, seg:3, gauge:7, fine:1 },
+  dotted:     { full:1, dash:3, dot:8, pair:1, heavy:0, tick:2, seg:2, gauge:0, fine:5 },
+  sparse:     { full:2, dash:0, dot:0, pair:5, heavy:1, tick:1, seg:0, gauge:0, fine:1 }
+};
 
 /* ============================================================ helpers */
 function withAlpha(hex, a){
@@ -411,6 +756,9 @@ function weightedPick(weights){
   return keys[keys.length - 1];
 }
 const PT = (C, r, a) => [C.x + r * Math.cos(a), C.y + r * Math.sin(a)];
+let SNAP_ON = false, SNAP_STEP = 10;
+const snapN = n => SNAP_ON ? Math.round(n / SNAP_STEP) * SNAP_STEP : n;
+const snapPoint = (x, y) => [snapN(x), snapN(y)];
 /* The reticle is foreground, so bias colour toward the bright end of the
    ramp. Uniform picking pulls in the dark inks that exist for substrate
    texture, and the assembly greys out. The ambient field still uses the
@@ -418,20 +766,37 @@ const PT = (C, r, a) => [C.x + r * Math.cos(a), C.y + r * Math.sin(a)];
 const IB = ink => ink[Math.floor(Math.pow(R(), 2) * ink.length)];
 
 function line(g, x0, y0, x1, y1, col, w){
-  g.strokeStyle = col; g.lineWidth = w;
+  [x0, y0] = snapPoint(x0, y0); [x1, y1] = snapPoint(x1, y1);
+  g.strokeStyle = col; g.lineWidth = hudStrokeWidth(g, w);
   g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
 }
 function arc(g, C, r, a0, a1, col, w, dash){
   if (r <= 0.5) return;
+  r = snapN(r);
   if (dash) g.setLineDash(dash);
-  g.strokeStyle = col; g.lineWidth = w;
+  g.strokeStyle = col; g.lineWidth = hudStrokeWidth(g, w);
   g.beginPath(); g.arc(C.x, C.y, r, a0, a1); g.stroke();
   if (dash) g.setLineDash([]);
 }
+function hudStrokeWidth(g, w){
+  const amount = Math.min(1.7, g.__hudLineVariation || 0);
+  const scale = g.__hudLineScale || 1;
+  if (!amount) return w * scale;
+  const index = g.__hudStrokeIndex = (g.__hudStrokeIndex || 0) + 1;
+  const pattern = [0.72, 1.28, 0.9, 1.58, 0.82, 1.12];
+  const factor = 1 + (pattern[index % pattern.length] - 1) * amount;
+  return w * scale * factor;
+}
+function setHudLineWidth(g, w){ g.lineWidth = hudStrokeWidth(g, w); }
 /* radial spoke from r0 to r1 at angle a */
 function spoke(g, C, a, r0, r1, col, w){
   const p0 = PT(C, r0, a), p1 = PT(C, r1, a);
   line(g, p0[0], p0[1], p1[0], p1[1], col, w);
+}
+function drawLayer(g, id, name, fn){
+  if (typeof g.beginLayer === 'function') g.beginLayer(id, name);
+  fn();
+  if (typeof g.endLayer === 'function') g.endLayer();
 }
 
 /* ============================================================ vocabulary */
@@ -508,6 +873,7 @@ function generatedLabel(kind){
   }
 }
 let WORDS = [], WORDMIX = 0;
+let TYPE_FACE = 'ui-monospace, Menlo, Consolas, monospace';
 function labelText(kind){
   /* Same contract as SUB//FORGE: both draws happen and the stock label is
      always generated, so the lexicon re-skins the reticle without moving it. */
@@ -520,7 +886,7 @@ function bigValue(){
   return (R() * 9).toFixed(0) + '.' + String(Math.floor(R() * 10000)).padStart(4, '0');
 }
 function setFont(g, px, weight){
-  g.font = `${weight ? weight + ' ' : ''}${px}px ui-monospace, Menlo, Consolas, monospace`;
+  g.font = `${weight ? weight + ' ' : ''}${px}px ${TYPE_FACE}`;
   try { g.letterSpacing = (px * 0.12).toFixed(2) + 'px'; } catch (e) { /* older engines */ }
 }
 function text(g, str, x, y, px, col, align, baseline, weight){
@@ -653,29 +1019,179 @@ function bearingRing(g, C, r, ink, s, o){
 }
 
 function crosshair(g, C, W, H, Rb, ink, s, o){
-  if (o.cross <= 0) return;
-  const reach = { short: Rb * 1.15, mid: Rb * 1.7, edge: Math.max(W, H) }[PRESET.cross] * o.cross;
-  const gap = Rb * (0.04 + R() * 0.08);
+  if (o.cross <= 0 || o.crossstyle === 'none') return;
+  /* Edge means a long optic axis, not a line that escapes to the plate frame. */
+  const reach = { short: Rb * 1.15, mid: Rb * 1.7, edge: Rb * 2.15 }[PRESET.cross] * o.cross;
+  const v = o.crossvar;
+  const vr = mulberry(hash(`${o.seed}|crosshair|${v}`));
+  const gap = Rb * (0.04 + vr() * 0.08) * (1 + (vr() - 0.5) * 0.55 * v);
   const col = withAlpha(IB(ink), 0.45 + R() * 0.3);
-  const w = s * (R() < 0.4 ? 1.6 : 1);
+  const w = s * (R() < 0.4 ? 1.6 : 1) * (1 + (vr() - 0.5) * 0.5 * v);
+  const tickScale = 1 + (vr() - 0.5) * 0.7 * v;
+  const tickSkew = 1 + (vr() - 0.5) * 0.35 * v;
+  const style = o.crossstyle;
 
   for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-    line(g, C.x + dx * gap, C.y + dy * gap,
-            C.x + dx * reach, C.y + dy * reach, col, w);
+    if (style === 'broken'){
+      const r0 = gap, r1 = Math.min(reach, Rb * 0.56), r2 = Rb * 0.78;
+      line(g, C.x + dx * r0, C.y + dy * r0, C.x + dx * r1, C.y + dy * r1, col, w);
+      if (r2 < reach) line(g, C.x + dx * r2, C.y + dy * r2, C.x + dx * reach, C.y + dy * reach, col, w);
+    } else if (style === 'box'){
+      line(g, C.x + dx * gap, C.y + dy * gap, C.x + dx * Rb * 0.36, C.y + dy * Rb * 0.36, col, w);
+      line(g, C.x + dx * Rb * 0.64, C.y + dy * Rb * 0.64, C.x + dx * reach, C.y + dy * reach, col, w);
+    } else if (!['target','aperture','ladder','split','hash','iris','triad','range','offset'].includes(style)) {
+      line(g, C.x + dx * gap, C.y + dy * gap,
+              C.x + dx * reach, C.y + dy * reach, col, w);
+    }
+
     /* graduations climbing the axis, longer at every fifth */
-    const step = Rb * 0.12;
+    const step = (style === 'mil' ? Rb * 0.08 : Rb * 0.12) * tickScale;
     const tcol = withAlpha(IB(ink), 0.35);
     for (let i = 1, d = gap + step; d < reach; d += step, i++){
-      const l = (i % 5 === 0 ? 9 : 4) * s;
+      const l = (i % 5 === 0 ? 9 : style === 'mil' ? 6 : 4) * s * tickSkew;
       const px2 = C.x + dx * d, py = C.y + dy * d;
-      if (dx) line(g, px2, py - l, px2, py + l, tcol, s);
-      else    line(g, px2 - l, py, px2 + l, py, tcol, s);
+      if (style === 'mil' && i % 2){
+        g.fillStyle = tcol;
+        g.fillRect(px2 - s * 1.4, py - s * 1.4, s * 2.8, s * 2.8);
+      } else if (dx) line(g, px2, py - l, px2, py + l, tcol, s);
+      else           line(g, px2 - l, py, px2 + l, py, tcol, s);
+    }
+  }
+
+  if (style === 'target'){
+    const r = Rb * 0.62, arm = Rb * 0.12;
+    g.strokeStyle = withAlpha(IB(ink), 0.62); setHudLineWidth(g, s * 1.4);
+    g.beginPath();
+    for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      g.moveTo(C.x + dx * r, C.y + dy * r);
+      g.lineTo(C.x + dx * (r + arm), C.y + dy * r);
+      g.lineTo(C.x + dx * (r + arm), C.y + dy * (r + (dy ? -arm : arm)));
+    }
+    g.stroke();
+  }
+
+  if (style === 'aperture'){
+    for (let i = 0; i < 8; i++){
+      const a = i * TAU / 8 + Math.PI / 8;
+      const r0 = Rb * 0.42, r1 = Rb * (i % 2 ? 0.58 : 0.68);
+      spoke(g, C, a, r0, r1, withAlpha(IB(ink), i % 2 ? 0.35 : 0.62), i % 2 ? s : s * 1.5);
+    }
+  }
+
+  if (style === 'ladder'){
+    const r0 = gap + Rb * 0.1, r1 = Math.min(reach, Rb * 0.82);
+    for (let i = 0; i < 7; i++){
+      const r = r0 + (r1 - r0) * i / 6;
+      const len = (i === 0 || i === 6 ? 15 : 8) * s;
+      line(g, C.x - len, C.y - r, C.x + len, C.y - r, withAlpha(IB(ink), 0.38), s);
+      line(g, C.x - len, C.y + r, C.x + len, C.y + r, withAlpha(IB(ink), 0.38), s);
+    }
+  }
+
+  if (style === 'split'){
+    const r0 = gap, r1 = Math.min(reach, Rb * 0.55), r2 = Math.min(reach, Rb * 0.9);
+    line(g, C.x-r1, C.y, C.x-r0, C.y, col, w);
+    line(g, C.x+r0, C.y, C.x+r1, C.y, col, w);
+    line(g, C.x, C.y-r1, C.x, C.y-r0, col, w);
+    line(g, C.x, C.y+r0, C.x, C.y+r1, col, w);
+    for (const a of [Math.PI/4,3*Math.PI/4,5*Math.PI/4,7*Math.PI/4])
+      spoke(g, C, a, r1, r2, withAlpha(IB(ink), 0.32), s);
+  }
+
+  if (style === 'hash'){
+    for (let i = 1; i < 10; i++){
+      const d = gap + i * Rb * 0.075;
+      const l = (i % 3 === 0 ? 12 : 6) * s * tickSkew;
+      line(g, C.x - l, C.y - d, C.x + l, C.y - d, withAlpha(IB(ink), 0.34), s);
+      line(g, C.x - l, C.y + d, C.x + l, C.y + d, withAlpha(IB(ink), 0.34), s);
+    }
+  }
+
+  if (style === 'iris'){
+    const r = Rb * 0.55;
+    for (let i = 0; i < 12; i++){
+      const a = i * TAU / 12 + Math.PI / 12;
+      arc(g, C, r, a, a + 0.25 + (i % 3) * 0.08, withAlpha(IB(ink), i % 3 ? 0.34 : 0.62), i % 3 ? s : s * 1.4);
+    }
+  }
+
+  if (style === 'triad'){
+    for (let i = 0; i < 3; i++){
+      const a = i * TAU / 3 - Math.PI / 2;
+      const p0 = PT(C, gap, a), p1 = PT(C, Math.min(reach, Rb * 0.72), a);
+      line(g, p0[0], p0[1], p1[0], p1[1], col, w);
+      const l = 11 * s;
+      const q = PT(C, Math.min(reach, Rb * 0.72), a);
+      line(g, q[0] - Math.cos(a + Math.PI/2) * l, q[1] - Math.sin(a + Math.PI/2) * l, q[0] + Math.cos(a + Math.PI/2) * l, q[1] + Math.sin(a + Math.PI/2) * l, col, w);
+    }
+  }
+
+  if (style === 'range'){
+    const r = Math.min(reach, Rb * 0.78), l = Rb * 0.11;
+    for (const a of [0, Math.PI/2, Math.PI, 3*Math.PI/2]){
+      const p = PT(C, r, a), t = a + Math.PI/2;
+      line(g, p[0], p[1], p[0] + Math.cos(t) * l, p[1] + Math.sin(t) * l, col, w);
+      line(g, p[0], p[1], p[0] - Math.cos(t) * l, p[1] - Math.sin(t) * l, col, w);
+    }
+  }
+
+  if (style === 'offset'){
+    const d = Rb * 0.18, r = Math.min(reach, Rb * 0.65);
+    for (const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+      line(g, C.x + sx*d, C.y + sy*d, C.x + sx*r, C.y + sy*d, col, w);
+      line(g, C.x + sx*d, C.y + sy*d, C.x + sx*d, C.y + sy*r, col, w);
+    }
+  }
+
+  if (style === 'box'){
+    const b = Rb * 0.48, l = b * 0.28;
+    g.strokeStyle = withAlpha(IB(ink), 0.55);
+    setHudLineWidth(g, s * 1.3);
+    g.beginPath();
+    for (const [x, y, dx, dy] of [[-1,-1,1,1],[1,-1,-1,1],[-1,1,1,-1],[1,1,-1,-1]]){
+      g.moveTo(C.x + x * b, C.y + y * b + dy * l);
+      g.lineTo(C.x + x * b, C.y + y * b);
+      g.lineTo(C.x + x * b + dx * l, C.y + y * b);
+    }
+    g.stroke();
+  }
+
+  if (style === 'chevron'){
+    const r = Rb * 0.7, L = Rb * 0.09;
+    g.strokeStyle = withAlpha(IB(ink), 0.58);
+    setHudLineWidth(g, s * 1.4);
+    g.beginPath();
+    for (let k = 0; k < 4; k++){
+      const a = k * Math.PI / 2;
+      const dx = Math.cos(a), dy = Math.sin(a);
+      const tip = PT(C, r, a);
+      g.moveTo(tip[0] + dx * L - dy * L * 0.75, tip[1] + dy * L + dx * L * 0.75);
+      g.lineTo(tip[0], tip[1]);
+      g.lineTo(tip[0] + dx * L + dy * L * 0.75, tip[1] + dy * L - dx * L * 0.75);
+    }
+    g.stroke();
+  }
+
+  if (style === 'compass'){
+    const r = Rb * 0.46;
+    arc(g, C, r, 0, TAU, withAlpha(IB(ink), 0.24), s);
+    for (let k = 0; k < 32; k++){
+      const a = k * TAU / 32;
+      const maj = k % 4 === 0;
+      spoke(g, C, a, r - (maj ? 14 : 7) * s, r + (maj ? 14 : 7) * s, withAlpha(IB(ink), maj ? 0.58 : 0.32), maj ? s * 1.4 : s);
+    }
+    if (o.text > 0){
+      const labels = [['N',-Math.PI/2],['E',0],['S',Math.PI/2],['W',Math.PI]];
+      for (const [label, a] of labels){
+        const p = PT(C, r + 24 * s, a);
+        text(g, label, p[0], p[1], 11 * s, withAlpha(IB(ink), 0.56), 'center', 'middle', '700');
+      }
     }
   }
 
   /* diagonal spokes running out past the collar — they set the four-quadrant
      read that the cardinal axes alone never quite give */
-  if (PRESET.diag){
+  if (PRESET.diag || style === 'compass'){
     /* one heavy pass and one hairline pass at different reaches — the weight
        contrast is what makes the X read as structure and not just four lines */
     for (let pass = 0; pass < 2; pass++){
@@ -707,7 +1223,7 @@ function brackets(g, C, Rb, ink, acc, s, o){
     const useAcc = chance(o.acc);
     const col = withAlpha(useAcc ? pick(acc) : IB(ink), useAcc ? 0.9 : 0.4 + R() * 0.4);
     g.strokeStyle = col;
-    g.lineWidth = s * (chance(0.4) ? 1.8 : 1);
+    setHudLineWidth(g, s * (chance(0.4) ? 1.8 : 1));
 
     if (kind === 'chevron'){
       /* arrowheads standing on the axes, aimed at the centre */
@@ -794,7 +1310,7 @@ function targets(g, C, Rb, W, H, ink, acc, s, o){
     const L = Math.min(bw, bh) * 0.3;
 
     /* corner-ticked box — the acquisition bracket */
-    g.strokeStyle = col; g.lineWidth = s * (hot ? 1.6 : 1);
+    g.strokeStyle = col; setHudLineWidth(g, s * (hot ? 1.6 : 1));
     g.beginPath();
     for (const [cx2, cy2, sx, sy] of [[x0,y0,1,1],[x0+bw,y0,-1,1],[x0,y0+bh,1,-1],[x0+bw,y0+bh,-1,-1]]){
       g.moveTo(cx2, cy2 + sy * L); g.lineTo(cx2, cy2); g.lineTo(cx2 + sx * L, cy2);
@@ -850,13 +1366,13 @@ function readouts(g, C, Rb, W, H, ink, acc, s, o){
   const hot = withAlpha(pick(acc), 0.9);
 
   if (mode === 'big'){
-    /* the oversized range value, set above the reticle */
-    const px = Rb * 0.19;
+    /* large range value, tuned down so it reads as instrumentation instead of a title */
+    const px = Rb * 0.12 * o.readscale;
     text(g, bigValue(), C.x, C.y - Rb * 1.06, px, withAlpha(IB(ink), 0.9), 'center', 'bottom');
-    text(g, 'TARGET : ' + pick(V_STATE), C.x, C.y - Rb * 1.0, px * 0.24,
+    text(g, 'TARGET : ' + pick(V_STATE), C.x, C.y - Rb * 1.0, px * 0.32,
          withAlpha(IB(ink), 0.55), 'center', 'top');
   } else if (mode === 'top'){
-    const px = 14 * s;
+    const px = 14 * s * o.readscale;
     text(g, generatedLabel('code') + '   ' + generatedLabel('time'),
          C.x, C.y - Rb * 1.12, px, withAlpha(IB(ink), 0.7), 'center', 'bottom');
     /* mode pill under the reticle */
@@ -870,7 +1386,7 @@ function readouts(g, C, Rb, W, H, ink, acc, s, o){
          withAlpha(PAL.bg, 0.95), 'center', 'middle', '700');
   } else {
     /* side: a mirrored pair of values riding the horizontal axis */
-    const px = Rb * 0.13;
+    const px = Rb * 0.095 * o.readscale;
     const v = (R() * 99).toFixed(1);
     for (const side of [-1, 1])
       text(g, v, C.x + side * Rb * 1.5, C.y, px, withAlpha(IB(ink), 0.75),
@@ -976,7 +1492,7 @@ function paintSubject(g, C, Rb, W, H, ink, acc, s, o){
   const h = w * JET_AR;
   const rot = o.subrot * Math.PI / 180;
 
-  if (JET_READY){
+  if (JET_READY && o.subPlane){
   g.save();
   g.translate(C.x, C.y);
   g.rotate(rot);
@@ -1017,7 +1533,7 @@ function paintSubject(g, C, Rb, W, H, ink, acc, s, o){
   x0 -= bpad; y0 -= bpad; x1 += bpad; y1 += bpad;
   const cl = Math.min(x1 - x0, y1 - y0) * 0.16;
   g.strokeStyle = withAlpha(hot, Math.min(1, o.subop * 1.5));
-  g.lineWidth = s * 1.6;
+  setHudLineWidth(g, s * 1.6);
   g.beginPath();
   for (const [bx, by, dx, dy] of [[x0,y0,1,1],[x1,y0,-1,1],[x0,y1,1,-1],[x1,y1,-1,-1]]){
     g.moveTo(bx, by + dy * cl); g.lineTo(bx, by); g.lineTo(bx + dx * cl, by);
@@ -1065,37 +1581,110 @@ function dataBlocks(g, C, Rb, W, H, ink, acc, s, o){
 }
 
 function connectors(g, C, Rb, W, H, ink, acc, s, o){
-  /* Long leaders struck off the reticle out to a terminal dot. These are what
-     tie the assembly into the rest of the plate — without them the reticle
-     floats and everything else reads as unrelated litter. */
-  const n = Math.round(o.connect * 7);
+  /* Leaders, elbows, buses, and circuit traces. The connect slider controls
+     volume; style controls routing vocabulary; nodes/bus control detail. */
+  const n = Math.round(o.connect * 8);
   const m = 24 * s;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const node = (x, y, col, scale, kind) => {
+    if (o.nodes <= 0) return;
+    const d = s * scale * (0.75 + o.nodes * 0.4);
+    g.fillStyle = col;
+    if (kind === 'ring'){
+      arc(g, {x, y}, d * 1.5, 0, TAU, col, Math.max(0.7, s));
+      g.fillRect(x - d * 0.35, y - d * 0.35, d * 0.7, d * 0.7);
+    } else if (kind === 'diamond'){
+      g.beginPath();
+      g.moveTo(x, y - d); g.lineTo(x + d, y); g.lineTo(x, y + d); g.lineTo(x - d, y); g.closePath(); g.fill();
+    } else {
+      g.fillRect(x - d, y - d, d * 2, d * 2);
+    }
+  };
+  const route = (pts, col, w, dash) => {
+    if (dash) g.setLineDash(dash);
+    g.strokeStyle = col; setHudLineWidth(g, w);
+    g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
+    g.stroke();
+    if (dash) g.setLineDash([]);
+  };
+
   for (let i = 0; i < n; i++){
     const a = R() * TAU;
     const r0 = Rb * (0.35 + R() * 0.85);
     const p0 = PT(C, r0, a);
     const far = PT(C, r0 + Rb * (0.5 + R() * 1.5), a + (R() - 0.5) * 0.7);
-    const p1 = [Math.max(m, Math.min(W - m, far[0])), Math.max(m, Math.min(H - m, far[1]))];
-
+    const p1 = [clamp(far[0], m, W - m), clamp(far[1], m, H - m)];
     const useAcc = chance(o.acc * 0.5);
     const col = withAlpha(useAcc ? pick(acc) : IB(ink), useAcc ? 0.9 : 0.28 + R() * 0.45);
-    const dotted = chance(0.38);
-    if (dotted) g.setLineDash([s, 3.5 * s]);
-    g.strokeStyle = col;
-    g.lineWidth = s * (chance(0.25) ? 2.2 : 0.8);
+    const w = s * (chance(0.25) ? 2.2 : 0.8);
+    const style = o.connectstyle === 'mixed' ? pick(['radial','orthogonal','bus','circuit','tether']) : o.connectstyle;
+    const dash = chance(style === 'circuit' ? 0.18 : 0.36) ? [s, 3.5 * s] : null;
 
-    g.beginPath();
-    g.moveTo(p0[0], p0[1]);
-    if (chance(0.4)) g.lineTo(p1[0], p0[1]);   /* orthogonal elbow */
-    g.lineTo(p1[0], p1[1]);
-    g.stroke();
-    if (dotted) g.setLineDash([]);
+    if (style === 'orthogonal' || style === 'circuit'){
+      const midX = chance(0.5) ? p0[0] : p1[0];
+      const midY = chance(0.5) ? p1[1] : p0[1];
+      const pts = chance(0.5)
+        ? [p0, [midX, p0[1]], [midX, midY], [p1[0], midY], p1]
+        : [p0, [p0[0], midY], [midX, midY], [midX, p1[1]], p1];
+      route(pts, col, w, dash);
+      if (style === 'circuit' && o.nodes > 0){
+        for (let j = 1; j < pts.length - 1; j++) if (chance(0.55)) node(pts[j][0], pts[j][1], col, 1.4, 'ring');
+        if (chance(0.5)){
+          const b = pick(pts.slice(1, -1));
+          const side = chance(0.5) ? 1 : -1;
+          route([b, [clamp(b[0] + side * Rb * (0.08 + R() * 0.18), m, W - m), b[1]]], withAlpha(IB(ink), 0.22), s, [2 * s, 4 * s]);
+        }
+      }
+    } else if (style === 'bus'){
+      const horizontal = chance(0.55);
+      const offset = Rb * (0.9 + R() * 0.55) * (chance(0.5) ? 1 : -1);
+      const rail = horizontal
+        ? [[m, clamp(C.y + offset, m, H - m)], [W - m, clamp(C.y + offset, m, H - m)]]
+        : [[clamp(C.x + offset, m, W - m), m], [clamp(C.x + offset, m, W - m), H - m]];
+      route([p0, horizontal ? [p0[0], rail[0][1]] : [rail[0][0], p0[1]], horizontal ? [p1[0], rail[0][1]] : [rail[0][0], p1[1]], p1], col, w, dash);
+      route(rail, withAlpha(IB(ink), 0.16 + R() * 0.18), s * 0.9, [8 * s, 7 * s]);
+      if (o.text > 0 && chance(0.3)){
+        const tx = horizontal ? clamp(p1[0] + 10 * s, m, W - m) : rail[0][0] + 10 * s;
+        const ty = horizontal ? rail[0][1] - 8 * s : clamp(p1[1], m, H - m);
+        text(g, labelText('tag'), tx, ty, 9 * s, withAlpha(IB(ink), 0.42), 'left', 'bottom');
+      }
+    } else if (style === 'tether'){
+      const k = PT(C, Rb * (1.05 + R() * 0.25), a);
+      const dogleg = [clamp(k[0] + Math.sign(Math.cos(a)) * Rb * (0.12 + R() * 0.25), m, W - m), clamp(k[1], m, H - m)];
+      route([p0, k, dogleg, p1], col, w, dash);
+      if (chance(0.55)) arc(g, {x: dogleg[0], y: dogleg[1]}, 6 * s, 0, TAU, withAlpha(IB(ink), 0.32), s);
+    } else {
+      route([p0, p1], col, w, dash);
+    }
 
-    /* terminal node, and sometimes an origin node too */
-    const d = s * (1.6 + R() * 2.4);
-    g.fillStyle = col;
-    g.fillRect(p1[0] - d, p1[1] - d, d * 2, d * 2);
-    if (chance(0.35)) g.fillRect(p0[0] - d * 0.7, p0[1] - d * 0.7, d * 1.4, d * 1.4);
+    node(p1[0], p1[1], col, 1.8 + R() * 1.5, chance(0.35) ? 'diamond' : 'square');
+    if (chance(0.35)) node(p0[0], p0[1], col, 1.1, 'ring');
+  }
+
+  const buses = Math.round(o.bus * o.connect * 4);
+  for (let i = 0; i < buses; i++){
+    const horizontal = chance(0.5);
+    const col = withAlpha(chance(o.acc * 0.35) ? pick(acc) : IB(ink), 0.18 + R() * 0.28);
+    if (horizontal){
+      const y = clamp(C.y + (R() - 0.5) * Rb * 2.8, m, H - m);
+      const x0 = clamp(C.x - Rb * (0.75 + R()), m, W - m);
+      const x1 = clamp(C.x + Rb * (0.75 + R()), m, W - m);
+      route([[x0, y], [x1, y]], col, s * (chance(0.25) ? 1.7 : 0.8), [12 * s, 5 * s, 2 * s, 5 * s]);
+      for (let k = 0; k < rint(2, 5); k++){
+        const x = x0 + (x1 - x0) * R();
+        route([[x, y], [x, y + (chance(0.5) ? 1 : -1) * Rb * (0.08 + R() * 0.22)]], withAlpha(IB(ink), 0.2), s);
+      }
+    } else {
+      const x = clamp(C.x + (R() - 0.5) * Rb * 2.8, m, W - m);
+      const y0 = clamp(C.y - Rb * (0.75 + R()), m, H - m);
+      const y1 = clamp(C.y + Rb * (0.75 + R()), m, H - m);
+      route([[x, y0], [x, y1]], col, s * (chance(0.25) ? 1.7 : 0.8), [12 * s, 5 * s, 2 * s, 5 * s]);
+      for (let k = 0; k < rint(2, 5); k++){
+        const y = y0 + (y1 - y0) * R();
+        route([[x, y], [x + (chance(0.5) ? 1 : -1) * Rb * (0.08 + R() * 0.22), y]], withAlpha(IB(ink), 0.2), s);
+      }
+    }
   }
 }
 
@@ -1171,22 +1760,144 @@ function dotMatrix(g, C, Rb, ink, acc, s, o){
     for (let k = 1; k <= rint(2, 4); k++){
       const h = pitch * n * (0.6 + k * 0.55);
       g.strokeStyle = withAlpha(IB(ink), 0.1 + R() * 0.18);
-      g.lineWidth = s;
+      setHudLineWidth(g, s);
       g.strokeRect(C.x - h, C.y - h, h * 2, h * 2);
     }
   }
 }
 
 function centerPip(g, C, Rb, ink, acc, s, o){
+  if (o.core === 'none') return;
   const col = withAlpha(pick(acc), 0.95);
   const r = Rb * 0.02;
-  arc(g, C, r * 1.8, 0, TAU, withAlpha(IB(ink), 0.6), s);
-  g.fillStyle = col;
-  g.fillRect(C.x - r / 2, C.y - r / 2, r, r);
-  /* four short stubs boxing the pip */
+
+  if (o.core === 'aperture'){
+    for (let k = 1; k <= 4; k++)
+      arc(g, C, r * (1.7 + k * 1.45), 0, TAU, withAlpha(k === 2 ? pick(acc) : IB(ink), k === 2 ? 0.82 : 0.28 + k * 0.1), s * (k === 3 ? 1.6 : 1));
+  } else if (o.core === 'box'){
+    const b = r * 5.6, l = b * 0.34;
+    g.strokeStyle = withAlpha(IB(ink), 0.75);
+    setHudLineWidth(g, s * 1.4);
+    g.beginPath();
+    for (const [x, y, dx, dy] of [[-1,-1,1,1],[1,-1,-1,1],[-1,1,1,-1],[1,1,-1,-1]]){
+      g.moveTo(C.x + x * b, C.y + y * b + dy * l);
+      g.lineTo(C.x + x * b, C.y + y * b);
+      g.lineTo(C.x + x * b + dx * l, C.y + y * b);
+    }
+    g.stroke();
+  } else if (o.core === 'diamond'){
+    const d = r * 7;
+    g.strokeStyle = withAlpha(IB(ink), 0.7);
+    setHudLineWidth(g, s * 1.5);
+    g.beginPath();
+    g.moveTo(C.x, C.y - d); g.lineTo(C.x + d, C.y); g.lineTo(C.x, C.y + d); g.lineTo(C.x - d, C.y); g.closePath(); g.stroke();
+    arc(g, C, d * 0.42, 0, TAU, withAlpha(pick(acc), 0.65), s);
+  } else {
+    arc(g, C, r * 1.8, 0, TAU, withAlpha(IB(ink), 0.6), s);
+    g.fillStyle = col;
+    g.fillRect(C.x - r / 2, C.y - r / 2, r, r);
+  }
+
+  /* four short stubs boxing the core */
   for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
     const a0 = r * 3, a1 = r * 5.5;
     line(g, C.x + dx * a0, C.y + dy * a0, C.x + dx * a1, C.y + dy * a1, withAlpha(IB(ink), 0.7), s * 1.3);
+  }
+}
+
+function layoutCenter(W, H, Rb, o){
+  const C = { x: W / 2, y: H / 2 };
+  const margin = Rb * 1.18 + 26;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  if (o.layout === 'upper') C.y = clamp(H * 0.41, margin, H - margin);
+  else if (o.layout === 'lower') C.y = clamp(H * 0.59, margin, H - margin);
+  else if (o.layout === 'left') C.x = clamp(W * 0.42, margin, W - margin);
+  else if (o.layout === 'right') C.x = clamp(W * 0.58, margin, W - margin);
+  else if (o.layout === 'drift'){
+    C.x = clamp(W * (0.42 + R() * 0.16), margin, W - margin);
+    C.y = clamp(H * (0.40 + R() * 0.20), margin, H - margin);
+  }
+  return C;
+}
+
+function miniPods(g, C, Rb, W, H, ink, acc, s, o){
+  const n = Math.round((PRESET.pods ?? 2) * o.pods);
+  if (n <= 0) return;
+  const slots = [
+    [-0.78,-0.64], [0.78,-0.64], [-0.78,0.64], [0.78,0.64],
+    [-1.12,0], [1.12,0], [0,-0.92], [0,0.92]
+  ];
+  for (let i = 0; i < n; i++){
+    const base = slots[i % slots.length];
+    const x = C.x + base[0] * Rb * (0.9 + R() * 0.22);
+    const y = C.y + base[1] * Rb * (0.82 + R() * 0.25);
+    const r = Rb * (0.095 + R() * 0.055);
+    if (x < r * 1.8 || x > W - r * 1.8 || y < r * 1.8 || y > H - r * 1.8) continue;
+    const hot = chance(o.acc * 0.65);
+    const col = withAlpha(hot ? pick(acc) : IB(ink), hot ? 0.9 : 0.42 + R() * 0.32);
+    arc(g, {x, y}, r, 0, TAU, col, s * 1.2);
+    arc(g, {x, y}, r * 0.56, 0, TAU, withAlpha(IB(ink), 0.36), s);
+    line(g, x - r * 1.25, y, x - r * 0.42, y, col, s);
+    line(g, x + r * 0.42, y, x + r * 1.25, y, col, s);
+    line(g, x, y - r * 1.25, x, y - r * 0.42, col, s);
+    line(g, x, y + r * 0.42, x, y + r * 1.25, col, s);
+    if (chance(0.6)){
+      const side = x < C.x ? -1 : 1;
+      line(g, x + side * r, y, x + side * Rb * 0.22, y, withAlpha(IB(ink), 0.25), s);
+    }
+  }
+}
+
+function sectorFan(g, C, Rb, ink, acc, s, o){
+  if (o.sector <= 0) return;
+  const fans = Math.max(PRESET.sector ? 1 : 0, Math.round(o.sector * 1.5));
+  for (let f = 0; f < fans; f++){
+    const a0 = R() * TAU;
+    const span = (0.12 + R() * 0.22) * TAU;
+    const r0 = Rb * (0.2 + R() * 0.24);
+    const r1 = Rb * (0.72 + R() * 0.55);
+    const col = withAlpha(chance(o.acc) ? pick(acc) : IB(ink), 0.25 + R() * 0.42);
+    for (let i = 0; i <= 5; i++){
+      const r = r0 + (r1 - r0) * i / 5;
+      arc(g, C, r, a0, a0 + span, col, s * (i === 5 ? 1.6 : 0.9), i % 2 ? [2 * s, 5 * s] : null);
+    }
+    spoke(g, C, a0, r0, r1, col, s);
+    spoke(g, C, a0 + span, r0, r1, col, s);
+  }
+}
+
+function rulerBands(g, C, Rb, W, H, ink, acc, s, o){
+  const n = Math.round((PRESET.rulers ? 3 : 1) * o.ruler);
+  if (n <= 0) return;
+  const px = 9 * s;
+  for (let i = 0; i < n; i++){
+    const horizontal = chance(0.55);
+    const side = chance(0.5) ? -1 : 1;
+    const len = Rb * (0.75 + R() * 0.85);
+    const col = withAlpha(IB(ink), 0.25 + R() * 0.35);
+    if (horizontal){
+      const y = C.y + side * Rb * (1.0 + R() * 0.45);
+      const x0 = Math.max(18 * s, C.x - len / 2), x1 = Math.min(W - 18 * s, C.x + len / 2);
+      line(g, x0, y, x1, y, col, s);
+      const ticks = rint(16, 36);
+      for (let k = 0; k <= ticks; k++){
+        const x = x0 + (x1 - x0) * k / ticks;
+        const maj = k % 5 === 0;
+        line(g, x, y, x, y + side * (maj ? 12 : 6) * s, col, maj ? s * 1.25 : s);
+      }
+      if (o.text > 0 && chance(0.7)) text(g, labelText('value'), x0, y + side * 16 * s, px, col, 'left', side < 0 ? 'bottom' : 'top');
+    } else {
+      const x = C.x + side * Rb * (1.05 + R() * 0.45);
+      const y0 = Math.max(18 * s, C.y - len / 2), y1 = Math.min(H - 18 * s, C.y + len / 2);
+      line(g, x, y0, x, y1, col, s);
+      const ticks = rint(12, 30);
+      for (let k = 0; k <= ticks; k++){
+        const y = y0 + (y1 - y0) * k / ticks;
+        const maj = k % 5 === 0;
+        line(g, x, y, x + side * (maj ? 12 : 6) * s, y, col, maj ? s * 1.25 : s);
+      }
+      if (o.text > 0 && chance(0.65)) text(g, labelText('tag'), x + side * 16 * s, y0, px, col, side > 0 ? 'left' : 'right', 'top');
+    }
   }
 }
 
@@ -1209,17 +1920,17 @@ function fieldMarks(g, C, W, H, Rb, ink, acc, s, o){
         g.fillStyle = col;
         g.fillRect(x - k, y, k * 2, s); g.fillRect(x, y - k, s, k * 2); break;
       case 4: { /* chevron */
-        g.strokeStyle = col; g.lineWidth = s;
+        g.strokeStyle = col; setHudLineWidth(g, s);
         const dir = chance(0.5) ? 1 : -1;
         g.beginPath();
         g.moveTo(x, y - k); g.lineTo(x + dir * k, y); g.lineTo(x, y + k); g.stroke(); break;
       }
       case 5: { /* register corner */
-        g.strokeStyle = col; g.lineWidth = s;
+        g.strokeStyle = col; setHudLineWidth(g, s);
         g.beginPath(); g.moveTo(x, y + k * 1.6); g.lineTo(x, y); g.lineTo(x + k * 1.6, y); g.stroke(); break;
       }
       case 7: { /* x — the diagonal counterpart to the plus */
-        g.strokeStyle = col; g.lineWidth = s * (chance(0.3) ? 1.8 : 1);
+        g.strokeStyle = col; setHudLineWidth(g, s * (chance(0.3) ? 1.8 : 1));
         g.beginPath();
         g.moveTo(x - k, y - k); g.lineTo(x + k, y + k);
         g.moveTo(x + k, y - k); g.lineTo(x - k, y + k);
@@ -1244,7 +1955,7 @@ function fieldMarks(g, C, W, H, Rb, ink, acc, s, o){
         }
         g.closePath();
         if (chance(0.4)){ g.fillStyle = col; g.fill(); }
-        else { g.strokeStyle = col; g.lineWidth = s; g.stroke(); }
+        else { g.strokeStyle = col; setHudLineWidth(g, s); g.stroke(); }
         break;
       }
       default: g.fillRect(x, y, s * 1.5, s * 1.5);
@@ -1267,7 +1978,7 @@ function plateFrame(g, W, H, ink, s, o){
   if (!PRESET.frame) return;
   const col = withAlpha(IB(ink), 0.45);
   const m = 26 * s, L = Math.min(W, H) * 0.06;
-  g.strokeStyle = col; g.lineWidth = s * 1.5;
+  g.strokeStyle = col; setHudLineWidth(g, s * 1.5);
   g.beginPath();
   for (const [x, y, sx, sy] of [[m,m,1,1],[W-m,m,-1,1],[m,H-m,1,-1],[W-m,H-m,-1,-1]]){
     g.moveTo(x, y + sy * L); g.lineTo(x, y); g.lineTo(x + sx * L, y);
@@ -1275,51 +1986,218 @@ function plateFrame(g, W, H, ink, s, o){
   g.stroke();
 }
 
-/* ============================================================ composition */
-function paintReticle(g, W, H, o, s){
-  const P = PRESET, ink = PAL.ink, acc = PAL.accents;
-  WORDS = o.words; WORDMIX = o.wordmix;
-  const C = { x: W / 2, y: H / 2 };
-  const Rb = Math.min(W, H) * 0.5 * o.size;
+function referenceMarks(g, C, Rb, W, H, ink, acc, s, o){
+  if (o.refmarks <= 0) return;
+  const col = withAlpha(IB(ink), 0.34 + Math.min(0.24, o.refmarks * 0.12));
+  const hot = withAlpha(chance(o.acc) ? pick(acc) : IB(ink), 0.5);
+  const m = Math.min(W, H) * 0.07;
+  const bar = 30 * s, gap = 6 * s, thick = Math.max(1, 3 * s);
+  const rectN = (x, y, w, h) => g.fillRect(Math.min(x, x + w), Math.min(y, y + h), Math.abs(w), Math.abs(h));
 
-  fieldMarks(g, C, W, H, Rb, ink, acc, s, o);
-  plateFrame(g, W, H, ink, s, o);
-  paintSubject(g, C, Rb, W, H, ink, acc, s, o);
-
-  /* rings first so every assembly lands on top of the collar */
-  const n = o.rings;
-  for (let i = 0; i < n; i++){
-    /* cluster radii rather than spacing them evenly */
-    const t = (i + 0.5) / n;
-    const r = Rb * (0.14 + Math.pow(t, 0.8 + R() * 0.5) * 0.92) * (0.94 + R() * 0.12);
-    const a = 0.24 + R() * 0.46;
-    switch (weightedPick(P.ringMix)){
-      case 'full':  ringFull(g, C, r, ink, s, a); break;
-      case 'dash':  ringDash(g, C, r, ink, s, a); break;
-      case 'dot':   ringDot(g, C, r, ink, s, a); break;
-      case 'pair':  ringPair(g, C, r, ink, s, a); break;
-      case 'heavy': ringHeavy(g, C, r, ink, s, a, chance(o.acc) ? pick(acc) : null); break;
-      case 'seg':   ringSeg(g, C, r, ink, s, a, chance(o.acc * 0.7) ? pick(acc) : null); break;
-      case 'gauge': ringGauge(g, C, r, ink, s, a, chance(o.acc) ? pick(acc) : null); break;
-      case 'fine':  ringFine(g, C, r, ink, s, a); break;
-      default:      ringTick(g, C, r, ink, s, a);
+  g.fillStyle = col;
+  for (const [x, y, sx, sy] of [[m,m,1,1],[W-m,m,-1,1],[m,H-m,1,-1],[W-m,H-m,-1,-1]]){
+    rectN(x, y, sx * bar, thick);
+    rectN(x + sx * (bar + gap), y, sx * bar, thick);
+    if (o.refmarks > 0.65){
+      rectN(x, y + sy * 20 * s, thick, sy * bar);
+      rectN(x + sx * 18 * s, y + sy * 20 * s, thick, sy * (bar * 0.65));
     }
   }
 
-  if (P.bearing) bearingRing(g, C, Rb * 1.02, ink, s, o);
-  sweepWedge(g, C, Rb, ink, acc, s, o);
-  crosshair(g, C, W, H, Rb, ink, s, o);
-  brackets(g, C, Rb, ink, acc, s, o);
-  ladders(g, C, Rb, W, H, ink, s, o);
-  dottedWedge(g, C, Rb, ink, s, o);
-  fineDetail(g, C, Rb, ink, acc, s, o);
-  connectors(g, C, Rb, W, H, ink, acc, s, o);
-  dataBlocks(g, C, Rb, W, H, ink, acc, s, o);
-  satellites(g, C, Rb, W, H, ink, acc, s, o);
-  targets(g, C, Rb, W, H, ink, acc, s, o);
-  readouts(g, C, Rb, W, H, ink, acc, s, o);
-  dotMatrix(g, C, Rb, ink, acc, s, o);
-  centerPip(g, C, Rb, ink, acc, s, o);
+  /* datum ticks along the vertical and horizontal axes, offset from the core */
+  const datum = [
+    [C.x, C.y - Rb * 0.78, 0, 1, 48 * s],
+    [C.x, C.y + Rb * 0.78, 0, -1, 48 * s],
+    [C.x - Rb * 0.78, C.y, 1, 0, 48 * s],
+    [C.x + Rb * 0.78, C.y, -1, 0, 48 * s]
+  ];
+  for (const [x, y, dx, dy, len] of datum){
+    if (dx) line(g, x - len / 2, y, x + len / 2, y, col, s);
+    else line(g, x, y - len / 2, x, y + len / 2, col, s);
+    line(g, x - dy * 6 * s, y - dx * 6 * s, x + dy * 6 * s, y + dx * 6 * s, hot, s);
+  }
+
+  const clusters = Math.round(10 * o.refmarks);
+  for (let i = 0; i < clusters; i++){
+    const side = i % 4;
+    const x = side === 0 ? W * (0.18 + R() * 0.2)
+            : side === 1 ? W * (0.62 + R() * 0.2)
+            : chance(0.5) ? W * 0.17 : W * 0.83;
+    const y = side === 2 ? H * (0.18 + R() * 0.2)
+            : side === 3 ? H * (0.62 + R() * 0.2)
+            : chance(0.5) ? H * 0.12 : H * 0.88;
+    const rows = rint(1, 2), cols = rint(2, 3), pitch = 13 * s, k = 4.2 * s;
+    g.strokeStyle = withAlpha(IB(ink), 0.25 + R() * 0.22);
+    setHudLineWidth(g, Math.max(0.5, s * 0.55));
+    for (let yy = 0; yy < rows; yy++){
+      for (let xx = 0; xx < cols; xx++){
+        const px = x + xx * pitch, py = y + yy * pitch;
+        g.beginPath();
+        g.moveTo(px - k, py); g.lineTo(px + k, py);
+        g.moveTo(px, py - k); g.lineTo(px, py + k);
+        g.stroke();
+      }
+    }
+  }
+
+  if (o.text > 0 && o.refmarks > 0.4){
+    const px = 10 * s;
+    text(g, labelText('code'), m, m + 34 * s, px, col, 'left', 'top');
+    text(g, labelText('time'), W - m, H - m - 34 * s, px, col, 'right', 'bottom');
+  }
+}
+
+function edgeCodeMarks(g, C, Rb, W, H, ink, acc, s, o){
+  if (o.edgecodes <= 0) return;
+  const col = withAlpha(IB(ink), 0.22 + Math.min(0.42, o.edgecodes * 0.22));
+  const hot = withAlpha(chance(o.acc * 0.55) ? pick(acc) : IB(ink), 0.55);
+  const m = Math.min(W, H) * 0.055;
+  const bar = 30 * s, thin = Math.max(1, 2.6 * s);
+  const putRot = (str, x, y, rot, align) => {
+    if (o.text <= 0) return;
+    g.save();
+    g.translate(x, y);
+    g.rotate(rot);
+    text(g, str, 0, 0, 8.5 * s, col, align || 'center', 'middle');
+    g.restore();
+  };
+
+  g.fillStyle = col;
+  for (const x of [C.x - bar * 0.5, C.x + bar * 0.85]){
+    g.fillRect(x, m * 0.28, bar, thin);
+    if (o.edgecodes > 0.55) g.fillRect(x, m * 0.28 + 40 * s, bar, thin);
+  }
+  for (const x of [C.x - bar * 0.5, C.x + bar * 0.85]){
+    g.fillRect(x, H - m * 0.28, bar, thin);
+    if (o.edgecodes > 0.75) g.fillRect(x, H - m * 0.28 - 40 * s, bar, thin);
+  }
+
+  const v = pad(rint(0, 359), 4);
+  putRot(v, m * 0.8, m * 1.25, -Math.PI / 2);
+  putRot(pad(rint(0, 359), 4), W - m * 0.8, H - m * 1.25, Math.PI / 2);
+
+  const ticks = Math.round(3 + o.edgecodes * 5);
+  for (let i = 0; i < ticks; i++){
+    const y = H * (0.22 + R() * 0.58);
+    const side = chance(0.5) ? -1 : 1;
+    const x = side < 0 ? m * (0.9 + R() * 0.7) : W - m * (0.9 + R() * 0.7);
+    line(g, x, y - 9 * s, x, y + 9 * s, col, s);
+    line(g, x - 9 * s, y, x + 9 * s, y, col, s);
+    if (o.text > 0 && chance(0.55)){
+      text(g, pad(rint(0, 99), 2), x + side * 18 * s, y, 8 * s, col, side < 0 ? 'left' : 'right', 'middle');
+    }
+  }
+
+  const clusters = Math.round(o.edgecodes * 4);
+  for (let c = 0; c < clusters; c++){
+    const cols = rint(2, 3), rows = rint(2, 4), pitch = 13.5 * s, k = 4.4 * s;
+    const x0 = C.x + (chance(0.5) ? -1 : 1) * Rb * (0.34 + R() * 0.58);
+    const y0 = C.y + (chance(0.5) ? -1 : 1) * Rb * (0.55 + R() * 0.55);
+    g.strokeStyle = chance(0.2) ? hot : col;
+    setHudLineWidth(g, Math.max(0.5, s * 0.55));
+    for (let y = 0; y < rows; y++){
+      for (let x = 0; x < cols; x++){
+        if (chance(0.15)) continue;
+        const px = x0 + x * pitch, py = y0 + y * pitch;
+        g.beginPath();
+        g.moveTo(px - k, py); g.lineTo(px + k, py);
+        g.moveTo(px, py - k); g.lineTo(px, py + k);
+        g.stroke();
+      }
+    }
+  }
+
+  /* offset datum ticks from HUD_03: short interrupted axis marks, not full crosshair lines */
+  for (const [x, y, axis] of [
+    [C.x, C.y - Rb * 0.42, 'v'],
+    [C.x, C.y + Rb * 0.42, 'v'],
+    [C.x - Rb * 0.42, C.y, 'h'],
+    [C.x + Rb * 0.42, C.y, 'h']
+  ]){
+    if (axis === 'v'){
+      line(g, x, y - 18 * s, x, y - 4 * s, hot, s);
+      line(g, x - 6 * s, y, x + 6 * s, y, hot, s);
+    } else {
+      line(g, x - 18 * s, y, x - 4 * s, y, hot, s);
+      line(g, x, y - 6 * s, x, y + 6 * s, hot, s);
+    }
+  }
+}
+
+/* ============================================================ composition */
+function paintReticle(g, W, H, o, s){
+  const P = PRESET, ink = PAL.ink, acc = PAL.accents;
+  SNAP_ON = o.snapOn;
+  SNAP_STEP = o.snap;
+  WORDS = o.words; WORDMIX = o.wordmix;
+  TYPE_FACE = o.fontface;
+  g.__hudLineVariation = o.linevar;
+  g.__hudLineScale = o.linescale;
+  g.__hudStrokeIndex = 0;
+  const Rb = Math.min(W, H) * 0.5 * o.size;
+  const C = layoutCenter(W, H, Rb, o);
+  const ringMix = RING_STYLES[o.ringstyle] || P.ringMix;
+
+  drawLayer(g, 'layer-field-marks', 'Field Marks', () => fieldMarks(g, C, W, H, Rb, ink, acc, s, o));
+  drawLayer(g, 'layer-reference-marks', 'Reference Marks', () => referenceMarks(g, C, Rb, W, H, ink, acc, s, o));
+  drawLayer(g, 'layer-edge-codes', 'Edge Codes', () => edgeCodeMarks(g, C, Rb, W, H, ink, acc, s, o));
+  drawLayer(g, 'layer-frame', 'Frame', () => plateFrame(g, W, H, ink, s, o));
+  drawLayer(g, 'layer-rulers', 'Rulers', () => rulerBands(g, C, Rb, W, H, ink, acc, s, o));
+  drawLayer(g, 'layer-subject', 'Target Subject', () => paintSubject(g, C, Rb, W, H, ink, acc, s, o));
+
+  /* rings first so every assembly lands on top of the collar */
+  drawLayer(g, 'layer-rings', 'Rings', () => {
+    const n = o.rings;
+    const ringS = s * o.ringweight;
+    const priorVariation = g.__hudLineVariation || 0;
+    g.__hudLineVariation = Math.max(priorVariation, o.ringvar);
+    for (let i = 0; i < n; i++){
+      /* cluster radii rather than spacing them evenly */
+      const t = (i + 0.5) / n;
+      const r = Rb * (0.14 + Math.pow(t, 0.8 + R() * 0.5) * 0.92) * (0.94 + R() * 0.12);
+      const a = 0.24 + R() * 0.46;
+      switch (weightedPick(ringMix)){
+        case 'full':  ringFull(g, C, r, ink, ringS, a); break;
+        case 'dash':  ringDash(g, C, r, ink, ringS, a); break;
+        case 'dot':   ringDot(g, C, r, ink, ringS, a); break;
+        case 'pair':  ringPair(g, C, r, ink, ringS, a); break;
+        case 'heavy': ringHeavy(g, C, r, ink, ringS, a, chance(o.acc) ? pick(acc) : null); break;
+        case 'seg':   ringSeg(g, C, r, ink, ringS, a, chance(o.acc * 0.7) ? pick(acc) : null); break;
+        case 'gauge': ringGauge(g, C, r, ink, ringS, a, chance(o.acc) ? pick(acc) : null); break;
+        case 'fine':  ringFine(g, C, r, ink, ringS, a); break;
+        default:      ringTick(g, C, r, ink, ringS, a);
+      }
+    }
+    g.__hudLineVariation = priorVariation;
+  });
+
+  drawLayer(g, 'layer-bearing', 'Bearing', () => { if (P.bearing) bearingRing(g, C, Rb * 1.02, ink, s, o); });
+  drawLayer(g, 'layer-sweep', 'Sweep', () => sweepWedge(g, C, Rb, ink, acc, s, o));
+  drawLayer(g, 'layer-sector-fan', 'Sector Fan', () => sectorFan(g, C, Rb, ink, acc, s, o));
+  drawLayer(g, 'layer-crosshair', 'Crosshair', () => {
+    const total = 1 + o.crosscopies;
+    for (let i = 0; i < total; i++){
+      const step = i === 0 ? 0 : Math.ceil(i / 2) * o.crossspread * (i % 2 ? 1 : -1);
+      g.save();
+      g.translate(C.x, C.y);
+      g.rotate((o.crossrot + step) * Math.PI / 180);
+      g.translate(-C.x, -C.y);
+      crosshair(g, C, W, H, Rb, ink, s, o);
+      g.restore();
+    }
+  });
+  drawLayer(g, 'layer-brackets', 'Brackets', () => brackets(g, C, Rb, ink, acc, s, o));
+  drawLayer(g, 'layer-ladders', 'Ladders', () => ladders(g, C, Rb, W, H, ink, s, o));
+  drawLayer(g, 'layer-dotted-wedges', 'Dotted Wedges', () => dottedWedge(g, C, Rb, ink, s, o));
+  drawLayer(g, 'layer-fine-detail', 'Fine Detail', () => fineDetail(g, C, Rb, ink, acc, s, o));
+  drawLayer(g, 'layer-connectors', 'Connectors', () => connectors(g, C, Rb, W, H, ink, acc, s, o));
+  drawLayer(g, 'layer-mini-pods', 'Mini Pods', () => miniPods(g, C, Rb, W, H, ink, acc, s, o));
+  drawLayer(g, 'layer-data-blocks', 'Data Blocks', () => dataBlocks(g, C, Rb, W, H, ink, acc, s, o));
+  drawLayer(g, 'layer-satellites', 'Satellite Callouts', () => satellites(g, C, Rb, W, H, ink, acc, s, o));
+  drawLayer(g, 'layer-targets', 'Targets', () => targets(g, C, Rb, W, H, ink, acc, s, o));
+  drawLayer(g, 'layer-readouts', 'Readouts', () => readouts(g, C, Rb, W, H, ink, acc, s, o));
+  drawLayer(g, 'layer-dot-matrix', 'Dot Matrix', () => dotMatrix(g, C, Rb, ink, acc, s, o));
+  drawLayer(g, 'layer-core', 'Core', () => centerPip(g, C, Rb, ink, acc, s, o));
 }
 
 /* ============================================================ overlays */
@@ -1353,8 +2231,171 @@ function paintDots(g, W, H, o, s){
   const d = Math.max(1, Math.round(o.dotsize * s));
   g.fillStyle = withAlpha(o.dotcolor, o.dotop);
   for (let y = 0; y <= H; y += step)
-    for (let x = 0; x <= W; x += step)
-      g.fillRect(Math.round(x), Math.round(y), d, d);
+    for (let x = 0; x <= W; x += step){
+      g.beginPath();
+      g.arc(Math.round(x) + d / 2, Math.round(y) + d / 2, d / 2, 0, TAU);
+      g.fill();
+    }
+}
+function paintTraceField(g, W, H, o, s){
+  if (!o.webOn || o.webop <= 0 || o.webdensity <= 0) return;
+  const Cx = W / 2, Cy = H / 2;
+  const mirrorPath = (points, col, weight) => {
+    for (const [sx, sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+      for (let j = 1; j < points.length; j++){
+        const p = points[j - 1], q = points[j];
+        line(g, Cx + sx * p[0], Cy + sy * p[1], Cx + sx * q[0], Cy + sy * q[1], col, weight);
+      }
+    }
+  };
+  g.save();
+  g.globalAlpha = o.webop;
+  const density = o.webdensity / 100;
+  const traceCol = () => withAlpha(chance(0.08) ? pick(PAL.accents) : IB(PAL.ink), 0.12 + R() * 0.22);
+  const traceWeight = () => (0.25 + R() * 0.46) * s;
+  if (o.webstyle === 'radial'){
+    const C = {x: W / 2, y: H / 2};
+    const rays = 18 + Math.round(density * 24);
+    for (let i = 0; i < rays; i++){
+      const a = i * TAU / rays + (R() - 0.5) * 0.035;
+      const r0 = Math.min(W, H) * (0.08 + R() * 0.12);
+      const r1 = Math.max(W, H) * (0.5 + R() * 0.35);
+      const p0 = PT(C, r0, a), p1 = PT(C, r1, a);
+      line(g, p0[0], p0[1], p1[0], p1[1], traceCol(), traceWeight());
+    }
+    for (let i = 0; i < 7 + Math.round(density * 8); i++){
+      const r = Math.min(W, H) * (0.16 + i * 0.055);
+      arc(g, C, r, R() * TAU, R() * TAU + Math.PI * (0.45 + R() * 0.9), traceCol(), traceWeight());
+    }
+    g.restore();
+    return;
+  }
+  if (o.webstyle === 'diagonal'){
+    const step = Math.max(22 * s, Math.min(W, H) / (10 + density * 12));
+    for (let i = -Math.ceil(H / step); i < Math.ceil(W / step); i++){
+      const off = i * step;
+      line(g, Math.max(0, off), Math.max(0, -off), Math.min(W, W + off), Math.min(H, H - off), traceCol(), traceWeight());
+      if (i % 2 === 0) line(g, Math.max(0, off), Math.min(H, H + off), Math.min(W, W + off), Math.max(0, -off), traceCol(), traceWeight());
+    }
+    g.restore();
+    return;
+  }
+  if (o.webstyle === 'orbit'){
+    const C = {x: W / 2, y: H / 2};
+    for (let i = 0; i < 8 + Math.round(density * 8); i++){
+      const rx = Math.min(W, H) * (0.14 + i * 0.06);
+      const ry = rx * (0.42 + (i % 3) * 0.11);
+      const a = R() * TAU;
+      g.save();
+      g.translate(C.x, C.y); g.rotate(a); g.scale(1, ry / rx);
+      arc(g, {x:0, y:0}, rx, 0.1 + R() * 0.8, 1.4 + R() * 0.8, traceCol(), traceWeight());
+      g.restore();
+    }
+    g.restore();
+    return;
+  }
+  if (o.webstyle === 'golden'){
+    const C = {x: W / 2, y: H / 2};
+    const ringCount = 8 + Math.round(density * 9);
+    const pointsPerRing = 14 + Math.round(density * 18);
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    const rings = [];
+    for (let r = 0; r < ringCount; r++){
+      const radius = Math.min(W, H) * (0.035 + (r + 1) / ringCount * 0.62);
+      const ring = [];
+      for (let i = 0; i < pointsPerRing; i++){
+        const a = i * TAU / pointsPerRing + r * golden * 0.5;
+        ring.push(PT(C, radius, a));
+      }
+      rings.push(ring);
+    }
+    for (let r = 0; r < rings.length; r++){
+      const ring = rings[r];
+      for (let i = 0; i < ring.length; i++){
+        const p = ring[i], q = ring[(i + 1) % ring.length];
+        line(g, p[0], p[1], q[0], q[1], traceCol(), traceWeight());
+        if (r < rings.length - 1 && (i % 2 === 0 || chance(0.38))){
+          const next = rings[r + 1][(i + (r % 3)) % pointsPerRing];
+          line(g, p[0], p[1], next[0], next[1], traceCol(), traceWeight());
+        }
+      }
+    }
+    g.restore();
+    return;
+  }
+  if (o.webstyle === 'hex'){
+    const size = Math.min(W, H) / (12 + density * 16);
+    const dx = size * 1.5, dy = size * Math.sqrt(3);
+    const hex = (cx, cy) => {
+      const pts = [];
+      for (let i = 0; i < 6; i++){
+        const a = Math.PI / 3 * i;
+        pts.push([cx + Math.cos(a) * size, cy + Math.sin(a) * size]);
+      }
+      for (let i = 0; i < 3; i++){
+        const p = pts[i], q = pts[i + 1];
+        line(g, p[0], p[1], q[0], q[1], traceCol(), traceWeight());
+      }
+      line(g, pts[3][0], pts[3][1], pts[4][0], pts[4][1], traceCol(), traceWeight());
+      line(g, pts[4][0], pts[4][1], pts[5][0], pts[5][1], traceCol(), traceWeight());
+    };
+    for (let row = -2; row < H / dy + 2; row++){
+      const y = row * dy;
+      const offset = row % 2 ? dx / 1.5 : 0;
+      for (let col = -2; col < W / dx + 2; col++) hex(col * dx + offset, y);
+    }
+    g.restore();
+    return;
+  }
+  /* Shared vertices make this a network instead of a scatter of motifs. */
+  const cols = 9 + Math.round(density * 10), rows = 9 + Math.round(density * 10);
+  const nodes = [];
+  for (let y = 0; y < rows; y++){
+    for (let x = 0; x < cols; x++){
+      /* Let the graph run past the plate; the canvas clips it naturally at
+         the edge, which keeps the background network from feeling framed. */
+      const px = (x + 0.5 + (R() - 0.5) * 0.18) * (W * 0.62 / cols);
+      const py = (y + 0.5 + (R() - 0.5) * 0.18) * (H * 0.62 / rows);
+      nodes.push([px, py]);
+    }
+  }
+  const node = (x, y) => nodes[y * cols + x];
+  const drawEdge = (a, b, major = false) => {
+    const col = withAlpha(chance(0.08) ? pick(PAL.accents) : IB(PAL.ink), major ? 0.24 : 0.14 + R() * 0.16);
+    mirrorPath([a, b], col, (major ? 0.85 + R() * 0.5 : 0.25 + R() * 0.52) * s);
+  };
+  for (let y = 0; y < rows; y++){
+    for (let x = 0; x < cols; x++){
+      if (x < cols - 1) drawEdge(node(x, y), node(x + 1, y), x % 3 === 0);
+      if (y < rows - 1) drawEdge(node(x, y), node(x, y + 1), y % 3 === 0);
+      if (x < cols - 1 && y < rows - 1 && chance(0.9)) drawEdge(node(x, y), node(x + 1, y + 1));
+      if (x < cols - 1 && y > 0 && chance(0.72)) drawEdge(node(x, y), node(x + 1, y - 1));
+    }
+  }
+  g.restore();
+}
+function paintHexField(g, W, H, o, s){
+  if (!o.hexOn || o.hexop <= 0) return;
+  const size = Math.min(W, H) / (12 + (o.hexdensity / 100) * 16);
+  const dx = size * 1.5, dy = size * Math.sqrt(3);
+  const col = withAlpha(o.hexcolor, 0.16 + R() * 0.2);
+  g.save();
+  g.globalAlpha = o.hexop;
+  for (let row = -2; row < H / dy + 2; row++){
+    const y = row * dy;
+    const offset = row % 2 ? dx / 1.5 : 0;
+    for (let colIndex = -2; colIndex < W / dx + 2; colIndex++){
+      const cx = colIndex * dx + offset;
+      const pts = [];
+      for (let i = 0; i < 6; i++){
+        const a = Math.PI / 3 * i;
+        pts.push([cx + Math.cos(a) * size, y + Math.sin(a) * size]);
+      }
+      for (const [a, b] of [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]])
+        line(g, pts[a][0], pts[a][1], pts[b][0], pts[b][1], col, (0.38 + R() * 0.28) * s);
+    }
+  }
+  g.restore();
 }
 function paintGrain(g, W, H, strength){
   if (strength <= 0) return;
@@ -1374,6 +2415,205 @@ function paintGrain(g, W, H, strength){
   g.drawImage(tmp, 0, 0);
   g.restore();
 }
+function hexRgb(hex){
+  const n = parseInt(hex.slice(1), 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+function rgbHex(r, g, b){
+  return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+}
+function mixHex(a, b, t){
+  const A = hexRgb(a), B = hexRgb(b);
+  return rgbHex(A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t);
+}
+function complementHex(hex){
+  const [r, g, b] = hexRgb(hex);
+  return rgbHex(255 - r, 255 - g, 255 - b);
+}
+function skinToneColor(o, tone){
+  const base = PAL.accents[0] || PAL.ink[0];
+  tone = tone || 'accent';
+  if (tone === 'accent2') return PAL.accents[1] || PAL.accents[0] || PAL.ink[0];
+  if (tone === 'complement') return mixHex(complementHex(base), PAL.ink[0], 0.22);
+  if (tone === 'ink') return PAL.ink[0];
+  if (tone === 'mid') return PAL.ink[1] || PAL.ink[0];
+  return base;
+}
+function skinShapePath(g, pts, col){
+  g.fillStyle = col;
+  g.beginPath();
+  pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y));
+  g.closePath();
+  g.fill();
+}
+function skinDisc(g, x, y, r, hole, col){
+  g.fillStyle = col;
+  g.beginPath();
+  g.arc(x, y, r, 0, TAU);
+  if (hole > 0) g.arc(x, y, hole, 0, TAU, true);
+  g.fill();
+}
+function skinBand(g, C, r, w, a0, a1, col){
+  const mode = g.__skinWeightMode || 'uniform';
+  const step = g.__skinWeightStep = (g.__skinWeightStep || 0) + 1;
+  const factor = mode === 'contrast' ? (step % 2 ? 0.62 : 1.62) : mode === 'varied' ? 0.68 + R() * 1.1 : 1;
+  arc(g, C, r, a0, a1, col, w * factor);
+}
+function skinTickBand(g, C, r, count, span, col, w, phase = 0){
+  for (let i = 0; i < count; i++){
+    const a = phase + i * TAU / count + R() * 0.03;
+    if (chance(0.18)) continue;
+    skinBand(g, C, r, w, a, a + span * (0.7 + R() * 0.55), col);
+  }
+}
+function rotateSkinPoint(C, x, y, a){
+  if (!a) return [x, y];
+  const dx = x - C.x, dy = y - C.y;
+  const ca = Math.cos(a), sa = Math.sin(a);
+  return [C.x + dx * ca - dy * sa, C.y + dx * sa + dy * ca];
+}
+function paintSkinChunks(g, W, H, o, s, only = null, duplicatePass = false, instance = null){
+  if (!o.skinOn || o.skinop <= 0) return;
+  const C = { x: W / 2, y: H / 2 };
+  const Rb = Math.min(W, H) * 0.34;
+  const active = id => o.skinLayers.includes(id) && (!only || only === id);
+  const variant = id => instance && instance.layer === id ? instance.variant : (o.skinVariants[id] || '');
+  const tone = id => instance && instance.layer === id ? instance.tone : o.skinTones[id];
+  const rot = id => ((instance && instance.layer === id ? instance.rotation : (o.skinRotations[id] || 0)) * Math.PI) / 180;
+  const colors = id => {
+    const col = skinToneColor(o, tone(id));
+    return { col, soft: mixHex(col, PAL.bg, 0.25), faint: mixHex(col, PAL.bg, 0.48) };
+  };
+  const detail = o.skindetail;
+  const U = Math.min(W, H);
+
+  g.save();
+  g.globalAlpha = o.skinop;
+  g.globalCompositeOperation = o.skinblend;
+  g.__skinWeightMode = instance?.layer ? instance.weight : o.skinweight;
+  g.__skinWeightStep = 0;
+  g.translate(C.x, C.y);
+  g.scale(instance?.layer ? instance.scale : o.skinscale, instance?.layer ? instance.scale : o.skinscale);
+  g.translate(-C.x, -C.y);
+
+  if (active('rings')){
+    const { col, soft } = colors('rings');
+    const a0 = rot('rings');
+    if (variant('rings') === 'double'){
+      skinBand(g, C, Rb * 0.9, U * 0.08, a0, a0 + TAU * 0.88, col);
+      skinBand(g, C, Rb * 1.18, U * 0.07, a0 + Math.PI * 0.12, a0 + Math.PI * 1.76, soft);
+    } else if (variant('rings') === 'orbit'){
+      skinTickBand(g, C, Rb * 0.98, 18, 0.18, col, U * 0.045, a0);
+      skinTickBand(g, C, Rb * 1.22, 12, 0.28, soft, U * 0.035, a0 + Math.PI / 12);
+    } else if (variant('rings') === 'segmented'){
+      skinTickBand(g, C, Rb, 16, 0.22, col, U * 0.105, a0);
+      skinTickBand(g, C, Rb * 1.26, 12, 0.3, soft, U * 0.05, a0 + Math.PI / 12);
+    } else {
+      skinBand(g, C, Rb, U * 0.16, a0 + Math.PI * 0.02, a0 + Math.PI * 1.98, col);
+      skinBand(g, C, Rb * 1.32, U * 0.085, a0 + Math.PI * 0.18, a0 + Math.PI * 0.82, col);
+      skinBand(g, C, Rb * 1.32, U * 0.085, a0 + Math.PI * 1.18, a0 + Math.PI * 1.82, col);
+    }
+    if (detail > 0.6){
+      for (let i = 0; i < 8; i++){
+        if (chance(0.28)) continue;
+        const a = a0 + i * TAU / 8 + Math.PI / 8;
+        skinBand(g, C, Rb * 1.08, U * 0.035, a, a + 0.22, soft);
+      }
+    }
+  }
+
+  if (active('ringgaps')){
+    const { col, faint } = colors('ringgaps');
+    const phase = rot('ringgaps');
+    const rows = Math.round(3 + detail * 3);
+    for (let j = 0; j < rows; j++){
+      const r = Rb * (0.72 + j * 0.19);
+      const count = Math.round(8 + detail * 10 + j * 3);
+      skinTickBand(g, C, r, count, 0.18 + j * 0.018, j % 2 ? faint : col, U * (0.024 + j * 0.006), phase);
+    }
+  }
+
+  if (active('ringstack')){
+    const { col, soft, faint } = colors('ringstack');
+    const shift = rot('ringstack');
+    const bands = Math.round(variant('ringstack') === 'ladder' ? 3 + detail * 4 : 4 + detail * 5);
+    for (let i = 0; i < bands; i++){
+      const r = Rb * (0.48 + i * 0.12);
+      const w = U * (0.018 + (i % 3) * 0.011);
+      const phase = shift + (i % 2) * Math.PI;
+      const span = variant('ringstack') === 'shards' ? 0.24 + R() * 0.24 : 0.62 + R() * 0.28;
+      skinBand(g, C, r, w, phase + 0.08, phase + Math.PI * span, i % 2 ? soft : col);
+      if (chance(0.8))
+        skinBand(g, C, r, w, phase + Math.PI * (variant('ringstack') === 'ladder' ? 1.25 : 1.08), phase + Math.PI * (variant('ringstack') === 'shards' ? 1.48 : 1.58 + R() * 0.28), i % 2 ? col : faint);
+    }
+  }
+
+  if (active('discs')){
+    const { col } = colors('discs');
+    const r = U * (variant('discs') === 'micro' ? 0.028 : 0.05);
+    const points = variant('discs') === 'centerline'
+      ? [[C.x - Rb * 0.92, C.y], [C.x - Rb * 0.55, C.y], [C.x - Rb * 0.2, C.y], [C.x + Rb * 0.2, C.y], [C.x + Rb * 0.55, C.y], [C.x + Rb * 0.92, C.y]]
+      : variant('discs') === 'satellites'
+      ? [PT(C, Rb * 1.2, 0), PT(C, Rb * 1.2, Math.PI), PT(C, Rb * 1.2, Math.PI / 2)]
+      : variant('discs') === 'symmetry'
+        ? [PT(C, Rb * 0.96, 0), PT(C, Rb * 0.96, Math.PI), PT(C, Rb * 0.96, Math.PI / 2), PT(C, Rb * 0.96, 3 * Math.PI / 2)]
+      : variant('discs') === 'triad'
+        ? [PT(C, Rb * 0.82, -Math.PI / 2), PT(C, Rb * 0.82, Math.PI / 6), PT(C, Rb * 0.82, 5 * Math.PI / 6)]
+        : variant('discs') === 'beacons'
+          ? [PT(C, Rb * 1.02, 0), PT(C, Rb * 1.02, Math.PI / 2), PT(C, Rb * 1.02, Math.PI), PT(C, Rb * 1.02, 3 * Math.PI / 2)]
+          : [[W*0.12,H*0.5],[W*0.88,H*0.5],[W*0.4,H*0.68]];
+    for (let i = 0; i < points.length; i++){
+      const [x, y] = points[i];
+      const p = rotateSkinPoint(C, x, y, rot('discs'));
+      const q = rotateSkinPoint(C, x + r * 1.45, y, rot('discs'));
+      const nodeScale = variant('discs') === 'centerline' ? [1.25, 0.88, 0.58, 0.58, 0.88, 1.25][i] : 1;
+      skinDisc(g, p[0], p[1], r * nodeScale, r * nodeScale * 0.38, col);
+      if (variant('discs') === 'beacons') skinBand(g, C, Math.hypot(p[0]-C.x,p[1]-C.y), U * 0.012, Math.atan2(p[1]-C.y,p[0]-C.x)-0.08, Math.atan2(p[1]-C.y,p[0]-C.x)+0.08, col);
+      else if (chance(0.7)) skinDisc(g, q[0], q[1], r * 0.78, r * 0.0, col);
+    }
+  }
+
+  if (active('disccompass')){
+    const { col, soft, faint } = colors('disccompass');
+    const phase = rot('disccompass');
+    const count = Math.round(8 + detail * 8);
+    const r = U * 0.02;
+    for (let i = 0; i < count; i++){
+      const a = phase + i * TAU / count;
+      const maj = i % 4 === 0;
+      const p = PT(C, Rb * (0.86 + (maj ? 0.18 : 0)), a);
+      skinDisc(g, p[0], p[1], r * (maj ? 1.45 : 0.86), maj ? r * 0.48 : 0, maj ? col : soft);
+      if (maj) skinBand(g, C, Rb * 0.98, U * 0.014, a - 0.045, a + 0.045, faint);
+    }
+  }
+
+  if (active('corners')){
+    const { col, soft } = colors('corners');
+    const phase = rot('corners');
+    const r = Rb * 1.42;
+    const w = U * (0.045 + detail * 0.02);
+    for (let q = 0; q < 4; q++){
+      const a = phase + q * Math.PI / 2 + Math.PI / 4;
+      skinBand(g, C, r, w, a - 0.18, a + 0.18, col);
+      skinBand(g, C, r * 0.9, w * 0.42, a - 0.34, a - 0.22, soft);
+      skinBand(g, C, r * 0.9, w * 0.42, a + 0.22, a + 0.34, soft);
+      const p = PT(C, r, a);
+      skinDisc(g, p[0], p[1], w * 0.42, w * 0.16, q % 2 ? soft : col);
+    }
+  }
+
+  g.restore();
+  if (!only && !duplicatePass && o.skinDuplicates && o.skinDuplicates.length){
+    o.skinDuplicates.forEach((instance, i) => {
+      g.save();
+      g.translate(C.x, C.y);
+      g.rotate(instance.offset + (i % 6 - 2.5) * Math.PI / 48);
+      g.translate(-C.x, -C.y);
+      paintSkinChunks(g, W, H, o, s, instance.layer, true, instance);
+      g.restore();
+    });
+  }
+}
 
 /* ============================================================ render */
 const FORMATS = { '1:1':[1,1], '16:9':[16,9], '21:9':[21,9], '4:3':[4,3], '9:16':[9,16] };
@@ -1383,15 +2623,39 @@ function readOpts(){
   return {
     seed:     $('seed').value.trim() || '0',
     format:   $('format').value,
+    layout:   $('layout').value,
+    core:     $('core').value,
+    ringstyle:$('ringstyle').value,
+    crossstyle:$('crossstyle').value,
+    fontface: $('fontface').value,
     size:     +$('size').value / 100,
     rings:    +$('rings').value,
+    ringweight:+$('ringweight').value / 100,
+    ringvar:  +$('ringvar').value / 100,
+    linevar:  +$('linevar').value / 100,
+    linescale:+$('linescale').value / 100,
+    snapOn:  $('tsnap').dataset.on === '1',
+    snap:    +$('snap').value,
     cross:    +$('cross').value / 100,
+    crossvar: +$('crossvar').value / 100,
+    crossrot: +$('crossrot').value,
+    crosscopies:+$('crosscopies').value,
+    crossspread:+$('crossspread').value,
     brk:      +$('brk').value / 100,
     sat:      +$('sat').value / 100,
     connect:  +$('connect').value / 100,
+    connectstyle:$('connectstyle').value,
+    nodes:    +$('nodes').value / 100,
+    bus:      +$('bus').value / 100,
+    pods:     +$('pods').value / 100,
+    sector:   +$('sector').value / 100,
+    ruler:    +$('ruler').value / 100,
+    refmarks: +$('refmarks').value / 100,
+    edgecodes:+$('edgecodes').value / 100,
     tgt:      +$('tgt').value / 100,
     field:    +$('field').value / 100,
     text:     +$('text').value / 100,
+    readscale:+$('readscale').value / 100,
     exposure: +$('exp').value / 100,
     acc:      +$('acc').value / 100,
     vig:      +$('vig').value / 100,
@@ -1401,16 +2665,36 @@ function readOpts(){
     wordmix:  +$('wordmix').value / 100,
     gridOn:   $('tgrid').dataset.on === '1',
     gridsize: +$('gridsize').value,
-    gridcolor:$('gridcolor').value,
+    gridcolor:skinToneColor(null, $('gridcolor').value),
     gridop:   +$('gridop').value / 100,
     major:    +$('major').value,
     dotsOn:   $('tdots').dataset.on === '1',
     dotstep:  +$('dotstep').value,
     dotsize:  +$('dotsize').value,
-    dotcolor: $('dotcolor').value,
+    dotcolor: skinToneColor(null, $('dotcolor').value),
     dotop:    +$('dotop').value / 100,
+    webOn:    $('tweb').dataset.on === '1',
+    webstyle: $('webstyle').value,
+    webdensity:+$('webdensity').value,
+    webop:    +$('webop').value / 100,
+    hexOn:    $('thex').dataset.on === '1',
+    hexcolor: skinToneColor(null, $('hextone').value),
+    hexdensity:+$('hexdensity').value,
+    hexop:    +$('hexop').value / 100,
+    skinOn:   $('tskin').dataset.on === '1',
+    skinLayers:[...document.querySelectorAll('.skinchip[data-on="1"]')].map(el => el.dataset.layer),
+    skinDuplicates:window.skinDuplicates || [],
+    skinVariants:Object.fromEntries([...document.querySelectorAll('.skinvariant')].map(el => [el.dataset.layer, el.value])),
+    skinTones:Object.fromEntries([...document.querySelectorAll('.skintone')].map(el => [el.dataset.layer, el.value])),
+    skinRotations:Object.fromEntries([...document.querySelectorAll('.skinrot')].map(el => [el.dataset.layer, +el.value])),
+    skinop:   +$('skinop').value / 100,
+    skindetail:+$('skindetail').value / 100,
+    skinweight:$('skinweight').value,
+    skinscale:+$('skinscale').value / 100,
+    skinblend:$('skinblend').value,
     alpha:    $('talpha').dataset.on === '1',
     subOn:    $('tsub').dataset.on === '1',
+    subPlane: $('tplane').dataset.on === '1',
     substyle: $('substyle').value,
     subsize:  +$('subsize').value / 100,
     subrot:   +$('subrot').value,
@@ -1431,6 +2715,21 @@ function render(scale){
 
   R = mulberry(hash(o.seed + '|' + PRESET.id + '|' + PAL.id));
 
+  /* Background instrumentation stays behind the reticle. Trace Field is
+     deliberately painted after the grid so its web reads above the substrate. */
+  const back = document.createElement('canvas');
+  back.width = W; back.height = H;
+  const bg = back.getContext('2d');
+  R = mulberry(hash(o.seed + '|' + PRESET.id + '|' + PAL.id + '|field'));
+  paintGrid(bg, W, H, o, scale);
+  paintTraceField(bg, W, H, o, scale);
+  paintHexField(bg, W, H, o, scale);
+  paintDots(bg, W, H, o, scale);
+  g.drawImage(back, 0, 0);
+
+  /* Background density must never perturb the reticle's seeded composition. */
+  R = mulberry(hash(o.seed + '|' + PRESET.id + '|' + PAL.id));
+
   /* the reticle paints onto its own layer so exposure lifts the whole
      assembly at once instead of module by module */
   const lay = document.createElement('canvas');
@@ -1446,6 +2745,9 @@ function render(scale){
     g.drawImage(lay, 0, 0);
   }
   g.restore();
+
+  R = mulberry(hash(o.seed + '|' + PRESET.id + '|' + PAL.id + '|skin'));
+  paintSkinChunks(g, W, H, o, scale);
 
   if (o.vig > 0){
     const grd = g.createRadialGradient(W/2, H/2, Math.min(W,H) * 0.2, W/2, H/2, Math.max(W,H) * 0.72);
@@ -1470,14 +2772,69 @@ function render(scale){
     }
   }
 
-  paintGrid(g, W, H, o, scale);
-  paintDots(g, W, H, o, scale);
   paintGrain(g, W, H, o.grain);
   return { cv, W, H, o };
 }
 
 let current = null;
+const UNDO_LIMIT = 60;
+let undoHistory = [];
+let lastUIState = null;
+let restoringUndo = false;
+
+function captureUIState(){
+  const values = {};
+  document.querySelectorAll('input,select,textarea').forEach(el => { if (el.id) values[el.id] = el.value; });
+  const toggles = {};
+  document.querySelectorAll('.tgl,.skinchip,#lock').forEach(el => { if (el.id) toggles[el.id] = el.dataset.on ?? el.dataset.locked ?? '0'; });
+  return { values, toggles, preset:PRESET.id, palette:PAL.id, skinDuplicates:window.skinDuplicates || [] };
+}
+function stateKey(state){ return JSON.stringify(state); }
+function syncUndoButton(){ $('undo').disabled = undoHistory.length === 0; }
+function recordUndoState(){
+  const state = captureUIState();
+  const key = stateKey(state);
+  if (!restoringUndo && lastUIState && lastUIState.key !== key){
+    undoHistory.push(lastUIState.state);
+    if (undoHistory.length > UNDO_LIMIT) undoHistory.shift();
+  }
+  lastUIState = { key, state };
+  syncUndoButton();
+}
+function restoreUIState(state){
+  restoringUndo = true;
+  Object.entries(state.values).forEach(([id, value]) => { if ($(id)) $(id).value = value; });
+  Object.entries(state.toggles).forEach(([id, value]) => {
+    const el = $(id); if (!el) return;
+    if (id === 'lock') el.dataset.locked = value;
+    else { el.dataset.on = value; el.setAttribute('aria-pressed', value === '1' ? 'true' : 'false'); }
+  });
+  PRESET = PRESETS.find(p => p.id === state.preset) || PRESETS[0];
+  PAL = PALETTES.find(p => p.id === state.palette) || PALETTES[0];
+  window.skinDuplicates = state.skinDuplicates || [];
+  paintChips(); paintPal(); paintLock(); syncSkinRows(); syncSkinCopies();
+  for (const [id, out, fmt] of SLIDERS) $(out).textContent = fmt($(id).value);
+  syncWords();
+  lastUIState = null;
+  draw();
+  restoringUndo = false;
+  syncUndoButton();
+}
+function undo(){
+  const state = undoHistory.pop();
+  if (!state) return;
+  restoreUIState(state);
+}
+function syncColorSwatches(){
+  document.querySelectorAll('.color-select,.skintone').forEach(el => {
+    const color = skinToneColor(null, el.value);
+    el.style.setProperty('--swatch', color);
+    el.title = `${el.getAttribute('aria-label') || 'Color'}: ${color}`;
+  });
+}
 function draw(){
+  recordUndoState();
+  syncColorSwatches();
   const r = render(1);
   current = r;
   const out = $('out');
@@ -1486,7 +2843,8 @@ function draw(){
   out.getContext('2d').drawImage(r.cv, 0, 0);
   $('meta').innerHTML =
     `<b>${PRESET.name}</b> · ${PAL.name} · ${r.o.format} · ${r.W}×${r.H} · ` +
-    `${r.o.rings} rings · ` +
+    `${r.o.layout} · ${r.o.ringstyle} rings · ${r.o.crossstyle} cross · ${r.o.core} · ` +
+    `${r.o.rings} layers · ` +
     (r.o.alpha ? 'alpha · ' : '') +
     (r.o.words.length ? `lex ${r.o.words.length} · ` : '') +
     `seed <b>${r.o.seed}</b>`;
@@ -1521,7 +2879,7 @@ const SVG_STATE = ['fillStyle','strokeStyle','lineWidth','lineCap','globalAlpha'
 
 class SVGCtx {
   constructor(){
-    this.out = []; this.d = []; this.stack = [];
+    this.out = []; this.d = []; this.stack = []; this.layerStack = [];
     this.m = [1,0,0,1,0,0];
     this.fillStyle = '#000'; this.strokeStyle = '#000';
     this.lineWidth = 1; this.lineCap = 'butt'; this.globalAlpha = 1;
@@ -1529,21 +2887,33 @@ class SVGCtx {
     this.font = '10px monospace'; this.letterSpacing = '0px';
     this.textAlign = 'left'; this.textBaseline = 'alphabetic';
     this.dash = null;
+    this.forceColor = null;
+    this.layerPrefix = '';
   }
-  save(){ const s = { m: this.m.slice() }; for (const k of SVG_STATE) s[k] = this[k]; this.stack.push(s); }
-  restore(){ const s = this.stack.pop(); if (!s) return; this.m = s.m; for (const k of SVG_STATE) this[k] = s[k]; }
+  save(){ const s = { m: this.m.slice(), forceColor: this.forceColor }; for (const k of SVG_STATE) s[k] = this[k]; this.stack.push(s); }
+  restore(){ const s = this.stack.pop(); if (!s) return; this.m = s.m; this.forceColor = s.forceColor || null; for (const k of SVG_STATE) this[k] = s[k]; }
   translate(x, y){ this.m = matMul(this.m, [1,0,0,1,x,y]); }
   scale(x, y){ this.m = matMul(this.m, [x,0,0,y,0,0]); }
   rotate(a){ const c = Math.cos(a), s = Math.sin(a); this.m = matMul(this.m, [c,s,-s,c,0,0]); }
   setLineDash(a){ this.dash = (a && a.length) ? a.slice() : null; }
+  beginLayer(id, name){
+    this.layerStack.push(this.out.length);
+    this.out.push(`<g id="${esc(this.layerPrefix + id)}" data-name="${esc(name || id)}">`);
+  }
+  endLayer(){
+    const start = this.layerStack.pop();
+    if (start == null) return;
+    if (this.out.length === start + 1) this.out.splice(start, 1);
+    else this.out.push('</g>');
+  }
 
   _tf(){
     const m = this.m;
     if (m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1 && m[4] === 0 && m[5] === 0) return '';
     return ` transform="matrix(${n5(m[0])} ${n5(m[1])} ${n5(m[2])} ${n5(m[3])} ${n2(m[4])} ${n2(m[5])})"`;
   }
-  _f(){ const p = splitPaint(this.fillStyle);   p.a *= this.globalAlpha; return p; }
-  _s(){ const p = splitPaint(this.strokeStyle); p.a *= this.globalAlpha; return p; }
+  _f(){ const p = splitPaint(this.forceColor || this.fillStyle);   p.a *= this.globalAlpha; return p; }
+  _s(){ const p = splitPaint(this.forceColor || this.strokeStyle); p.a *= this.globalAlpha; return p; }
   _op(p, attr){ return p.a < 1 ? ` ${attr}-opacity="${n3(p.a)}"` : ''; }
   _dash(){ return this.dash ? ` stroke-dasharray="${this.dash.map(n2).join(' ')}"` : ''; }
 
@@ -1609,7 +2979,7 @@ class SVGCtx {
     const ls = parseFloat(this.letterSpacing) || 0;
     const bold = /^700|bold/.test(this.font) ? ' font-weight="700"' : '';
     this.out.push(
-      `<text x="${n2(x)}" y="${n2(y + dy)}" font-family="ui-monospace, Menlo, Consolas, monospace" ` +
+      `<text x="${n2(x)}" y="${n2(y + dy)}" font-family="${esc(TYPE_FACE)}" ` +
       `font-size="${n2(px)}"${bold}${ls ? ` letter-spacing="${n2(ls)}"` : ''}${anchor} ` +
       `fill="${p.c}"${this._op(p,'fill')}${this._tf()}>${esc(t)}</text>`
     );
@@ -1618,6 +2988,7 @@ class SVGCtx {
     /* the subject is a raster, so it exports as an embedded <image>; the
        matrix style avoids this path entirely and stays vector */
     if (!img || typeof img.toDataURL !== 'function') return;
+    if (this.forceColor) return;
     const a = this.globalAlpha;
     const u = img.toDataURL('image/png');
     this.out.push(`<image href="${u}" xlink:href="${u}" x="${n2(dx)}" y="${n2(dy)}" ` +
@@ -1637,12 +3008,18 @@ function buildSVG(){
   R = mulberry(hash(o.seed + '|' + PRESET.id + '|' + PAL.id));
   const ret = new SVGCtx();
   paintReticle(ret, W, H, o, 1);
+  let skinRet = null;
+  if (o.skinOn && o.skinop > 0){
+    R = mulberry(hash(o.seed + '|' + PRESET.id + '|' + PAL.id + '|skin'));
+    skinRet = new SVGCtx();
+    paintSkinChunks(skinRet, W, H, o, 1);
+  }
 
   /* namespace every id so several plates can share one HTML document */
   const uid = 'r' + hash(JSON.stringify(o) + PRESET.id + PAL.id).toString(36);
   const ref = k => `${uid}-${k}`;
   const defs = [];
-  const body = o.alpha ? [] : [`<rect width="${W}" height="${H}" fill="${PAL.bg}"/>`];
+  const body = o.alpha ? [] : [`<g id="layer-background" data-name="Background"><rect width="${W}" height="${H}" fill="${PAL.bg}"/></g>`];
   const expo = n3(Math.min(1, o.exposure));
   const r1 = Math.max(W, H) * 0.72, r0 = Math.min(W, H) * 0.2;
 
@@ -1662,19 +3039,14 @@ function buildSVG(){
   const open = masked ? `<g mask="url(#${ref('vm')})">` : '';
   const close = masked ? '</g>' : '';
 
-  body.push(`${open}<g opacity="${expo}">${ret.out.join('')}</g>`);
-  if (o.exposure > 1)
-    body.push(`<g opacity="${n3(o.exposure - 1)}" style="mix-blend-mode:plus-lighter">${ret.out.join('')}</g>`);
-  body.push(close);
-
   if (o.vig > 0 && !o.alpha){
     defs.push(
       `<radialGradient id="${ref('vig')}" gradientUnits="userSpaceOnUse" cx="${n2(W/2)}" cy="${n2(H/2)}" r="${n2(r1)}">` +
       `<stop offset="${n3(r0 / r1)}" stop-color="${PAL.bg}" stop-opacity="0"/>` +
       `<stop offset="1" stop-color="${PAL.bg}" stop-opacity="${n3(o.vig)}"/></radialGradient>`
     );
-    body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('vig')})" style="mix-blend-mode:multiply"/>`);
-    body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('vig')})"/>`);
+    body.push(`<g id="layer-vignette" data-name="Vignette"><rect width="${W}" height="${H}" fill="url(#${ref('vig')})" style="mix-blend-mode:multiply"/>` +
+      `<rect width="${W}" height="${H}" fill="url(#${ref('vig')})"/></g>`);
   }
 
   if (o.gridOn && o.gridop > 0 && o.gridsize >= 2){
@@ -1688,15 +3060,15 @@ function buildSVG(){
     const a0 = maj > 0 ? majorA : base;
     cell.push(ln(0, 0, 1, span, a0), ln(0, 0, span, 1, a0));
     defs.push(`<pattern id="${ref('grid')}" width="${n2(span)}" height="${n2(span)}" patternUnits="userSpaceOnUse">${cell.join('')}</pattern>`);
-    body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('grid')})"/>`);
+    body.push(`<g id="layer-grid" data-name="Grid"><rect width="${W}" height="${H}" fill="url(#${ref('grid')})"/></g>`);
   }
 
   if (o.dotsOn && o.dotop > 0 && o.dotstep >= 2){
     defs.push(
       `<pattern id="${ref('dots')}" width="${o.dotstep}" height="${o.dotstep}" patternUnits="userSpaceOnUse">` +
-      `<rect x="0" y="0" width="${o.dotsize}" height="${o.dotsize}" fill="${o.dotcolor}" fill-opacity="${n3(o.dotop)}"/></pattern>`
+      `<circle cx="${n2(o.dotsize / 2)}" cy="${n2(o.dotsize / 2)}" r="${n2(o.dotsize / 2)}" fill="${o.dotcolor}" fill-opacity="${n3(o.dotop)}"/></pattern>`
     );
-    body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('dots')})"/>`);
+    body.push(`<g id="layer-dots" data-name="Dots"><rect width="${W}" height="${H}" fill="url(#${ref('dots')})"/></g>`);
   }
 
   if (o.grain > 0){
@@ -1705,8 +3077,20 @@ function buildSVG(){
       `<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>` +
       `<feColorMatrix type="saturate" values="0"/></filter>`
     );
-    body.push(`<rect width="${W}" height="${H}" filter="url(#${ref('grain')})" opacity="${n3(Math.min(1, o.grain * 0.5))}" style="mix-blend-mode:overlay"/>`);
+    body.push(`<g id="layer-grain" data-name="Grain"><rect width="${W}" height="${H}" filter="url(#${ref('grain')})" opacity="${n3(Math.min(1, o.grain * 0.5))}" style="mix-blend-mode:overlay"/></g>`);
   }
+
+  /* Keep every background field behind the actual HUD artwork in SVG exports,
+     matching the canvas renderer and keeping Illustrator layer order useful. */
+  body.push(`${open}<g id="layer-reticle" data-name="Reticle" opacity="${expo}">${ret.out.join('')}</g>`);
+  if (o.exposure > 1)
+    body.push(`<g id="layer-reticle-glow" data-name="Reticle Glow" opacity="${n3(o.exposure - 1)}" style="mix-blend-mode:plus-lighter">` +
+      `<use href="#layer-reticle" xlink:href="#layer-reticle"/></g>`);
+  if (skinRet)
+    body.push(`<g id="layer-skin-overlay" data-name="Skin Overlay"` +
+      `${o.skinblend !== 'source-over' ? ` style="mix-blend-mode:${o.skinblend === 'lighter' ? 'plus-lighter' : o.skinblend}"` : ''}>` +
+      `${skinRet.out.join('')}</g>`);
+  body.push(close);
 
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
@@ -1748,6 +3132,12 @@ $('pallist').addEventListener('click', e => {
   $('palpick').classList.remove('open');
   paintPal(); draw();
 });
+$('paldice').addEventListener('click', () => {
+  const choices = PALETTES.filter(p => p.id !== PAL.id);
+  PAL = choices[Math.floor(Math.random() * choices.length)];
+  $('paldice').classList.remove('rolling'); void $('paldice').offsetWidth; $('paldice').classList.add('rolling');
+  paintPal(); draw();
+});
 document.addEventListener('click', e => {
   if (!e.target.closest('#palpick')) $('palpick').classList.remove('open');
 });
@@ -1786,16 +3176,33 @@ $('gen').addEventListener('click', () => {
 const SLIDERS = [
   ['size','sizeval', v => v + '%'],
   ['rings','ringsval', v => v],
+  ['ringweight','ringweightval', v => v + '%'],
+  ['ringvar','ringvarval', v => v + '%'],
+  ['linevar','linevarval', v => v + '%'],
+  ['linescale','linescaleval', v => v + '%'],
+  ['snap','snapval', v => v + ' px'],
   ['cross','crossval', v => v + '%'],
+  ['crossvar','crossvarval', v => v + '%'],
+  ['crossrot','crossrotval', v => v + '°'],
+  ['crosscopies','crosscopiesval', v => v],
+  ['crossspread','crossspreadval', v => v + '°'],
   ['brk','brkval', v => v + '%'],
   ['sat','satval', v => v + '%'],
   ['connect','connectval', v => v + '%'],
+  ['nodes','nodeval', v => v + '%'],
+  ['bus','busval', v => v + '%'],
+  ['pods','podsval', v => v + '%'],
+  ['sector','sectorval', v => v + '%'],
+  ['ruler','rulerval', v => v + '%'],
+  ['refmarks','refval', v => v + '%'],
+  ['edgecodes','edgeval', v => v + '%'],
   ['subsize','subsizeval', v => v + '%'],
   ['subrot','subrotval', v => v + '°'],
   ['subop','subopval', v => v + '%'],
   ['tgt','tgtval', v => v + '%'],
   ['field','fieldval', v => v + '%'],
   ['text','textval', v => v + '%'],
+  ['readscale','readscaleval', v => v + '%'],
   ['exp','expval', v => v + '%'],
   ['acc','accval', v => v + '%'],
   ['vig','vigval', v => v + '%'],
@@ -1806,13 +3213,116 @@ const SLIDERS = [
   ['major','majorval', v => v === '0' ? 'off' : v],
   ['dotstep','dotstepval', v => v + ' px'],
   ['dotsize','dotsizeval', v => v + ' px'],
-  ['dotop','dotopval', v => v + '%']
+  ['dotop','dotopval', v => v + '%'],
+  ['webdensity','webval', v => v + '%'],
+  ['webop','webopval', v => v + '%'],
+  ['hexdensity','hexval', v => v + '%'],
+  ['hexop','hexopval', v => v + '%'],
+  ['skinop','skinopval', v => v + '%'],
+  ['skindetail','skindetailval', v => v + '%'],
+  ['skinscale','skinscaleval', v => v + '%']
 ];
 for (const [id, out, fmt] of SLIDERS)
   $(id).addEventListener('input', () => { $(out).textContent = fmt($(id).value); draw(); });
-for (const id of ['format','gridcolor','dotcolor','substyle']) $(id).addEventListener('input', draw);
+for (const id of ['format','layout','core','ringstyle','crossstyle','fontface','connectstyle','gridcolor','dotcolor','hextone','skinblend','skinweight','webstyle','substyle']) $(id).addEventListener('input', draw);
+document.querySelectorAll('.skinvariant,.skintone,.skinrot').forEach(el => el.addEventListener('input', draw));
 
-for (const [btn, sub] of [['tgrid','gridsub'], ['tdots','dotsub'], ['tsub','subsub']]){
+document.querySelectorAll('.skinchip').forEach(el => {
+  el.addEventListener('click', () => {
+    window.skinFocus = el.dataset.layer;
+    document.querySelectorAll('.skinrow').forEach(row => row.dataset.focus = row.querySelector('.skinchip')?.dataset.layer === window.skinFocus ? '1' : '0');
+    const on = el.dataset.on === '1' ? '0' : '1';
+    el.dataset.on = on;
+    el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+    syncSkinRows();
+    draw();
+  });
+});
+
+window.skinFocus = 'rings';
+window.skinDuplicates = [];
+function syncSkinCopies(){
+  const copies = window.skinDuplicates || [];
+  $('skincount').textContent = copies.length ? `${copies.length} duplicate skin${copies.length === 1 ? '' : 's'}` : 'No duplicate skins';
+  const host = $('skincopies');
+  host.innerHTML = '';
+  copies.forEach((instance, index) => {
+    const row = document.createElement('div');
+    row.className = 'skin-copy';
+    const title = document.createElement('strong');
+    title.textContent = `${index + 1} · ${instance.layer}`;
+    row.append(title);
+    const source = document.querySelector(`.skinchip[data-layer="${instance.layer}"]`).closest('.skinrow');
+    const add = (label, options, value, update) => {
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', `${label} for duplicate ${index + 1}`);
+      select.innerHTML = options;
+      select.value = String(value);
+      select.addEventListener('input', () => { update(select.value); draw(); });
+      row.append(select);
+    };
+    add('Pattern', source.querySelector('.skinvariant').innerHTML, instance.variant, v => instance.variant = v);
+    add('Color', source.querySelector('.skintone').innerHTML, instance.tone, v => instance.tone = v);
+    add('Rotation', source.querySelector('.skinrot').innerHTML, instance.rotation, v => instance.rotation = +v);
+    add('Scale', '<option value="0.6">60%</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="1.75">175%</option>', instance.scale, v => instance.scale = +v);
+    add('Stroke', '<option value="uniform">Uniform</option><option value="contrast">Contrast</option><option value="varied">Varied</option>', instance.weight, v => instance.weight = v);
+    const remove = document.createElement('button');
+    remove.textContent = 'Remove copy';
+    remove.addEventListener('click', () => { window.skinDuplicates.splice(index, 1); syncSkinCopies(); draw(); });
+    row.append(remove);
+    host.append(row);
+  });
+}
+$('skinlayers').querySelectorAll('.skinrow').forEach(row => {
+  const chip = row.querySelector('.skinchip');
+  const layer = chip.dataset.layer;
+  const btn = document.createElement('button');
+  btn.className = 'skinclone-row';
+  btn.type = 'button';
+  btn.textContent = '+';
+  btn.title = `Duplicate ${chip.textContent.trim()}`;
+  btn.setAttribute('aria-label', `Duplicate ${chip.textContent.trim()}`);
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    window.skinFocus = layer;
+    document.querySelectorAll('.skinrow').forEach(item => item.dataset.focus = item === row ? '1' : '0');
+    duplicateSkin(layer);
+  });
+  row.append(btn);
+});
+function duplicateSkin(layer){
+  const row = document.querySelector(`.skinchip[data-layer="${layer}"][data-on="1"]`)?.closest('.skinrow');
+  if (!row) return;
+  window.skinDuplicates.push({
+    layer,
+    variant:row.querySelector('.skinvariant').value,
+    tone:row.querySelector('.skintone').value,
+    rotation:+row.querySelector('.skinrot').value,
+    scale:+$('skinscale').value / 100,
+    weight:$('skinweight').value,
+    offset:(R() - 0.5) * Math.PI / 8
+  });
+  syncSkinCopies();
+  draw();
+}
+$('skinclone').addEventListener('click', () => {
+  const layer = window.skinFocus || document.querySelector('.skinchip[data-on="1"]')?.dataset.layer || 'rings';
+  duplicateSkin(layer);
+});
+$('skinclear').addEventListener('click', () => {
+  window.skinDuplicates = [];
+  syncSkinCopies();
+  draw();
+});
+
+function syncSkinRows(){
+  document.querySelectorAll('.skinrow').forEach(row => {
+    const chip = row.querySelector('.skinchip');
+    row.dataset.open = chip && chip.dataset.on === '1' ? '1' : '0';
+  });
+}
+
+for (const [btn, sub] of [['tgrid','gridsub'], ['tdots','dotsub'], ['tweb','websub'], ['thex','hexsub'], ['tsub','subsub']]){
   $(btn).addEventListener('click', () => {
     const on = $(btn).dataset.on === '1' ? '0' : '1';
     $(btn).dataset.on = on;
@@ -1821,6 +3331,63 @@ for (const [btn, sub] of [['tgrid','gridsub'], ['tdots','dotsub'], ['tsub','subs
     draw();
   });
 }
+$('tsnap').addEventListener('click', () => {
+  const el = $('tsnap');
+  const on = el.dataset.on === '1' ? '0' : '1';
+  el.dataset.on = on;
+  el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+  draw();
+});
+
+$('tskin').addEventListener('click', () => {
+  const el = $('tskin');
+  const on = el.dataset.on === '1' ? '0' : '1';
+  el.dataset.on = on;
+  el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+  if (on === '1' && $('skinop').value === '0'){
+    $('skinop').value = '35';
+    $('skinopval').textContent = '35%';
+  }
+  draw();
+});
+
+$('tplane').addEventListener('click', () => {
+  const el = $('tplane');
+  const on = el.dataset.on === '1' ? '0' : '1';
+  el.dataset.on = on;
+  el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+  draw();
+});
+
+$('skindice').addEventListener('click', () => {
+  const btn = $('skindice');
+  btn.classList.remove('rolling'); void btn.offsetWidth; btn.classList.add('rolling');
+  document.querySelectorAll('.skinchip').forEach(el => {
+    const layer = el.dataset.layer;
+    const keep = layer === 'rings' || layer === 'discs';
+    const on = keep || (layer === 'ringstack' ? chance(0.42) : chance(0.2));
+    el.dataset.on = on ? '1' : '0';
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  window.skinDuplicates = [];
+  document.querySelectorAll('.skinvariant,.skintone,.skinrot').forEach(el => {
+    const opts = [...el.options];
+    el.value = opts[Math.floor(R() * opts.length)].value;
+  });
+  const weight = $('skinweight');
+  weight.value = pick(['uniform','uniform','contrast','varied']);
+  $('skinscale').value = String(rint(75, 140));
+  $('skinscaleval').textContent = $('skinscale').value + '%';
+  $('tskin').dataset.on = '1';
+  $('tskin').setAttribute('aria-pressed', 'true');
+  if ($('skinop').value === '0'){
+    $('skinop').value = '35';
+    $('skinopval').textContent = '35%';
+  }
+  syncSkinRows();
+  syncSkinCopies();
+  draw();
+});
 
 function syncWords(){
   const w = readOpts().words;
@@ -1837,6 +3404,7 @@ $('talpha').addEventListener('click', () => {
 $('words').addEventListener('input', () => { syncWords(); draw(); });
 $('seed').addEventListener('change', draw);
 $('zoom').addEventListener('change', () => { $('frame').dataset.zoom = $('zoom').value; });
+$('undo').addEventListener('click', undo);
 
 /* ============================================================ export */
 function saveBlob(blob, name){
@@ -1856,12 +3424,99 @@ function downloadSVG(){
   const r = buildSVG();
   saveBlob(new Blob([r.svg], { type: 'image/svg+xml;charset=utf-8' }), plateName(r.o, 'svg', ''));
 }
+function downloadIllustrator(){
+  const r = buildSVG();
+  const svgName = plateName(r.o, 'svg', '');
+  const jsx = `#target illustrator
+/* HUD layered SVG -> native Illustrator layers */
+(function(){
+  var svg = File.openDialog('Select the HUD layered SVG', function(file){ return file instanceof Folder || /\\.svg$/i.test(file.name); });
+  if (!svg) return;
+  var doc = app.open(svg);
+  var names = {
+    'layer-background':'Background', 'layer-grid':'Grid', 'layer-dots':'Dots',
+    'layer-trace':'Trace', 'layer-hex':'Hex', 'layer-grain':'Grain',
+    'layer-reticle-glow':'Reticle Glow', 'layer-skin-overlay':'Skin Overlay',
+    'layer-vignette':'Vignette', 'layer-field-marks':'Field Marks',
+    'layer-reference-marks':'Reference Marks', 'layer-edge-codes':'Edge Codes',
+    'layer-frame':'Frame', 'layer-rulers':'Rulers', 'layer-subject':'Target Subject',
+    'layer-rings':'Rings', 'layer-bearing':'Bearing', 'layer-sweep':'Sweep',
+    'layer-sector-fan':'Sector Fan', 'layer-crosshair':'Crosshair',
+    'layer-brackets':'Brackets', 'layer-ladders':'Ladders',
+    'layer-dotted-wedges':'Dotted Wedges', 'layer-fine-detail':'Fine Detail',
+    'layer-connectors':'Connectors', 'layer-mini-pods':'Mini Pods',
+    'layer-data-blocks':'Data Blocks', 'layer-satellites':'Satellite Callouts',
+    'layer-targets':'Targets', 'layer-readouts':'Readouts',
+    'layer-dot-matrix':'Dot Matrix', 'layer-core':'Core'
+  };
+  function label(item){
+    var key = item.name || '';
+    return names[key] || key.replace(/^layer-/, '').replace(/-/g, ' ') || 'HUD Layer';
+  }
+  function addLayer(name){
+    var layer = doc.layers.add();
+    layer.name = name;
+    return layer;
+  }
+  function empty(item){
+    return item.groupItems.length === 0 && item.pageItems.length === 0;
+  }
+  function explode(group){
+    var children = [], i;
+    for (i = group.groupItems.length - 1; i >= 0; i--) children.push(group.groupItems[i]);
+    for (i = group.pageItems.length - 1; i >= 0; i--){
+      if (group.pageItems[i].parent === group) children.push(group.pageItems[i]);
+    }
+    for (i = children.length - 1; i >= 0; i--){
+      var child = children[i];
+      if (empty(child)) { child.remove(); continue; }
+      var layer = addLayer(label(child));
+      child.move(layer, ElementPlacement.PLACEATBEGINNING);
+    }
+    group.remove();
+  }
+  var roots = [], i;
+  for (i = doc.groupItems.length - 1; i >= 0; i--){
+    var group = doc.groupItems[i];
+    if (group.parent && group.parent.typename === 'Layer') roots.push(group);
+  }
+  for (i = roots.length - 1; i >= 0; i--){
+    var root = roots[i];
+    if (empty(root)) { root.remove(); continue; }
+    if (root.name === 'layer-reticle') explode(root);
+    else {
+      var layer = addLayer(label(root));
+      root.move(layer, ElementPlacement.PLACEATBEGINNING);
+    }
+  }
+  /* Illustrator may put newly created layers above the source order. Force
+     the substrate to the absolute back after every layer exists. */
+  try { doc.layers.getByName('Background').zOrder(ZOrderMethod.SENDTOBACK); } catch (e) {}
+  var out = new File(svg.fsName.replace(/\\.svg$/i, '') + '-layers.ai');
+  var options = new IllustratorSaveOptions();
+  options.pdfCompatible = true;
+  doc.saveAs(out, options);
+  alert('Saved layered Illustrator file:\\n' + out.fsName);
+})();
+`;
+  saveBlob(new Blob([r.svg], { type: 'image/svg+xml;charset=utf-8' }), svgName);
+  setTimeout(() => saveBlob(
+    new Blob([jsx], { type: 'text/plain;charset=utf-8' }),
+    plateName(r.o, 'jsx', '-illustrator-layers')
+  ), 180);
+}
 $('dl1').addEventListener('click', () => download(1));
 $('dl2').addEventListener('click', () => download(2));
 $('dl3').addEventListener('click', () => download(3));
 $('dlsvg').addEventListener('click', downloadSVG);
+$('dlai').addEventListener('click', downloadIllustrator);
 
 document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z'){
+    e.preventDefault();
+    undo();
+    return;
+  }
   if (e.target.matches('input,select,textarea')) return;
   if (e.key === 'r' || e.key === 'R') $('dice').click();
   if (e.key === 'g' || e.key === 'G') $('gen').click();
@@ -1870,6 +3525,9 @@ document.addEventListener('keydown', e => {
 /* boot */
 paintChips(); paintPal(); paintLock(); paintPips(4);
 for (const [id, out, fmt] of SLIDERS) $(out).textContent = fmt($(id).value);
+syncSkinRows();
+document.querySelector('.skinrow .skinchip').closest('.skinrow').dataset.focus = '1';
+syncSkinCopies();
 syncWords();
 draw();
 </script>
