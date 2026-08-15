@@ -314,8 +314,8 @@
     </p>
     <div class="hero-system-meta" aria-label="Index metadata">
       <span>Version <b>01.00.00</b></span>
-      <span>Last updated <b>July 21, 2026</b></span>
-      <span><b>5</b> generators</span>
+      <span>Last updated <b>August 14, 2026</b></span>
+      <span><b>6</b> generators</span>
     </div>
   </div>
 </section>
@@ -324,7 +324,7 @@
 <div class="content">
   <div class="section-header">
     <span class="section-label">Generators</span>
-    <span class="section-count">5 / ∞</span>
+    <span class="section-count">6 / ∞</span>
   </div>
 
   <div class="cards">
@@ -607,6 +607,68 @@
       </div>
     </a>
 
+    <!-- CITY//EMIT -->
+    <a href="city-lights.html" class="iface-card anim-6" style="--c:#f2a33a;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(242,163,58,0.55),transparent 70%);"></div>
+      <div class="card-preview" style="background:#020203;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <filter id="cityglow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2.3" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <linearGradient id="citywarm" x1="0" x2="1">
+                <stop offset="0" stop-color="#ff8b1f"/>
+                <stop offset="0.55" stop-color="#fff0b8"/>
+                <stop offset="1" stop-color="#72ddff"/>
+              </linearGradient>
+            </defs>
+            <rect width="400" height="225" fill="#020203"/>
+            <g opacity="0.35" stroke="#27313a" stroke-width="1">
+              <path d="M0 48H400M0 92H400M0 151H400M74 0V225M181 0V225M302 0V225"/>
+            </g>
+            <g filter="url(#cityglow)">
+              <path d="M8 48H118M154 49H278M308 47H396M0 154H74M116 153H236M278 154H400" stroke="#ff9b22" stroke-width="2.4" stroke-opacity="0.65"/>
+              <path d="M42 88H94M101 88H132M201 90H258M307 91H374" stroke="#fff3c4" stroke-width="3" stroke-opacity="0.8"/>
+              <path d="M28 118H52M67 118H91M214 122H232M247 122H280M335 120H366" stroke="#77d8ff" stroke-width="2.5" stroke-opacity="0.74"/>
+              <g fill="url(#citywarm)" opacity="0.9">
+                <rect x="28" y="28" width="8" height="3"/><rect x="42" y="28" width="16" height="3"/><rect x="68" y="28" width="6" height="3"/>
+                <rect x="190" y="26" width="18" height="3"/><rect x="214" y="26" width="8" height="3"/><rect x="230" y="26" width="30" height="3"/>
+                <rect x="315" y="30" width="10" height="3"/><rect x="332" y="30" width="26" height="3"/><rect x="366" y="30" width="12" height="3"/>
+                <rect x="142" y="74" width="28" height="4"/><rect x="178" y="74" width="9" height="4"/><rect x="278" y="73" width="18" height="4"/>
+                <rect x="24" y="176" width="20" height="4"/><rect x="52" y="176" width="34" height="4"/><rect x="103" y="177" width="12" height="4"/>
+                <rect x="210" y="179" width="18" height="4"/><rect x="236" y="179" width="40" height="4"/><rect x="314" y="176" width="32" height="4"/>
+              </g>
+              <g fill="#fff8d6" opacity="0.85">
+                <circle cx="92" cy="52" r="1.4"/><circle cx="231" cy="49" r="1.2"/><circle cx="258" cy="94" r="1.5"/><circle cx="330" cy="153" r="1.6"/>
+                <circle cx="166" cy="151" r="1.2"/><circle cx="58" cy="119" r="1.1"/><circle cx="370" cy="118" r="1.2"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(242,163,58,0.08) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="card-type">Generative / Emission Textures</span>
+          <span class="card-status live"><span class="sd"></span>ACTIVE</span>
+        </div>
+        <h2 class="card-title">CITY<em style="color:rgba(242,163,58,0.92)">/&#47;EMIT</em></h2>
+        <p class="card-desc">
+          City light emission generator for distant 3D geometry — facade windows, horizontal strips, aerial grids and fragmented light islands with controllable size, spacing, color, shape, glow and masks.
+        </p>
+        <div class="card-tags">
+          <span class="tag">Emission</span>
+          <span class="tag">PNG</span>
+          <span class="tag">Masks</span>
+          <span class="tag">Windows</span>
+          <span class="tag">3D</span>
+        </div>
+      </div>
+    </a>
+
   </div>
 </div>
 
@@ -642,7 +704,7 @@
 
   // Glitch the eyebrow text
   const eyebrow = document.getElementById('hero-eyebrow-data');
-  const targets = ['GENERATIVE DESIGN TOOLS / ASSET FORGES','SUB//FORGE // SUBSTRATE PLATES','TYPO//FORGE // TYPOGRAPHIC POSTERS','RET//FORGE // TARGETING RETICLES','READ//OUT // READOUTS & NODE FIELDS','TOPO//FORGE // TOPOGRAPHIC NOISE & CONTOURS'];
+  const targets = ['GENERATIVE DESIGN TOOLS / ASSET FORGES','SUB//FORGE // SUBSTRATE PLATES','TYPO//FORGE // TYPOGRAPHIC POSTERS','RET//FORGE // TARGETING RETICLES','READ//OUT // READOUTS & NODE FIELDS','TOPO//FORGE // TOPOGRAPHIC NOISE & CONTOURS','CITY//EMIT // CITY LIGHT EMISSION MAPS'];
   const glitch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/\\|<>[]{}!@#$%^&*';
   let ei=0;
   function cycleEyebrow(){

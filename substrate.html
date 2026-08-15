@@ -28,6 +28,14 @@
     border-radius:3px;padding:7px 8px;font-family:var(--mono);font-size:11px;
   }
   select:focus,input:focus{outline:none;border-color:var(--accent)}
+  select.color-select{
+    --swatch:var(--bg);color:var(--ink);padding-left:24px;
+    background-color:var(--bg);
+    background-image:radial-gradient(circle,var(--swatch) 0 5px,transparent 5.5px);
+    background-repeat:no-repeat;background-position:10px 50%;
+  }
+  select.color-select:focus{color:var(--ink);background-color:var(--bg);border-color:var(--accent)}
+  select.color-select option{color:var(--ink);background:var(--bg)}
   .row{display:flex;gap:6px;align-items:center}
   .row>*{flex:1}
   button{
@@ -36,6 +44,8 @@
     text-transform:uppercase;transition:border-color .15s,background .15s,color .15s;
   }
   button:hover{border-color:var(--accent);color:var(--accent)}
+  button:disabled{cursor:not-allowed;opacity:.45}
+  button:disabled:hover{border-color:var(--line);color:var(--ink)}
   button.primary{background:var(--accent);border-color:var(--accent);color:#07222e;font-weight:700}
   button.primary:hover{background:var(--accent-b);border-color:var(--accent-b);color:#04231c}
   .hint{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:8px}
@@ -115,6 +125,13 @@
     box-shadow:0 18px 60px rgba(0,0,0,.55);border:1px solid var(--line);
   }
   #out{display:block;background:#000}
+  #out.alpha{
+    background-color:#171c23;
+    background-image:
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%),
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%);
+    background-size:18px 18px;background-position:0 0,9px 9px;
+  }
   .frame[data-zoom="fit"] #out{max-width:100%;max-height:calc(74vh - 2px);width:auto;height:auto}
   .meta{font-size:10px;color:var(--faint);letter-spacing:0.08em}
   .meta b{color:var(--dim);font-weight:400}
@@ -152,6 +169,7 @@
       </div>
       <div class="row" style="margin-top:6px">
         <button class="primary" id="gen" style="flex:1">⟳ Generate</button>
+        <button id="undo" title="Undo last change (Cmd/Ctrl+Z)" aria-label="Undo last change" disabled>↶ Undo</button>
       </div>
     </div>
 
@@ -166,8 +184,15 @@
         <option value="1:1">Square — 1:1</option>
         <option value="16:9" selected>Widescreen — 16:9</option>
         <option value="21:9">Ultrawide — 21:9</option>
+        <option value="32:9">Panoramic — 32:9</option>
+        <option value="2:1">Cineplate — 2:1</option>
         <option value="4:3">Monitor — 4:3</option>
+        <option value="3:2">Frame — 3:2</option>
+        <option value="5:4">Plate — 5:4</option>
+        <option value="4:5">Tall plate — 4:5</option>
+        <option value="2:3">Tall frame — 2:3</option>
         <option value="9:16">Portrait — 9:16</option>
+        <option value="1:2">Vertical cine — 1:2</option>
       </select>
 
       <label class="lbl" style="margin-top:12px" for="sym">Symmetry</label>
@@ -195,8 +220,24 @@
       <label class="lbl">Density <b id="densval">100%</b></label>
       <input type="range" id="dens" min="20" max="200" step="5" value="100" aria-label="Density">
 
+      <label class="lbl" style="margin-top:10px" for="surface">Surface style</label>
+      <select id="surface">
+        <option value="none" selected>Current</option>
+        <option value="tech1">Tech I Glass</option>
+        <option value="tech2">Tech II Dense</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px">Surface <b id="surfaceval">85%</b></label>
+      <input type="range" id="surfacestr" min="0" max="150" step="5" value="85" aria-label="Reference surface strength">
+
       <label class="lbl" style="margin-top:10px">Depth <b id="depthval">5</b></label>
       <input type="range" id="depth" min="2" max="8" step="1" value="5" aria-label="Subdivision depth">
+
+      <div class="row" style="margin-top:10px">
+        <button class="tgl" id="tsnap" data-on="0" aria-pressed="false" style="flex:1">Snap to grid</button>
+      </div>
+      <label class="lbl" style="margin-top:8px">Snap size <b id="snapval">10 px</b></label>
+      <input type="range" id="snap" min="2" max="40" step="1" value="10" aria-label="Construction snap grid size">
 
       <label class="lbl" style="margin-top:10px">Detail <b id="detailval">60%</b></label>
       <input type="range" id="detail" min="0" max="200" step="5" value="60" aria-label="Micro-detail">
@@ -231,6 +272,7 @@
       <div class="row">
         <button class="tgl" id="tgrid" data-on="1" aria-pressed="true">Grid</button>
         <button class="tgl" id="tdots" data-on="0" aria-pressed="false">Dots</button>
+        <button class="tgl" id="tweb" data-on="0" aria-pressed="false">Trace</button>
       </div>
 
       <div class="sub" id="gridsub">
@@ -239,7 +281,13 @@
 
         <label class="lbl" style="margin-top:10px">Grid opacity <b id="gridopval">14%</b></label>
         <div class="row">
-          <div class="cwrap"><input type="color" id="gridcolor" value="#dfeaf5" aria-label="Grid color"></div>
+          <select class="color-select" id="gridcolor" aria-label="Grid color">
+            <option value="ink" selected>Ink</option>
+            <option value="mid">Mid ink</option>
+            <option value="accent">Accent</option>
+            <option value="accent2">Accent 2</option>
+            <option value="complement">Complement</option>
+          </select>
           <input type="range" id="gridop" min="0" max="60" step="1" value="14" aria-label="Grid opacity">
         </div>
 
@@ -257,10 +305,43 @@
 
         <label class="lbl" style="margin-top:10px">Dot opacity <b id="dotopval">22%</b></label>
         <div class="row">
-          <div class="cwrap"><input type="color" id="dotcolor" value="#dfeaf5" aria-label="Dot color"></div>
+          <select class="color-select" id="dotcolor" aria-label="Dot color">
+            <option value="ink" selected>Ink</option>
+            <option value="mid">Mid ink</option>
+            <option value="accent">Accent</option>
+            <option value="accent2">Accent 2</option>
+            <option value="complement">Complement</option>
+          </select>
           <input type="range" id="dotop" min="0" max="80" step="1" value="22" aria-label="Dot opacity">
         </div>
         <div class="hint">Dots draw on their own pitch. Match it to the grid for pinned intersections, or offset it for moiré.</div>
+      </div>
+
+      <div class="sub" id="websub" hidden>
+        <label class="lbl" for="webstyle">Trace pattern</label>
+        <select id="webstyle">
+          <option value="network" selected>Network mesh</option>
+          <option value="golden">Golden-angle web</option>
+          <option value="hex">Hexagonal grid</option>
+          <option value="radial">Radial web</option>
+          <option value="diagonal">Diagonal weave</option>
+          <option value="orbit">Orbit mesh</option>
+        </select>
+
+        <label class="lbl" style="margin-top:10px" for="webcolor">Trace color</label>
+        <select class="color-select" id="webcolor" aria-label="Trace color">
+          <option value="ink" selected>Ink</option>
+          <option value="mid">Mid ink</option>
+          <option value="accent">Accent</option>
+          <option value="accent2">Accent 2</option>
+          <option value="complement">Complement</option>
+        </select>
+
+        <label class="lbl" style="margin-top:10px">Trace density <b id="webval">65%</b></label>
+        <input type="range" id="webdensity" min="0" max="150" step="5" value="65" aria-label="Trace field density">
+
+        <label class="lbl" style="margin-top:10px">Trace opacity <b id="webopval">24%</b></label>
+        <input type="range" id="webop" min="0" max="80" step="1" value="24" aria-label="Trace field opacity">
       </div>
     </div>
 
@@ -275,12 +356,19 @@
         <button id="dlsvg" style="flex:1">↓ SVG — vector</button>
       </div>
       <div class="row" style="margin-top:6px">
+        <button id="dldisp">↓ Displace</button>
+        <button id="dlnorm">↓ Normal</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="tgl" id="talpha" data-on="0" aria-pressed="false" style="flex:1">Transparent background</button>
+      </div>
+      <div class="row" style="margin-top:6px">
         <select id="zoom">
           <option value="fit" selected>View: fit</option>
           <option value="100">View: 100%</option>
         </select>
       </div>
-      <div class="hint">Plate renders at 1920 on the long edge — 3× lands at 5760. SVG writes the same plate as live vector: the mirror is one reusable tile, grid and dots become patterns, grain becomes a turbulence filter. Overlays are baked into every export — switch both off to hand a clean substrate to the HUD layer.</div>
+      <div class="hint">Plate renders at 1920 on the long edge — 3× lands at 5760. SVG writes the same plate as live vector: the mirror is one reusable tile, grid and dots become patterns, grain becomes a turbulence filter. Displace and Normal export 1× texture maps from the current plate luminance. Overlays are baked into every export — switch both off to hand a clean substrate to the HUD layer.</div>
     </div>
   </aside>
 
@@ -313,6 +401,7 @@ const rnd  = ()      => R();
 const rint = (a, b)  => a + Math.floor(R() * (b - a + 1));
 const pick = arr     => arr[Math.floor(R() * arr.length)];
 const chance = p     => R() < p;
+const TAU = Math.PI * 2;
 
 /* ============================================================ palettes
    `ink` are the structural greys/tints — the panel body. `accents` are the
@@ -326,7 +415,12 @@ const PALETTES = [
   { id:'toxic',  name:'Toxic',         bg:'#030805', ink:['#8fff9f','#3fbb5c','#227a39','#124423'], accents:['#d9ff5c','#00e0c0'] },
   { id:'violet', name:'Violet Static', bg:'#07030c', ink:['#cbb0ff','#8c6bd6','#5b3f96','#33245a'], accents:['#ff5ea8','#3fe0ff'] },
   { id:'rust',   name:'Rust Deck',     bg:'#0a0503', ink:['#e8a184','#b1634a','#7a3d2c','#472018'], accents:['#ffd18a','#4fb8c9'] },
-  { id:'ice',    name:'Ice',           bg:'#04070b', ink:['#dbeaff','#96b2d1','#5f7794','#38485c'], accents:['#66f0ff','#ff8a5c'] }
+  { id:'ice',    name:'Ice',           bg:'#04070b', ink:['#dbeaff','#96b2d1','#5f7794','#38485c'], accents:['#66f0ff','#ff8a5c'] },
+  { id:'mono',   name:'Mono Black',     bg:'#000000', ink:['#f2f2f2','#b8b8b8','#747474','#303030'], accents:['#ffffff','#8a8a8a'] },
+  { id:'graph',  name:'Graphite Mono',  bg:'#020202', ink:['#d6d8d8','#9a9d9d','#5f6262','#262828'], accents:['#f4f6f6','#737777'] },
+  { id:'warmmono', name:'Warm Mono',    bg:'#050403', ink:['#e9e0d2','#afa699','#746d64','#332f2b'], accents:['#fff3dc','#8f877b'] },
+  { id:'coolmono', name:'Cool Mono',    bg:'#020406', ink:['#dfe8ee','#a3adb5','#68737c','#2a3036'], accents:['#f6fbff','#7d8994'] },
+  { id:'greenmono', name:'Phosphor Mono', bg:'#010503', ink:['#d7ffe1','#86bd92','#4f7658','#1e3324'], accents:['#edfff0','#6fae7d'] }
 ];
 let PAL = PALETTES[1];
 
@@ -367,7 +461,24 @@ const PRESETS = [
      any of them in and they clump into a centre blob that reads as structure
      rather than surface. Bands off for the same reason. */
   { id:'foundry', name:'Foundry',  note:'etched texture',
-    split:'mix', bands:false, weights:{ panel:0, hatch:6, ticks:6, text:2, bars:0, dots:3, frame:1, slab:0, nest:4, notch:0, dash:5, stack:1, conn:1 } }
+    split:'mix', bands:false, weights:{ panel:0, hatch:6, ticks:6, text:2, bars:0, dots:3, frame:1, slab:0, nest:4, notch:0, dash:5, stack:1, conn:1 } },
+
+  /* Broad mirrored architecture with quiet blocks and long exterior runs. */
+  { id:'bastion', name:'Bastion', note:'macro structure',
+    split:'mix', bands:true, weights:{ panel:5, hatch:1, ticks:1, text:1, bars:2, dots:1, frame:4, slab:4, nest:2, notch:4, dash:1, stack:1, conn:1 }, corners:true },
+
+  /* Circular terminal fields, pin grids and trace pads, kept sparse enough
+     that the dot matrices remain readable after export. */
+  { id:'matrix', name:'Matrix', note:'dot fields',
+    split:'mix', bands:false, weights:{ panel:1, hatch:1, ticks:1, text:2, bars:1, dots:8, frame:2, slab:0, nest:2, notch:1, dash:2, stack:2, conn:4 }, traces:true },
+
+  /* Dense caption strips and ruler marks for technical callout plates. */
+  { id:'terminal', name:'Terminal', note:'caption strips',
+    split:'h', bands:true, weights:{ panel:1, hatch:1, ticks:6, text:8, bars:4, dots:2, frame:3, slab:0, nest:1, notch:2, dash:4, stack:6, conn:1 } },
+
+  /* Fine blueprint scaffolding: nested boxes and frames with little mass. */
+  { id:'blueprint', name:'Blueprint', note:'nested wire',
+    split:'mix', bands:false, weights:{ panel:0, hatch:2, ticks:3, text:3, bars:0, dots:2, frame:7, slab:0, nest:7, notch:4, dash:3, stack:1, conn:2 }, corners:true }
 ];
 let PRESET = PRESETS[1];
 
@@ -376,12 +487,88 @@ function withAlpha(hex, a){
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
 }
+function hexRgb(hex){
+  const n = parseInt(hex.slice(1), 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+function rgbHex(r, g, b){
+  return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+}
+function mixHex(a, b, t){
+  const A = hexRgb(a), B = hexRgb(b);
+  return rgbHex(A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t);
+}
+function complementHex(hex){
+  const [r, g, b] = hexRgb(hex);
+  return rgbHex(255 - r, 255 - g, 255 - b);
+}
+function toneColor(tone){
+  const base = PAL.accents[0] || PAL.ink[0];
+  tone = tone || 'ink';
+  if (tone === 'accent2') return PAL.accents[1] || PAL.accents[0] || PAL.ink[0];
+  if (tone === 'complement') return mixHex(complementHex(base), PAL.ink[0], 0.22);
+  if (tone === 'mid') return PAL.ink[1] || PAL.ink[0];
+  if (tone === 'accent') return base;
+  return PAL.ink[0];
+}
 function weightedPick(weights){
   const keys = Object.keys(weights).filter(k => weights[k] > 0);
   let total = 0; for (const k of keys) total += weights[k];
   let r = R() * total;
   for (const k of keys){ r -= weights[k]; if (r <= 0) return k; }
   return keys[keys.length - 1];
+}
+let SNAP_ON = false, SNAP_STEP = 10;
+const snapN = n => SNAP_ON ? Math.round(n / SNAP_STEP) * SNAP_STEP : n;
+const snapPoint = (x, y) => [snapN(x), snapN(y)];
+function snapRectArgs(x, y, w, h){
+  if (!SNAP_ON) return [x, y, w, h];
+  const x0 = snapN(x), y0 = snapN(y);
+  const x1 = snapN(x + w), y1 = snapN(y + h);
+  return [x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)];
+}
+function snappedCtx(g){
+  if (!SNAP_ON) return g;
+  return new Proxy(g, {
+    get(target, prop){
+      if (prop === 'fillRect') return (x, y, w, h) => target.fillRect(...snapRectArgs(x, y, w, h));
+      if (prop === 'strokeRect') return (x, y, w, h) => target.strokeRect(...snapRectArgs(x, y, w, h));
+      if (prop === 'moveTo') return (x, y) => target.moveTo(...snapPoint(x, y));
+      if (prop === 'lineTo') return (x, y) => target.lineTo(...snapPoint(x, y));
+      if (prop === 'arc') return (x, y, r, a0, a1) => {
+        const [sx, sy] = snapPoint(x, y);
+        target.arc(sx, sy, r, a0, a1);
+      };
+      if (prop === 'fillText') return (t, x, y) => target.fillText(t, ...snapPoint(x, y));
+      if (prop === 'translate') return (x, y) => target.translate(...snapPoint(x, y));
+      const v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    },
+    set(target, prop, value){ target[prop] = value; return true; }
+  });
+}
+function fillCircle(g, x, y, r){
+  if (!(r > 0)) return;
+  g.beginPath();
+  g.arc(x, y, r, 0, TAU);
+  g.fill();
+}
+function PT(C, r, a){ return [C.x + r * Math.cos(a), C.y + r * Math.sin(a)]; }
+function drawLine(g, x0, y0, x1, y1, col, w){
+  g.strokeStyle = col;
+  g.lineWidth = w;
+  g.beginPath();
+  g.moveTo(x0, y0);
+  g.lineTo(x1, y1);
+  g.stroke();
+}
+function drawArc(g, C, r, a0, a1, col, w){
+  if (r <= 0.5) return;
+  g.strokeStyle = col;
+  g.lineWidth = w;
+  g.beginPath();
+  g.arc(C.x, C.y, r, a0, a1);
+  g.stroke();
 }
 
 /* ============================================================ modules
@@ -450,11 +637,11 @@ function mBars(g, c, ink, s){
 }
 function mDots(g, c, ink, s){
   const gap = (4 + R() * 7) * s;
-  const d   = Math.max(s, gap * 0.22);
+  const r   = Math.max(s * 0.5, gap * 0.11);
   g.fillStyle = withAlpha(pick(ink), 0.14 + R() * 0.3);
   for (let y = c.y + gap; y < c.y + c.h - gap; y += gap)
     for (let x = c.x + gap; x < c.x + c.w - gap; x += gap)
-      if (chance(0.85)) g.fillRect(x, y, d, d);
+      if (chance(0.85)) fillCircle(g, x + r, y + r, r);
 }
 function mFrame(g, c, ink, s){
   const col = pick(ink);
@@ -639,6 +826,9 @@ function subdivide(x, y, w, h, depth, mode, out){
    Draws one unmirrored tile. Mirroring happens at composite time, which is
    what gives the plate its symmetric spine. */
 function paintTile(g, W, H, opts, s){
+  SNAP_ON = opts.snapOn;
+  SNAP_STEP = Math.max(1, opts.snap * s);
+  g = snappedCtx(g);
   const P = PRESET, ink = PAL.ink, acc = PAL.accents;
   WORDS = opts.words; WORDMIX = opts.wordmix;
   LABELS = [];
@@ -763,6 +953,227 @@ function paintTile(g, W, H, opts, s){
   }
 }
 
+/* ============================================================ surface pre-pass
+   Reference-style macro panels: broad translucent architecture under the
+   existing fine substrate vocabulary. Kept on its own seed so changing this
+   layer does not reshuffle the plate details. */
+function surfaceInk(tone, a){
+  return withAlpha(toneColor(tone), a);
+}
+function surfaceDashRun(g, x, y, w, horizontal, col, s){
+  g.fillStyle = col;
+  const n = rint(5, 14);
+  for (let i = 0; i < n; i++){
+    const p = (i + R() * 0.35) / n;
+    const len = (3 + R() * 16) * s;
+    if (horizontal) g.fillRect(x + w * p, y, len, Math.max(s, 1));
+    else g.fillRect(x, y + w * p, Math.max(s, 1), len);
+  }
+}
+function surfaceDotMatrix(g, x, y, w, h, o, s, density = 1){
+  const k = o.surfacestr / 100;
+  const step = (5 + R() * 5) * s;
+  const r = Math.max(0.45 * s, step * 0.09);
+  g.fillStyle = surfaceInk(chance(0.15) ? 'accent' : 'ink', 0.11 * k);
+  for (let yy = y + step; yy < y + h - step; yy += step)
+    for (let xx = x + step; xx < x + w - step; xx += step)
+      if (chance(0.38 * density)) fillCircle(g, xx, yy, r);
+}
+function surfaceBracket(g, x, y, w, h, col, s){
+  const L = Math.min(w, h) * (0.12 + R() * 0.12);
+  g.strokeStyle = col;
+  g.lineWidth = Math.max(s, 1);
+  g.beginPath();
+  g.moveTo(x, y + L); g.lineTo(x, y); g.lineTo(x + L, y);
+  g.moveTo(x + w - L, y); g.lineTo(x + w, y); g.lineTo(x + w, y + L);
+  g.moveTo(x, y + h - L); g.lineTo(x, y + h); g.lineTo(x + L, y + h);
+  g.moveTo(x + w - L, y + h); g.lineTo(x + w, y + h); g.lineTo(x + w, y + h - L);
+  g.stroke();
+}
+function surfaceReadoutBlock(g, x, y, w, h, o, s){
+  const k = o.surfacestr / 100;
+  g.fillStyle = surfaceInk('accent', 0.035 * k + R() * 0.055 * k);
+  g.fillRect(x, y, w, h);
+  g.strokeStyle = surfaceInk('ink', 0.12 * k);
+  g.lineWidth = s;
+  g.strokeRect(x + s * 0.5, y + s * 0.5, w - s, h - s);
+  const rows = Math.max(2, Math.floor(h / (5 * s)));
+  for (let i = 0; i < rows; i++){
+    const yy = y + 2 * s + i * 4.4 * s;
+    surfaceDashRun(g, x + 3 * s, yy, w - 6 * s, true, surfaceInk('ink', 0.22 * k), s);
+  }
+}
+function surfacePanel(g, x, y, w, h, o, s, heavy){
+  const k = o.surfacestr / 100;
+  const glass = heavy ? 'mid' : 'ink';
+  g.fillStyle = surfaceInk(glass, (heavy ? 0.045 : 0.028) * k + R() * 0.035 * k);
+  g.fillRect(x, y, w, h);
+  if (chance(0.7)){
+    g.strokeStyle = surfaceInk('ink', (heavy ? 0.11 : 0.07) * k);
+    g.lineWidth = Math.max(s, (heavy ? 1.4 : 1) * s);
+    g.strokeRect(x + s * 0.5, y + s * 0.5, w - s, h - s);
+  }
+  if (!heavy && chance(0.78)){
+    const layers = rint(2, 4);
+    for (let i = 1; i <= layers; i++){
+      const p = Math.min(w, h) * (0.045 * i + R() * 0.015);
+      g.strokeStyle = surfaceInk(i % 2 ? 'mid' : 'ink', (0.05 + i * 0.018) * k);
+      g.lineWidth = s;
+      if (w - p * 2 > 8 * s && h - p * 2 > 8 * s)
+        g.strokeRect(x + p, y + p, w - p * 2, h - p * 2);
+    }
+  }
+  if (chance(0.65)){
+    const iw = w * (0.42 + R() * 0.25), ih = h * (0.42 + R() * 0.25);
+    const ix = x + (w - iw) * (0.18 + R() * 0.64);
+    const iy = y + (h - ih) * (0.18 + R() * 0.64);
+    g.fillStyle = withAlpha('#000000', (heavy ? 0.34 : 0.24) * k);
+    g.fillRect(ix, iy, iw, ih);
+    g.strokeStyle = surfaceInk('mid', 0.06 * k);
+    g.lineWidth = s;
+    g.strokeRect(ix + s * 0.5, iy + s * 0.5, iw - s, ih - s);
+    if (!heavy && chance(0.62)) surfaceDotMatrix(g, ix, iy, iw, ih, o, s, 0.75);
+  }
+  if (chance(0.48)){
+    const bx = x + w * (0.08 + R() * 0.74);
+    const by = y + h * (0.08 + R() * 0.74);
+    const bw = w * (0.16 + R() * 0.24), bh = h * (0.04 + R() * 0.1);
+    g.fillStyle = surfaceInk('accent', 0.06 * k + R() * 0.08 * k);
+    g.fillRect(bx, by, bw, bh);
+    surfaceDashRun(g, bx + 2 * s, by + bh * 0.45, bw - 4 * s, true, surfaceInk('ink', 0.22 * k), s);
+  }
+  if (!heavy && chance(0.58)){
+    const bw = w * (0.12 + R() * 0.18);
+    const bh = h * (0.08 + R() * 0.12);
+    surfaceReadoutBlock(g, x + w * (0.08 + R() * 0.7), y + h * (0.08 + R() * 0.7), bw, bh, o, s);
+  }
+  if (!heavy && chance(0.7)) surfaceBracket(g, x + 2 * s, y + 2 * s, w - 4 * s, h - 4 * s, surfaceInk('accent', 0.14 * k), s);
+}
+function surfaceRails(g, W, H, o, s, heavy){
+  const k = o.surfacestr / 100;
+  const count = heavy ? 6 : 6;
+  for (let i = 0; i < count; i++){
+    const x = W * ((heavy ? 0.12 : 0.08) + i * (heavy ? 0.17 : 0.145) + (R() - 0.5) * 0.035);
+    const w = (heavy ? 12 + R() * 26 : 10 + R() * 30) * s;
+    g.fillStyle = surfaceInk('mid', (heavy ? 0.045 : 0.046) * k);
+    g.fillRect(x, 0, w, H);
+    g.fillStyle = withAlpha('#000000', 0.18 * k);
+    g.fillRect(x + w * 0.35, 0, w * 0.28, H);
+    g.strokeStyle = surfaceInk('ink', 0.08 * k);
+    g.lineWidth = s;
+    drawLine(g, x, 0, x, H, g.strokeStyle, s);
+    drawLine(g, x + w, 0, x + w, H, g.strokeStyle, s);
+    if (chance(0.7)) surfaceDashRun(g, x + w * 0.5, H * 0.08, H * 0.84, false, surfaceInk('accent', 0.16 * k), s);
+    if (!heavy && chance(0.58)){
+      for (let y = H * 0.08; y < H * 0.92; y += (58 + R() * 70) * s)
+        surfaceReadoutBlock(g, x - w * 0.45, y, w * 1.9, (10 + R() * 18) * s, o, s);
+    }
+  }
+  for (let i = 0; i < count - 1; i++){
+    const y = H * ((heavy ? 0.16 : 0.1) + i * (heavy ? 0.22 : 0.17) + (R() - 0.5) * 0.035);
+    const h = (heavy ? 10 + R() * 24 : 10 + R() * 28) * s;
+    g.fillStyle = surfaceInk('mid', (heavy ? 0.04 : 0.041) * k);
+    g.fillRect(0, y, W, h);
+    g.strokeStyle = surfaceInk('ink', 0.065 * k);
+    g.lineWidth = s;
+    drawLine(g, 0, y, W, y, g.strokeStyle, s);
+    drawLine(g, 0, y + h, W, y + h, g.strokeStyle, s);
+    if (chance(0.55)) surfaceDashRun(g, W * 0.08, y + h * 0.5, W * 0.84, true, surfaceInk('accent', 0.13 * k), s);
+  }
+}
+function surfaceGlassCells(g, W, H, o, s){
+  const k = o.surfacestr / 100;
+  const cols = 4, rows = 4;
+  const cw = W / cols, ch = H / rows;
+  for (let y = 0; y < rows; y++){
+    for (let x = 0; x < cols; x++){
+      const gx = x * cw + cw * 0.07;
+      const gy = y * ch + ch * 0.07;
+      const gw = cw * 0.82, gh = ch * 0.82;
+      g.fillStyle = surfaceInk('mid', (0.018 + R() * 0.02) * k);
+      g.fillRect(gx, gy, gw, gh);
+      g.fillStyle = withAlpha('#000000', 0.16 * k);
+      g.fillRect(gx + gw * 0.3, gy + gh * 0.28, gw * 0.42, gh * 0.44);
+      g.strokeStyle = surfaceInk('ink', 0.055 * k);
+      g.lineWidth = s;
+      g.strokeRect(gx + s * 0.5, gy + s * 0.5, gw - s, gh - s);
+      if (chance(0.82)) surfaceDotMatrix(g, gx + gw * 0.08, gy + gh * 0.08, gw * 0.84, gh * 0.84, o, s, 0.55);
+      if (chance(0.55)) surfaceBracket(g, gx + gw * 0.08, gy + gh * 0.08, gw * 0.84, gh * 0.84, surfaceInk('accent', 0.1 * k), s);
+    }
+  }
+}
+function surfaceGlassCorridors(g, W, H, o, s){
+  const k = o.surfacestr / 100;
+  const lanes = [
+    [W * 0.18, 0, W * 0.065, H],
+    [W * 0.5 - W * 0.035, 0, W * 0.07, H],
+    [0, H * 0.18, W, H * 0.06],
+    [0, H * 0.5 - H * 0.035, W, H * 0.07]
+  ];
+  for (const [x, y, w, h] of lanes){
+    g.fillStyle = surfaceInk('accent', 0.028 * k);
+    g.fillRect(x, y, w, h);
+    g.fillStyle = surfaceInk('mid', 0.027 * k);
+    g.fillRect(x + w * 0.18, y + h * 0.18, w * 0.64, h * 0.64);
+    g.strokeStyle = surfaceInk('ink', 0.06 * k);
+    g.lineWidth = s;
+    g.strokeRect(x + s * 0.5, y + s * 0.5, w - s, h - s);
+  }
+}
+function paintSurfaceTile(g, W, H, o, s){
+  if (o.surface === 'none' || o.surfacestr <= 0) return;
+  SNAP_ON = o.snapOn;
+  SNAP_STEP = Math.max(1, o.snap * s);
+  g = snappedCtx(g);
+  const k = o.surfacestr / 100;
+  const heavy = o.surface === 'tech2';
+  const cols = heavy ? 4 : 3, rows = heavy ? 4 : 3;
+  const cw = W / cols, ch = H / rows;
+
+  g.save();
+  g.globalCompositeOperation = 'source-over';
+  if (!heavy){
+    surfaceGlassCells(g, W, H, o, s);
+    surfaceGlassCorridors(g, W, H, o, s);
+  }
+  surfaceRails(g, W, H, o, s, heavy);
+
+  for (let y = 0; y < rows; y++){
+    for (let x = 0; x < cols; x++){
+      if (!chance(heavy ? 0.82 : 0.68)) continue;
+      const pad = (heavy ? 5 + R() * 20 : 12 + R() * 34) * s;
+      const px = x * cw + pad * (0.3 + R() * 0.9);
+      const py = y * ch + pad * (0.3 + R() * 0.9);
+      const pw = cw * (0.58 + R() * 0.36);
+      const ph = ch * (0.55 + R() * 0.38);
+      surfacePanel(g, px, py, pw, ph, o, s, heavy);
+    }
+  }
+
+  const n = heavy ? 18 : 10;
+  for (let i = 0; i < n; i++){
+    const x = R() * W, y = R() * H;
+    const w = (heavy ? 14 + R() * 56 : 24 + R() * 90) * s;
+    const h = (heavy ? 6 + R() * 28 : 8 + R() * 42) * s;
+    g.fillStyle = surfaceInk(chance(0.18) ? 'accent' : 'mid', (0.025 + R() * 0.045) * k);
+    g.fillRect(x, y, w, h);
+    if (chance(0.5)) surfaceDashRun(g, x + 2 * s, y + h + 2 * s, w, true, surfaceInk('ink', 0.16 * k), s);
+  }
+
+  if (heavy){
+    for (let i = 0; i < 9; i++){
+      const x = R() * W, y = R() * H;
+      const w = (18 + R() * 70) * s, h = (18 + R() * 70) * s;
+      g.fillStyle = withAlpha('#000000', 0.25 * k);
+      g.fillRect(x, y, w, h);
+      g.strokeStyle = surfaceInk('ink', 0.07 * k);
+      g.lineWidth = s;
+      g.strokeRect(x + s * 0.5, y + s * 0.5, w - s, h - s);
+    }
+  }
+  g.restore();
+}
+
 /* ============================================================ label pass
    Runs on the composed plate. Each queued label is drawn once per mirror copy
    at the reflected anchor, but never itself reflected — so `A1` reads `A1` in
@@ -771,6 +1182,7 @@ function paintTile(g, W, H, opts, s){
    on a flipped one) so text grows away from the seam instead of across it. */
 function paintLabels(g, W, H, halfX, halfY, s){
   if (!LABELS.length) return;
+  g = snappedCtx(g);
   const copies = [[false, false]];
   if (halfX) copies.push([true, false]);
   if (halfY) copies.push([false, true]);
@@ -835,11 +1247,146 @@ function paintDots(g, W, H, o, s){
   if (!o.dotsOn || o.dotop <= 0) return;
   const step = o.dotstep * s;
   if (step < 1.5) return;
-  const d = Math.max(1, Math.round(o.dotsize * s));
+  const r = Math.max(0.5, o.dotsize * s * 0.5);
   g.fillStyle = withAlpha(o.dotcolor, o.dotop);
   for (let y = 0; y <= H; y += step)
     for (let x = 0; x <= W; x += step)
-      g.fillRect(Math.round(x), Math.round(y), d, d);
+      fillCircle(g, Math.round(x) + r, Math.round(y) + r, r);
+}
+function paintTraceField(g, W, H, o, s){
+  if (!o.webOn || o.webop <= 0 || o.webdensity <= 0) return;
+  SNAP_ON = o.snapOn;
+  SNAP_STEP = Math.max(1, o.snap * s);
+  g = snappedCtx(g);
+  const Cx = W / 2, Cy = H / 2;
+  const density = o.webdensity / 100;
+  const base = o.webcolor;
+  const traceCol = (a = 0.18) => withAlpha(chance(0.08) ? pick(PAL.accents) : base, a);
+  const traceWeight = () => (0.25 + R() * 0.55) * s;
+  const mirrorPath = (points, col, weight) => {
+    for (const [sx, sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+      for (let j = 1; j < points.length; j++){
+        const p = points[j - 1], q = points[j];
+        drawLine(g, Cx + sx * p[0], Cy + sy * p[1], Cx + sx * q[0], Cy + sy * q[1], col, weight);
+      }
+    }
+  };
+
+  g.save();
+  g.globalAlpha = o.webop;
+
+  if (o.webstyle === 'radial'){
+    const C = {x: Cx, y: Cy};
+    const rays = 18 + Math.round(density * 24);
+    for (let i = 0; i < rays; i++){
+      const a = i * TAU / rays + (R() - 0.5) * 0.035;
+      const r0 = Math.min(W, H) * (0.08 + R() * 0.12);
+      const r1 = Math.max(W, H) * (0.5 + R() * 0.35);
+      const p0 = PT(C, r0, a), p1 = PT(C, r1, a);
+      drawLine(g, p0[0], p0[1], p1[0], p1[1], traceCol(0.16 + R() * 0.18), traceWeight());
+    }
+    for (let i = 0; i < 7 + Math.round(density * 8); i++){
+      const r = Math.min(W, H) * (0.16 + i * 0.055);
+      drawArc(g, C, r, R() * TAU, R() * TAU + Math.PI * (0.45 + R() * 0.9), traceCol(0.14 + R() * 0.2), traceWeight());
+    }
+    g.restore();
+    return;
+  }
+
+  if (o.webstyle === 'diagonal'){
+    const step = Math.max(22 * s, Math.min(W, H) / (10 + density * 12));
+    for (let i = -Math.ceil(H / step); i < Math.ceil(W / step); i++){
+      const off = i * step;
+      drawLine(g, Math.max(0, off), Math.max(0, -off), Math.min(W, W + off), Math.min(H, H - off), traceCol(0.12 + R() * 0.2), traceWeight());
+      if (i % 2 === 0) drawLine(g, Math.max(0, off), Math.min(H, H + off), Math.min(W, W + off), Math.max(0, -off), traceCol(0.1 + R() * 0.18), traceWeight());
+    }
+    g.restore();
+    return;
+  }
+
+  if (o.webstyle === 'orbit'){
+    const C = {x: Cx, y: Cy};
+    for (let i = 0; i < 8 + Math.round(density * 8); i++){
+      const rx = Math.min(W, H) * (0.14 + i * 0.06);
+      const ry = rx * (0.42 + (i % 3) * 0.11);
+      g.save();
+      g.translate(C.x, C.y);
+      g.rotate(R() * TAU);
+      g.scale(1, ry / rx);
+      drawArc(g, {x:0, y:0}, rx, 0.1 + R() * 0.8, 1.4 + R() * 0.8, traceCol(0.16 + R() * 0.2), traceWeight());
+      g.restore();
+    }
+    g.restore();
+    return;
+  }
+
+  if (o.webstyle === 'golden'){
+    const C = {x: Cx, y: Cy};
+    const ringCount = 8 + Math.round(density * 9);
+    const pointsPerRing = 14 + Math.round(density * 18);
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    const rings = [];
+    for (let r = 0; r < ringCount; r++){
+      const radius = Math.min(W, H) * (0.035 + (r + 1) / ringCount * 0.62);
+      const ring = [];
+      for (let i = 0; i < pointsPerRing; i++) ring.push(PT(C, radius, i * TAU / pointsPerRing + r * golden * 0.5));
+      rings.push(ring);
+    }
+    for (let r = 0; r < rings.length; r++){
+      const ring = rings[r];
+      for (let i = 0; i < ring.length; i++){
+        const p = ring[i], q = ring[(i + 1) % ring.length];
+        drawLine(g, p[0], p[1], q[0], q[1], traceCol(0.12 + R() * 0.18), traceWeight());
+        if (r < rings.length - 1 && (i % 2 === 0 || chance(0.38))){
+          const next = rings[r + 1][(i + (r % 3)) % pointsPerRing];
+          drawLine(g, p[0], p[1], next[0], next[1], traceCol(0.1 + R() * 0.16), traceWeight());
+        }
+      }
+    }
+    g.restore();
+    return;
+  }
+
+  if (o.webstyle === 'hex'){
+    const size = Math.min(W, H) / (12 + density * 16);
+    const dx = size * 1.5, dy = size * Math.sqrt(3);
+    const hex = (cx, cy) => {
+      const pts = [];
+      for (let i = 0; i < 6; i++){
+        const a = Math.PI / 3 * i;
+        pts.push([cx + Math.cos(a) * size, cy + Math.sin(a) * size]);
+      }
+      for (const [a, b] of [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]])
+        drawLine(g, pts[a][0], pts[a][1], pts[b][0], pts[b][1], traceCol(0.12 + R() * 0.18), traceWeight());
+    };
+    for (let row = -2; row < H / dy + 2; row++){
+      const y = row * dy;
+      const offset = row % 2 ? dx / 1.5 : 0;
+      for (let col = -2; col < W / dx + 2; col++) hex(col * dx + offset, y);
+    }
+    g.restore();
+    return;
+  }
+
+  const cols = 9 + Math.round(density * 10), rows = 9 + Math.round(density * 10);
+  const nodes = [];
+  for (let y = 0; y < rows; y++)
+    for (let x = 0; x < cols; x++)
+      nodes.push([(x + 0.5 + (R() - 0.5) * 0.18) * (W * 0.62 / cols),
+                  (y + 0.5 + (R() - 0.5) * 0.18) * (H * 0.62 / rows)]);
+  const node = (x, y) => nodes[y * cols + x];
+  const drawEdge = (a, b, major = false) => {
+    mirrorPath([a, b], traceCol(major ? 0.24 : 0.12 + R() * 0.16), (major ? 0.85 + R() * 0.5 : 0.25 + R() * 0.52) * s);
+  };
+  for (let y = 0; y < rows; y++){
+    for (let x = 0; x < cols; x++){
+      if (x < cols - 1) drawEdge(node(x, y), node(x + 1, y), x % 3 === 0);
+      if (y < rows - 1) drawEdge(node(x, y), node(x, y + 1), y % 3 === 0);
+      if (x < cols - 1 && y < rows - 1 && chance(0.9)) drawEdge(node(x, y), node(x + 1, y + 1));
+      if (x < cols - 1 && y > 0 && chance(0.72)) drawEdge(node(x, y), node(x + 1, y - 1));
+    }
+  }
+  g.restore();
 }
 
 /* ============================================================ grain */
@@ -863,7 +1410,20 @@ function paintGrain(g, W, H, strength){
 }
 
 /* ============================================================ render */
-const FORMATS = { '1:1':[1,1], '16:9':[16,9], '21:9':[21,9], '4:3':[4,3], '9:16':[9,16] };
+const FORMATS = {
+  '1:1':[1,1],
+  '16:9':[16,9],
+  '21:9':[21,9],
+  '32:9':[32,9],
+  '2:1':[2,1],
+  '4:3':[4,3],
+  '3:2':[3,2],
+  '5:4':[5,4],
+  '4:5':[4,5],
+  '2:3':[2,3],
+  '9:16':[9,16],
+  '1:2':[1,2]
+};
 const LONG = 1920;
 
 function readOpts(){
@@ -872,26 +1432,36 @@ function readOpts(){
     format:   $('format').value,
     sym:      $('sym').value,
     dens:     +$('dens').value / 100,
+    surface:  $('surface').value,
+    surfacestr:+$('surfacestr').value,
     depth:    +$('depth').value,
+    snapOn:   $('tsnap').dataset.on === '1',
+    snap:     +$('snap').value,
     detail:   +$('detail').value / 100,
     labels:   +$('labels').value / 100,
     exposure: +$('exp').value / 100,
     acc:      +$('acc').value / 100,
     vig:      +$('vig').value / 100,
     grain:    +$('grain').value / 100,
+    alpha:    $('talpha').dataset.on === '1',
     words:    $('words').value.split(/[,\n]/)
                 .map(w => w.trim().toUpperCase().slice(0, 24)).filter(Boolean).slice(0, 10),
     wordmix:  +$('wordmix').value / 100,
     gridOn:   $('tgrid').dataset.on === '1',
     gridsize: +$('gridsize').value,
-    gridcolor:$('gridcolor').value,
+    gridcolor:toneColor($('gridcolor').value),
     gridop:   +$('gridop').value / 100,
     major:    +$('major').value,
     dotsOn:   $('tdots').dataset.on === '1',
     dotstep:  +$('dotstep').value,
     dotsize:  +$('dotsize').value,
-    dotcolor: $('dotcolor').value,
-    dotop:    +$('dotop').value / 100
+    dotcolor: toneColor($('dotcolor').value),
+    dotop:    +$('dotop').value / 100,
+    webOn:    $('tweb').dataset.on === '1',
+    webstyle: $('webstyle').value,
+    webcolor: toneColor($('webcolor').value),
+    webdensity:+$('webdensity').value,
+    webop:    +$('webop').value / 100
   };
 }
 
@@ -904,8 +1474,10 @@ function render(scale){
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const g = cv.getContext('2d');
-  g.fillStyle = PAL.bg;
-  g.fillRect(0, 0, W, H);
+  if (!o.alpha){
+    g.fillStyle = PAL.bg;
+    g.fillRect(0, 0, W, H);
+  }
 
   /* tile size depends on the symmetry: quad paints a quarter and mirrors it */
   const halfX = o.sym === 'quad' || o.sym === 'mirrorx';
@@ -917,7 +1489,10 @@ function render(scale){
   tile.width = TW; tile.height = TH;
   const tg = tile.getContext('2d');
 
-  R = mulberry(hash(o.seed + '|' + PRESET.id + '|' + PAL.id + '|' + o.sym));
+  const artSeed = o.seed + '|' + PRESET.id + '|' + PAL.id + '|' + o.sym;
+  R = mulberry(hash(artSeed + '|surface|' + o.surface));
+  paintSurfaceTile(tg, TW, TH, o, scale);
+  R = mulberry(hash(artSeed));
   paintTile(tg, TW, TH, o, scale);
 
   g.save();
@@ -943,16 +1518,26 @@ function render(scale){
 
   if (o.vig > 0){
     const grd = g.createRadialGradient(W/2, H/2, Math.min(W,H) * 0.2, W/2, H/2, Math.max(W,H) * 0.72);
-    grd.addColorStop(0, 'rgba(0,0,0,0)');
-    grd.addColorStop(1, withAlpha(PAL.bg === '#000000' ? '#000000' : PAL.bg, o.vig));
-    g.fillStyle = grd;
-    g.globalCompositeOperation = 'multiply';
-    g.fillRect(0, 0, W, H);
-    g.globalCompositeOperation = 'source-over';
-    g.fillStyle = grd;
-    g.fillRect(0, 0, W, H);
+    if (o.alpha){
+      grd.addColorStop(0, 'rgba(0,0,0,0)');
+      grd.addColorStop(1, `rgba(0,0,0,${o.vig})`);
+      g.globalCompositeOperation = 'destination-out';
+      g.fillStyle = grd;
+      g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = 'source-over';
+    } else {
+      grd.addColorStop(0, 'rgba(0,0,0,0)');
+      grd.addColorStop(1, withAlpha(PAL.bg === '#000000' ? '#000000' : PAL.bg, o.vig));
+      g.fillStyle = grd;
+      g.globalCompositeOperation = 'multiply';
+      g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = 'source-over';
+      g.fillStyle = grd;
+      g.fillRect(0, 0, W, H);
+    }
   }
 
+  paintTraceField(g, W, H, o, scale);
   paintGrid(g, W, H, o, scale);
   paintDots(g, W, H, o, scale);
   paintGrain(g, W, H, o.grain);
@@ -960,16 +1545,83 @@ function render(scale){
 }
 
 let current = null;
+const UNDO_LIMIT = 60;
+let undoHistory = [];
+let lastUIState = null;
+let restoringUndo = false;
+
+function captureUIState(){
+  const values = {};
+  document.querySelectorAll('input,select,textarea').forEach(el => { if (el.id) values[el.id] = el.value; });
+  const toggles = {};
+  document.querySelectorAll('.tgl,#lock').forEach(el => {
+    if (!el.id) return;
+    toggles[el.id] = el.id === 'lock' ? (el.dataset.locked || '0') : (el.dataset.on || '0');
+  });
+  return { values, toggles, preset: PRESET.id, palette: PAL.id };
+}
+function stateKey(state){ return JSON.stringify(state); }
+function syncUndoButton(){ $('undo').disabled = undoHistory.length === 0; }
+function syncOverlayPanels(){
+  for (const [btn, sub] of [['tgrid','gridsub'], ['tdots','dotsub'], ['tweb','websub']])
+    $(sub).hidden = $(btn).dataset.on !== '1';
+}
+function recordUndoState(){
+  const state = captureUIState();
+  const key = stateKey(state);
+  if (!restoringUndo && lastUIState && lastUIState.key !== key){
+    undoHistory.push(lastUIState.state);
+    if (undoHistory.length > UNDO_LIMIT) undoHistory.shift();
+  }
+  lastUIState = { key, state };
+  syncUndoButton();
+}
+function restoreUIState(state){
+  restoringUndo = true;
+  Object.entries(state.values).forEach(([id, value]) => { if ($(id)) $(id).value = value; });
+  Object.entries(state.toggles).forEach(([id, value]) => {
+    const el = $(id); if (!el) return;
+    if (id === 'lock') el.dataset.locked = value;
+    else {
+      el.dataset.on = value;
+      el.setAttribute('aria-pressed', value === '1' ? 'true' : 'false');
+    }
+  });
+  PRESET = PRESETS.find(p => p.id === state.preset) || PRESETS[0];
+  PAL = PALETTES.find(p => p.id === state.palette) || PALETTES[0];
+  paintChips();
+  paintPal();
+  paintLock();
+  syncOverlayPanels();
+  for (const [id, out, fmt] of SLIDERS) $(out).textContent = fmt($(id).value);
+  syncWords();
+  syncColorSelects();
+  lastUIState = null;
+  draw();
+  restoringUndo = false;
+  syncUndoButton();
+}
+function undo(){
+  const state = undoHistory.pop();
+  if (!state) return;
+  restoreUIState(state);
+}
 function draw(){
+  recordUndoState();
+  syncColorSelects();
   const r = render(1);
   current = r;
   const out = $('out');
   out.width = r.W; out.height = r.H;
+  out.classList.toggle('alpha', r.o.alpha);
   out.getContext('2d').drawImage(r.cv, 0, 0);
   $('meta').innerHTML =
     `<b>${PRESET.name}</b> · ${PAL.name} · ${r.o.format} · ${r.W}×${r.H} · ` +
+    `surface ${r.o.surface === 'none' ? 'current' : r.o.surface} · ` +
     `grid ${r.o.gridOn ? r.o.gridsize + 'px' : 'off'} · ` +
     `dots ${r.o.dotsOn ? r.o.dotstep + 'px' : 'off'} · ` +
+    `trace ${r.o.webOn ? r.o.webstyle : 'off'} · ` +
+    (r.o.alpha ? 'alpha · ' : '') +
     (r.o.words.length ? `lex ${r.o.words.length} · ` : '') +
     `seed <b>${r.o.seed}</b>`;
 }
@@ -996,6 +1648,7 @@ function paintPal(){
   $('pallist').innerHTML = PALETTES.map(p =>
     `<button class="pick-row" role="option" data-id="${p.id}" data-sel="${p.id === PAL.id ? 1 : 0}">
        ${swatch(p)}<span>${p.name}</span></button>`).join('');
+  syncColorSelects();
 }
 $('palbtn').addEventListener('click', () => {
   const open = $('palpick').classList.toggle('open');
@@ -1046,7 +1699,9 @@ $('gen').addEventListener('click', () => {
 /* sliders + selects */
 const SLIDERS = [
   ['dens','densval', v => v + '%'],
+  ['surfacestr','surfaceval', v => v + '%'],
   ['depth','depthval', v => v],
+  ['snap','snapval', v => v + ' px'],
   ['detail','detailval', v => v + '%'],
   ['labels','labelsval', v => v + '%'],
   ['exp','expval', v => v + '%'],
@@ -1059,15 +1714,28 @@ const SLIDERS = [
   ['major','majorval', v => v === '0' ? 'off' : v],
   ['dotstep','dotstepval', v => v + ' px'],
   ['dotsize','dotsizeval', v => v + ' px'],
-  ['dotop','dotopval', v => v + '%']
+  ['dotop','dotopval', v => v + '%'],
+  ['webdensity','webval', v => v + '%'],
+  ['webop','webopval', v => v + '%']
 ];
 for (const [id, out, fmt] of SLIDERS){
   $(id).addEventListener('input', () => { $(out).textContent = fmt($(id).value); draw(); });
 }
-for (const id of ['format','sym','gridcolor','dotcolor']) $(id).addEventListener('input', draw);
+function syncColorSelects(){
+  for (const id of ['gridcolor','dotcolor','webcolor']){
+    const el = $(id);
+    if (!el) continue;
+    const color = toneColor(el.value);
+    el.style.setProperty('--swatch', color);
+    el.title = `${el.getAttribute('aria-label') || 'Color'}: ${color}`;
+  }
+}
+for (const id of ['format','sym','surface','gridcolor','dotcolor','webcolor','webstyle']){
+  $(id).addEventListener('input', () => { syncColorSelects(); draw(); });
+}
 
 /* overlay toggles — each layer collapses its own controls when off */
-for (const [btn, sub] of [['tgrid','gridsub'], ['tdots','dotsub']]){
+for (const [btn, sub] of [['tgrid','gridsub'], ['tdots','dotsub'], ['tweb','websub']]){
   $(btn).addEventListener('click', () => {
     const on = $(btn).dataset.on === '1' ? '0' : '1';
     $(btn).dataset.on = on;
@@ -1076,6 +1744,20 @@ for (const [btn, sub] of [['tgrid','gridsub'], ['tdots','dotsub']]){
     draw();
   });
 }
+$('tsnap').addEventListener('click', () => {
+  const el = $('tsnap');
+  const on = el.dataset.on === '1' ? '0' : '1';
+  el.dataset.on = on;
+  el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+  draw();
+});
+$('talpha').addEventListener('click', () => {
+  const el = $('talpha');
+  const on = el.dataset.on === '1' ? '0' : '1';
+  el.dataset.on = on;
+  el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+  draw();
+});
 /* lexicon — the mix slider only means anything once there are words to mix */
 function syncWords(){
   const w = readOpts().words;
@@ -1085,6 +1767,7 @@ function syncWords(){
 $('words').addEventListener('input', () => { syncWords(); draw(); });
 $('seed').addEventListener('change', draw);
 $('zoom').addEventListener('change', () => { $('frame').dataset.zoom = $('zoom').value; });
+$('undo').addEventListener('click', undo);
 
 /* ============================================================ svg recorder
    A Canvas2D-shaped sink. It answers to exactly the calls the modules above
@@ -1162,6 +1845,22 @@ class SVGCtx {
   beginPath(){ this.d = []; }
   moveTo(x, y){ this.d.push(`M${n2(x)} ${n2(y)}`); }
   lineTo(x, y){ this.d.push(`L${n2(x)} ${n2(y)}`); }
+  arc(x, y, r, a0, a1){
+    const full = Math.abs(a1 - a0) >= Math.PI * 2 - 0.0001;
+    if (full){
+      this.d.push(
+        `M${n2(x + r)} ${n2(y)}` +
+        `A${n2(r)} ${n2(r)} 0 1 0 ${n2(x - r)} ${n2(y)}` +
+        `A${n2(r)} ${n2(r)} 0 1 0 ${n2(x + r)} ${n2(y)}`
+      );
+      return;
+    }
+    const x0 = x + Math.cos(a0) * r, y0 = y + Math.sin(a0) * r;
+    const x1 = x + Math.cos(a1) * r, y1 = y + Math.sin(a1) * r;
+    const large = Math.abs(a1 - a0) > Math.PI ? 1 : 0;
+    const sweep = a1 > a0 ? 1 : 0;
+    this.d.push(`M${n2(x0)} ${n2(y0)}A${n2(r)} ${n2(r)} 0 ${large} ${sweep} ${n2(x1)} ${n2(y1)}`);
+  }
   closePath(){ this.d.push('Z'); }
   fill(){
     if (!this.d.length) return;
@@ -1219,11 +1918,16 @@ function buildSVG(){
   const TW = halfX ? Math.ceil(W / 2) : W;
   const TH = halfY ? Math.ceil(H / 2) : H;
 
-  R = mulberry(hash(o.seed + '|' + PRESET.id + '|' + PAL.id + '|' + o.sym));
+  const artSeed = o.seed + '|' + PRESET.id + '|' + PAL.id + '|' + o.sym;
   const tile = new SVGCtx();
+  R = mulberry(hash(artSeed + '|surface|' + o.surface));
+  paintSurfaceTile(tile, TW, TH, o, 1);
+  R = mulberry(hash(artSeed));
   paintTile(tile, TW, TH, o, 1);
   const lab = new SVGCtx();
   paintLabels(lab, W, H, halfX, halfY, 1);
+  const trace = new SVGCtx();
+  paintTraceField(trace, W, H, o, 1);
 
   /* Namespace every id to this plate. Two exports dropped into one HTML
      document would otherwise share #tile, and <use> takes the first match —
@@ -1232,15 +1936,28 @@ function buildSVG(){
   const ref = k => `${uid}-${k}`;
 
   const defs = [`<g id="${ref('tile')}">${tile.out.join('')}</g>`];
-  const body = [`<rect width="${W}" height="${H}" fill="${PAL.bg}"/>`];
+  const body = o.alpha ? [] : [`<rect width="${W}" height="${H}" fill="${PAL.bg}"/>`];
   const expo = n3(Math.min(1, o.exposure));
+  const r1 = Math.max(W, H) * 0.72, r0 = Math.min(W, H) * 0.2;
+  const masked = o.alpha && o.vig > 0;
+  if (masked){
+    const edge = Math.round(255 * (1 - o.vig));
+    defs.push(
+      `<radialGradient id="${ref('vg')}" gradientUnits="userSpaceOnUse" cx="${n2(W/2)}" cy="${n2(H/2)}" r="${n2(r1)}">` +
+      `<stop offset="${n3(r0 / r1)}" stop-color="#ffffff"/>` +
+      `<stop offset="1" stop-color="rgb(${edge},${edge},${edge})"/></radialGradient>`,
+      `<mask id="${ref('vm')}"><rect width="${W}" height="${H}" fill="url(#${ref('vg')})"/></mask>`
+    );
+  }
+  const open = masked ? `<g mask="url(#${ref('vm')})">` : '';
+  const close = masked ? '</g>' : '';
 
   const U = t => `<use href="#${ref('tile')}" xlink:href="#${ref('tile')}"${t ? ` transform="${t}"` : ''}/>`;
   const plate = [U('')];
   if (halfX) plate.push(U(`translate(${W} 0) scale(-1 1)`));
   if (halfY) plate.push(U(`translate(0 ${H}) scale(1 -1)`));
   if (halfX && halfY) plate.push(U(`translate(${W} ${H}) scale(-1 -1)`));
-  body.push(`<g opacity="${expo}">${plate.join('')}</g>`);
+  body.push(`${open}<g opacity="${expo}">${plate.join('')}</g>`);
 
   /* a second lighter pass past 100% exposure lifts the mid-tones */
   if (o.exposure > 1){
@@ -1249,11 +1966,11 @@ function buildSVG(){
     body.push(`<g opacity="${n3(o.exposure - 1)}" style="mix-blend-mode:plus-lighter">${lift.join('')}</g>`);
   }
   if (lab.out.length) body.push(`<g opacity="${expo}">${lab.out.join('')}</g>`);
+  body.push(close);
 
-  if (o.vig > 0){
+  if (o.vig > 0 && !o.alpha){
     /* concentric stops reproduce the canvas r0→r1 ramp exactly, without
        leaning on fr, which older renderers drop */
-    const r1 = Math.max(W, H) * 0.72, r0 = Math.min(W, H) * 0.2;
     defs.push(
       `<radialGradient id="${ref('vig')}" gradientUnits="userSpaceOnUse" cx="${n2(W/2)}" cy="${n2(H/2)}" r="${n2(r1)}">` +
       `<stop offset="${n3(r0 / r1)}" stop-color="${PAL.bg}" stop-opacity="0"/>` +
@@ -1262,6 +1979,8 @@ function buildSVG(){
     body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('vig')})" style="mix-blend-mode:multiply"/>`);
     body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('vig')})"/>`);
   }
+
+  if (trace.out.length) body.push(`<g>${trace.out.join('')}</g>`);
 
   if (o.gridOn && o.gridop > 0 && o.gridsize >= 2){
     /* One tile at the major pitch carrying its own minors — exact opacities,
@@ -1282,9 +2001,10 @@ function buildSVG(){
   }
 
   if (o.dotsOn && o.dotop > 0 && o.dotstep >= 2){
+    const r = n2(Math.max(0.5, o.dotsize * 0.5));
     defs.push(
       `<pattern id="${ref('dots')}" width="${o.dotstep}" height="${o.dotstep}" patternUnits="userSpaceOnUse">` +
-      `<rect x="0" y="0" width="${o.dotsize}" height="${o.dotsize}" fill="${o.dotcolor}" fill-opacity="${n3(o.dotop)}"/></pattern>`
+      `<circle cx="${r}" cy="${r}" r="${r}" fill="${o.dotcolor}" fill-opacity="${n3(o.dotop)}"/></pattern>`
     );
     body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('dots')})"/>`);
   }
@@ -1316,7 +2036,7 @@ function saveBlob(blob, name){
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 function plateName(o, ext, tag){
-  return `hud-${PRESET.id}-${PAL.id}-${o.seed}${tag}.${ext}`;
+  return `hud-${PRESET.id}-${PAL.id}-${o.seed}${o.alpha ? '-alpha' : ''}${tag}.${ext}`;
 }
 function download(scale){
   const r = render(scale);
@@ -1326,12 +2046,83 @@ function downloadSVG(){
   const r = buildSVG();
   saveBlob(new Blob([r.svg], { type: 'image/svg+xml;charset=utf-8' }), plateName(r.o, 'svg', ''));
 }
+function heightFieldFromCanvas(cv){
+  const W = cv.width, H = cv.height;
+  const src = cv.getContext('2d').getImageData(0, 0, W, H).data;
+  const h = new Float32Array(W * H);
+  let lo = 1, hi = 0;
+  for (let i = 0, p = 0; i < src.length; i += 4, p++){
+    const v = (src[i] * 0.2126 + src[i + 1] * 0.7152 + src[i + 2] * 0.0722) / 255;
+    h[p] = v;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const span = Math.max(0.001, hi - lo);
+  for (let i = 0; i < h.length; i++) h[i] = Math.pow((h[i] - lo) / span, 0.8);
+  return { W, H, h };
+}
+function saveCanvasPNG(cv, name){
+  cv.toBlob(b => saveBlob(b, name), 'image/png');
+}
+function displacementCanvas(src){
+  const { W, H, h } = heightFieldFromCanvas(src);
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const img = g.createImageData(W, H);
+  const d = img.data;
+  for (let i = 0; i < h.length; i++){
+    const v = Math.round(h[i] * 255);
+    const p = i * 4;
+    d[p] = d[p + 1] = d[p + 2] = v;
+    d[p + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return cv;
+}
+function normalCanvas(src){
+  const { W, H, h } = heightFieldFromCanvas(src);
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const img = g.createImageData(W, H);
+  const d = img.data;
+  const at = (x, y) => h[Math.max(0, Math.min(H - 1, y)) * W + Math.max(0, Math.min(W - 1, x))];
+  const strength = 6;
+  for (let y = 0; y < H; y++){
+    for (let x = 0; x < W; x++){
+      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
+      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
+      const nz = 1;
+      const len = Math.hypot(dx, dy, nz) || 1;
+      const p = (y * W + x) * 4;
+      d[p]     = Math.round((-dx / len * 0.5 + 0.5) * 255);
+      d[p + 1] = Math.round((-dy / len * 0.5 + 0.5) * 255);
+      d[p + 2] = Math.round(( nz / len * 0.5 + 0.5) * 255);
+      d[p + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return cv;
+}
+function downloadMap(kind){
+  const r = render(1);
+  const cv = kind === 'normal' ? normalCanvas(r.cv) : displacementCanvas(r.cv);
+  saveCanvasPNG(cv, plateName(r.o, 'png', '-' + kind));
+}
 $('dl1').addEventListener('click', () => download(1));
 $('dl2').addEventListener('click', () => download(2));
 $('dl3').addEventListener('click', () => download(3));
 $('dlsvg').addEventListener('click', downloadSVG);
+$('dldisp').addEventListener('click', () => downloadMap('displace'));
+$('dlnorm').addEventListener('click', () => downloadMap('normal'));
 
 document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z'){
+    e.preventDefault();
+    undo();
+    return;
+  }
   if (e.target.matches('input,select,textarea')) return;
   if (e.key === 'r' || e.key === 'R') $('dice').click();
   if (e.key === 'g' || e.key === 'G') $('gen').click();
@@ -1339,6 +2130,7 @@ document.addEventListener('keydown', e => {
 
 /* boot */
 paintChips(); paintPal(); paintLock(); paintPips(4);
+syncColorSelects();
 for (const [id, out, fmt] of SLIDERS) $(out).textContent = fmt($(id).value);
 syncWords();
 draw();
