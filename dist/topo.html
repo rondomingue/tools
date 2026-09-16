@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOPO//FORGE — topographic noise &amp; contour generator</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#151a21; --line:#242c37; --line-soft:#1c232c;
+    --ink:#e6ebf2; --dim:#8b97a8; --faint:#5a6675;
+    --accent:#5ec8f5; --accent-b:#4ee0c1;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:12px;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:308px 1fr;min-height:100vh}
+
+  .rail{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow-y:auto;max-height:100vh}
+  .brand{font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:2px}
+  .brand span{color:var(--accent-b)}
+  .tag{font-size:9.5px;color:var(--faint);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:20px}
+  .grp{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line-soft)}
+  .grp:last-child{border:0}
+  .grp[hidden]{display:none}
+  .lbl{font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:block}
+  select,input[type=text]{
+    width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+    border-radius:3px;padding:7px 8px;font-family:var(--mono);font-size:11px;
+  }
+  select:focus,input:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:6px;align-items:center}
+  .row>*{flex:1}
+  button{
+    background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;
+    padding:8px 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.06em;cursor:pointer;
+    text-transform:uppercase;transition:border-color .15s,background .15s,color .15s;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#07222e;font-weight:700}
+  button.primary:hover{background:var(--accent-b);border-color:var(--accent-b);color:#04231c}
+  .hint{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:8px}
+
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;margin-top:-5px;
+    width:13px;height:13px;border-radius:50%;background:var(--accent);border:0;
+  }
+  input[type=range]:disabled::-webkit-slider-thumb{background:var(--faint)}
+  input[type=range]:focus{outline:none}
+  .lbl b{float:right;font-weight:400;color:var(--dim);letter-spacing:0;text-transform:none}
+
+  #dice,#lock{flex:0 0 42px;display:grid;place-items:center;padding:6px 0}
+  #dice svg,#lock svg{width:17px;height:17px;display:block}
+  .ico-stroke{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .ico-fill{fill:currentColor}
+  #lock[data-locked="1"]{border-color:var(--accent);color:var(--accent)}
+  #dice.rolling{animation:roll .45s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes roll{0%{transform:rotate(0) scale(1)}55%{transform:rotate(200deg) scale(1.18)}100%{transform:rotate(360deg) scale(1)}}
+  @media (prefers-reduced-motion: reduce){#dice.rolling{animation:none}}
+
+  .tgl[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0b1a22}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .chips{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+  .chip{text-align:center;text-transform:none;letter-spacing:0;padding:7px 6px;font-size:10.5px;color:var(--dim)}
+  .chip[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0b1a22}
+
+  .pick{position:relative}
+  .pick-btn{width:100%;display:flex;align-items:center;gap:8px;text-align:left;text-transform:none;letter-spacing:0;padding:6px 8px}
+  .sw{display:flex;gap:2px;flex:0 0 auto}
+  .sw i{width:8px;height:15px;border-radius:1.5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+  .pick-name{flex:1;font-size:11px;color:var(--ink)}
+  .pick-caret{color:var(--faint);font-size:8px;transition:transform .15s}
+  .pick.open .pick-caret{transform:rotate(180deg)}
+  .pick-list{
+    position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;display:none;
+    max-height:300px;overflow-y:auto;padding:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;
+    box-shadow:0 18px 46px rgba(0,0,0,.65);
+  }
+  .pick.open .pick-list{display:block}
+  .pick-row{
+    display:flex;align-items:center;gap:8px;width:100%;padding:5px 6px;border:0;border-radius:3px;
+    background:transparent;cursor:pointer;font-family:var(--mono);font-size:11px;
+    text-transform:none;letter-spacing:0;color:var(--dim);
+  }
+  .pick-row:hover{background:var(--bg);color:var(--ink)}
+  .pick-row[data-sel="1"]{color:var(--accent)}
+
+  .cwrap{position:relative;flex:0 0 34px;height:31px}
+  input[type=color]{
+    position:absolute;inset:0;width:100%;height:100%;padding:0;
+    border:1px solid var(--line);border-radius:3px;background:var(--bg);cursor:pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:2px}
+
+  .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:14px;overflow:auto}
+  .frame{
+    max-width:100%;max-height:82vh;overflow:auto;line-height:0;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);border:1px solid var(--line);
+  }
+  #out{display:block;background:#000}
+  #out.alpha{
+    background-color:#171c23;
+    background-image:
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%),
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%);
+    background-size:18px 18px;background-position:0 0,9px 9px;
+  }
+  .frame[data-zoom="fit"] #out{max-width:100%;max-height:calc(82vh - 2px);width:auto;height:auto}
+  .meta{font-size:10px;color:var(--faint);letter-spacing:0.08em;text-align:center;line-height:1.7}
+  .meta b{color:var(--dim);font-weight:400}
+
+  @media (max-width: 760px){
+    .app{grid-template-columns:1fr}
+    .rail{max-height:none;overflow-y:visible;border-right:0;border-bottom:1px solid var(--line)}
+    .stage{padding:18px;min-height:70vh}
+    .frame{max-height:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">TOPO<span>//</span>FORGE</div>
+    <div class="tag">topographic noise &amp; contour generator</div>
+
+    <div class="grp">
+      <label class="lbl" for="seed">Seed</label>
+      <div class="row">
+        <input type="text" id="seed" value="0079" spellcheck="false" style="flex:1">
+        <button id="lock" data-locked="0" title="Lock the seed" aria-label="Lock seed">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect class="ico-stroke" x="5" y="10.5" width="14" height="9" rx="2"/><path class="ico-stroke" id="shackle" d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+        </button>
+        <button id="dice" title="Roll palette, mode, seed (R)" aria-label="Roll everything">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect class="ico-stroke" x="4" y="4" width="16" height="16" rx="3"/><g class="ico-fill" id="pips"></g></svg>
+        </button>
+      </div>
+      <button class="primary" id="reroll" style="width:100%;margin-top:8px">⟳ Regenerate field</button>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Render mode</label>
+      <div class="chips" id="modechips"></div>
+      <button class="tgl" id="tridged" data-on="0" aria-pressed="false" style="width:100%;margin-top:8px">Ridged filaments</button>
+      <div class="hint" id="modenote"></div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="format">Format</label>
+      <select id="format">
+        <option value="sq" selected>Square — 1:1</option>
+        <option value="wide">Widescreen — 16:9</option>
+        <option value="ultra">Ultrawide — 21:9</option>
+        <option value="port">Portrait — 9:16</option>
+        <option value="a">A-series — 1:1.414</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Palette</label>
+      <div class="pick" id="palpick">
+        <button class="pick-btn" id="palbtn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" id="palsw"></span>
+          <span class="pick-name" id="palname"></span>
+          <span class="pick-caret">▼</span>
+        </button>
+        <div class="pick-list" id="pallist" role="listbox"></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span class="pick-name" style="flex:1;color:var(--dim)">Line override</span>
+        <div class="cwrap"><input type="color" id="accent" value="#e6edf5" aria-label="Line colour"></div>
+        <button class="tgl" id="tacc" data-on="0" style="flex:0 0 58px">use</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Field</label>
+      <label class="lbl">Scale <b id="scaleval">3.0</b></label>
+      <input type="range" id="scale" min="8" max="140" step="1" value="30" aria-label="Noise scale">
+
+      <label class="lbl" style="margin-top:10px">Detail <b id="octval">6</b></label>
+      <input type="range" id="oct" min="1" max="9" step="1" value="6" aria-label="Octaves">
+
+      <label class="lbl" style="margin-top:10px">Roughness <b id="roughval">50%</b></label>
+      <input type="range" id="rough" min="20" max="85" step="1" value="50" aria-label="Roughness / persistence">
+
+      <label class="lbl" style="margin-top:10px">Warp <b id="warpval">30%</b></label>
+      <input type="range" id="warp" min="0" max="200" step="2" value="30" aria-label="Domain warp">
+      <div class="hint">Warp bends the field through a second noise — the marbled swirl. Push it for cloud/smoke; drop to zero for clean terrain.</div>
+    </div>
+
+    <div class="grp" id="reliefgrp">
+      <label class="lbl">Relief</label>
+      <label class="lbl">Exposure <b id="expoval">100%</b></label>
+      <input type="range" id="expo" min="10" max="300" step="5" value="100" aria-label="Exposure">
+
+      <label class="lbl" style="margin-top:10px">Contrast <b id="contrastval">100%</b></label>
+      <input type="range" id="contrast" min="30" max="260" step="5" value="100" aria-label="Contrast">
+
+      <label class="lbl" style="margin-top:10px">Shade <b id="shadeval">35%</b></label>
+      <input type="range" id="shade" min="0" max="100" step="1" value="35" aria-label="Hillshade">
+    </div>
+
+    <div class="grp" id="contourgrp">
+      <label class="lbl">Contours</label>
+      <label class="lbl">Levels <b id="levelsval">14</b></label>
+      <input type="range" id="levels" min="2" max="40" step="1" value="14" aria-label="Contour levels">
+
+      <label class="lbl" style="margin-top:10px">Line weight <b id="lwval">1.2</b></label>
+      <input type="range" id="lw" min="4" max="40" step="1" value="12" aria-label="Line weight">
+
+      <label class="lbl" style="margin-top:10px">Line opacity <b id="lopval">85%</b></label>
+      <input type="range" id="lop" min="5" max="100" step="1" value="85" aria-label="Line opacity">
+
+      <label class="lbl" style="margin-top:10px">Index every <b id="idxval">5</b></label>
+      <input type="range" id="idx" min="0" max="10" step="1" value="5" aria-label="Index contour interval">
+      <div class="hint">Every Nth line rides heavier — the index contours. Set to 0 for an even weave.</div>
+    </div>
+
+    <div class="grp" id="pointsgrp">
+      <label class="lbl">Point cloud</label>
+      <label class="lbl" for="pfollow">Follow</label>
+      <select id="pfollow">
+        <option value="contours" selected>Contours — dotted isolines</option>
+        <option value="relief">Relief — density by elevation</option>
+        <option value="slope">Slope — points on ridge edges</option>
+      </select>
+      <label class="lbl" style="margin-top:10px">Density <b id="pcountval">120k</b></label>
+      <input type="range" id="pcount" min="10" max="400" step="5" value="120" aria-label="Point density">
+      <label class="lbl" style="margin-top:10px">Point size <b id="psizeval">1.5</b></label>
+      <input type="range" id="psize" min="6" max="45" step="1" value="15" aria-label="Point size">
+      <label class="lbl" style="margin-top:10px">Opacity <b id="popacval">85%</b></label>
+      <input type="range" id="popac" min="5" max="100" step="1" value="85" aria-label="Point opacity">
+      <label class="lbl" style="margin-top:10px">Contrast <b id="pconval">60%</b></label>
+      <input type="range" id="pcon" min="0" max="100" step="1" value="60" aria-label="Point brightness contrast">
+      <label class="lbl" style="margin-top:10px">Spread <b id="pspreadval">40%</b></label>
+      <input type="range" id="pspread" min="0" max="100" step="1" value="40" aria-label="Point spread">
+      <label class="lbl" style="margin-top:10px">Jitter <b id="pjitval">2</b></label>
+      <input type="range" id="pjit" min="0" max="30" step="1" value="2" aria-label="Point jitter">
+      <div class="hint">Finer points at higher density read as a LIDAR scatter. Follow “Contours” for dotted isolines (uses the Levels count), “Relief” to fill the blob, “Slope” to trace ridge edges. Points export as an embedded raster in SVG.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Mask &amp; finish</label>
+      <button class="tgl" id="tmask" data-on="1" aria-pressed="true" style="width:100%">Vignette mask</button>
+      <div id="masksub">
+        <label class="lbl" style="margin-top:10px">Radius <b id="radval">86%</b></label>
+        <input type="range" id="rad" min="30" max="120" step="1" value="86" aria-label="Mask radius">
+        <label class="lbl" style="margin-top:10px">Edge falloff <b id="softval">70%</b></label>
+        <input type="range" id="soft" min="2" max="100" step="1" value="70" aria-label="Mask softness">
+        <div class="hint">A ragged, noise-wobbled feather rather than a hard circle. Raise falloff for a softer vignette; radius sets how far the field reaches.</div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <button class="tgl" id="tinvert" data-on="0" aria-pressed="false">Invert</button>
+        <button class="tgl" id="tvig" data-on="0" aria-pressed="false">Vignette</button>
+      </div>
+      <label class="lbl" style="margin-top:12px">Grain <b id="grainval">0%</b></label>
+      <input type="range" id="grain" min="0" max="100" step="1" value="0" aria-label="Grain">
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Export</label>
+      <div class="row">
+        <button id="dl1">↓ PNG 1×</button>
+        <button id="dl2">↓ PNG 2×</button>
+        <button id="dl3">↓ PNG 3×</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="dlsvg" style="flex:1">↓ SVG — vector</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="tgl" id="talpha" data-on="0" aria-pressed="false" style="flex:1">Transparent background</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <select id="zoom">
+          <option value="fit" selected>View: fit</option>
+          <option value="100">View: 100%</option>
+        </select>
+      </div>
+      <div class="hint">Contours export as live vector paths; relief is a raster layer embedded into the SVG so it matches the plate. Plate renders at 1600 on the long edge.</div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="frame" id="frame" data-zoom="fit"><canvas id="out"></canvas></div>
+    <div class="meta" id="meta"></div>
+  </main>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* ============================================================ rng */
+function hash(str){
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* ============================================================ perlin noise */
+function makePerlin(seed){
+  const R = mulberry(hash('perlin|' + seed));
+  const perm = new Uint8Array(512);
+  const src = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) src[i] = i;
+  for (let i = 255; i > 0; i--){ const j = Math.floor(R() * (i + 1)); const t = src[i]; src[i] = src[j]; src[j] = t; }
+  for (let i = 0; i < 512; i++) perm[i] = src[i & 255];
+  const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  function grad(h, x, y){
+    switch (h & 7){
+      case 0: return  x + y; case 1: return -x + y; case 2: return  x - y; case 3: return -x - y;
+      case 4: return  x;     case 5: return -x;     case 6: return  y;     default: return -y;
+    }
+  }
+  return function(x, y){
+    const X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+    const xf = x - Math.floor(x), yf = y - Math.floor(y);
+    const u = fade(xf), v = fade(yf);
+    const aa = perm[perm[X] + Y], ab = perm[perm[X] + Y + 1];
+    const ba = perm[perm[X + 1] + Y], bb = perm[perm[X + 1] + Y + 1];
+    const x1 = lerp(grad(aa, xf, yf),     grad(ba, xf - 1, yf),     u);
+    const x2 = lerp(grad(ab, xf, yf - 1), grad(bb, xf - 1, yf - 1), u);
+    return lerp(x1, x2, v); // ~[-1,1]
+  };
+}
+function fbm(noise, x, y, oct, pers, lac, ridged){
+  let amp = 1, freq = 1, sum = 0, norm = 0;
+  for (let i = 0; i < oct; i++){
+    let n = noise(x * freq, y * freq);
+    if (ridged){ n = 1 - Math.abs(n); n *= n; }
+    sum += n * amp; norm += amp;
+    amp *= pers; freq *= lac;
+  }
+  return sum / norm;
+}
+
+/* ============================================================ format */
+const FORMATS = {
+  sq:    { r: 1,     tall:false },
+  wide:  { r: 16/9,  tall:false },
+  ultra: { r: 21/9,  tall:false },
+  port:  { r: 9/16,  tall:true  },
+  a:     { r: 1/1.4142, tall:true }
+};
+const LONG = 1600;
+function formatDims(id){
+  const f = FORMATS[id] || FORMATS.sq;
+  if (f.tall) return { w: Math.round(LONG * f.r), h: LONG };
+  return { w: LONG, h: Math.round(LONG / f.r) };
+}
+
+/* ============================================================ palettes
+   `ramp` is the relief gradient (elevation → colour); `line` is the contour
+   stroke. Near-monochrome by default to match a faint field on deep black. */
+const PALETTES = [
+  { id:'mono',     name:'Mono',        light:false, bg:'#04050a', line:'#e6edf5', accent:'#ffffff',
+    ramp:[[0,'#04050a'],[0.5,'#39444f'],[0.8,'#9fb0c2'],[1,'#ffffff']] },
+  { id:'noir',     name:'Noir',        light:false, bg:'#000000', line:'#c9d2dc', accent:'#ff2e42',
+    ramp:[[0,'#000000'],[0.6,'#282d34'],[1,'#e8edf2']] },
+  { id:'blueprint',name:'Blueprint',   light:false, bg:'#06192b', line:'#7fd6ff', accent:'#ffd23f',
+    ramp:[[0,'#06192b'],[0.5,'#134a6b'],[1,'#9fe6ff']] },
+  { id:'cyan',     name:'Cyan Deep',   light:false, bg:'#04090c', line:'#7fe6f5', accent:'#39e0c1',
+    ramp:[[0,'#04090c'],[0.5,'#1d5561'],[1,'#bff2fb']] },
+  { id:'amber',    name:'Amber',       light:false, bg:'#0a0703', line:'#ffcf8a', accent:'#ff6a2b',
+    ramp:[[0,'#0a0703'],[0.55,'#5c3d16'],[0.85,'#c9902f'],[1,'#ffe6b8']] },
+  { id:'terrain',  name:'Terrain',     light:false, bg:'#080b0d', line:'rgba(240,244,250,0.55)', accent:'#ffe6b8',
+    ramp:[[0,'#0b2030'],[0.32,'#1f4a3a'],[0.58,'#4f6b3a'],[0.76,'#a9925c'],[0.9,'#d8c79a'],[1,'#f4efe4']] },
+  { id:'ink',      name:'Ink Map',     light:true,  bg:'#ece6d8', line:'#1b2c4e', accent:'#c0341c',
+    ramp:[[0,'#ece6d8'],[0.5,'#ccc4ac'],[1,'#6f6650']] },
+  { id:'sepia',    name:'Sepia',       light:true,  bg:'#f2ead9', line:'#5a3f2a', accent:'#9e3b34',
+    ramp:[[0,'#f2ead9'],[0.5,'#cbb189'],[1,'#5a3f2a']] }
+];
+let PAL = PALETTES[0];
+
+/* ============================================================ modes */
+const MODES = [
+  { id:'relief',  name:'Relief',  note:'shaded elevation field — the cloud / marble render' },
+  { id:'contour', name:'Contour', note:'topographic isolines only — clean vector map' },
+  { id:'both',    name:'Both',    note:'relief field with contour lines struck over it' },
+  { id:'points',  name:'Points',  note:'point-cloud stipple — dotted contours, relief density or ridge edges' }
+];
+let MODE = MODES[0];
+
+/* ============================================================ colour helpers */
+function hexToRgb(hex){
+  if (hex[0] === '#'){ const n = parseInt(hex.slice(1), 16); return [n>>16&255, n>>8&255, n&255, 255]; }
+  const m = /rgba?\(([^)]+)\)/.exec(hex);
+  if (m){ const p = m[1].split(',').map(parseFloat); return [p[0]|0, p[1]|0, p[2]|0, p.length>3 ? Math.round(p[3]*255) : 255]; }
+  return [255,255,255,255];
+}
+function rampLUT(ramp){
+  const lut = new Uint8ClampedArray(256 * 4);
+  for (let i = 0; i < 256; i++){
+    const t = i / 255;
+    let a = ramp[0], b = ramp[ramp.length - 1];
+    for (let k = 0; k < ramp.length - 1; k++){ if (t >= ramp[k][0] && t <= ramp[k+1][0]){ a = ramp[k]; b = ramp[k+1]; break; } }
+    const span = (b[0] - a[0]) || 1, f = Math.max(0, Math.min(1, (t - a[0]) / span));
+    const ca = hexToRgb(a[1]), cb = hexToRgb(b[1]);
+    lut[i*4]   = ca[0] + (cb[0]-ca[0])*f;
+    lut[i*4+1] = ca[1] + (cb[1]-ca[1])*f;
+    lut[i*4+2] = ca[2] + (cb[2]-ca[2])*f;
+    lut[i*4+3] = 255;
+  }
+  return lut;
+}
+function lineColor(){
+  if ($('tacc').dataset.on === '1') return $('accent').value;
+  return PAL.line;
+}
+
+/* ============================================================ field build (cached) */
+let FIELD = null, FIELD_KEY = '';
+function fieldKey(o){
+  return [o.seed, o.gw, o.gh, o.scale, o.octaves, o.persistence, o.warp, o.ridged,
+          o.contrast, o.invert, o.mask, o.radius, o.soft].join('|');
+}
+function buildField(o){
+  const key = fieldKey(o);
+  if (FIELD && FIELD_KEY === key) return FIELD;
+  const gw = o.gw, gh = o.gh;
+  const noise = makePerlin(o.seed);
+  const wnoise = makePerlin(o.seed + '|warp');
+  const f = new Float32Array(gw * gh);
+  const mask = new Float32Array(gw * gh);
+  const sc = o.scale, lac = 2.0, pers = o.persistence;
+  let mn = Infinity, mx = -Infinity;
+  for (let y = 0; y < gh; y++){
+    for (let x = 0; x < gw; x++){
+      let nx = (x / gw) * sc, ny = (y / gw) * sc;
+      if (o.warp > 0){
+        const wx = fbm(wnoise, nx + 11.3, ny + 2.7, 4, 0.5, 2, false);
+        const wy = fbm(wnoise, nx - 5.1, ny + 9.2, 4, 0.5, 2, false);
+        nx += wx * o.warp; ny += wy * o.warp;
+      }
+      let h = fbm(noise, nx, ny, o.octaves, pers, lac, o.ridged);
+      if (!o.ridged) h = h * 0.5 + 0.5;
+      f[y*gw + x] = h;
+      if (h < mn) mn = h; if (h > mx) mx = h;
+    }
+  }
+  const range = (mx - mn) || 1;
+  for (let i = 0; i < f.length; i++){
+    let h = (f[i] - mn) / range;
+    h = (h - 0.5) * o.contrast + 0.5;
+    if (o.invert) h = 1 - h;
+    f[i] = Math.max(0, Math.min(1, h));
+  }
+  /* organic vignette mask — a feathered radial falloff whose edge is wobbled by
+     noise (so it reads as a ragged vignette, not a clean circle) and whose
+     interior is broken up by a low-frequency patch field */
+  if (o.mask){
+    const vn = makePerlin(o.seed + '|mask');
+    const cx = (gw - 1) / 2, cy = (gh - 1) / 2;
+    const maxR = Math.min(gw, gh) / 2 * o.radius;
+    const soft = Math.max(0.05, o.soft);
+    for (let y = 0; y < gh; y++){
+      for (let x = 0; x < gw; x++){
+        const wob = fbm(vn, x/gw*2.2 + 3, y/gw*2.2 + 7, 3, 0.5, 2) * 0.34;
+        const d = Math.hypot(x - cx, y - cy) / (maxR * (1 + wob));
+        let m = 1 - (d - (1 - soft)) / soft;
+        m = Math.max(0, Math.min(1, m));
+        m = m * m * (3 - 2 * m); // smoothstep feather
+        const patch = 0.62 + 0.5 * (fbm(vn, x/gw*1.3 + 20, y/gw*1.3, 3, 0.5, 2) * 0.5 + 0.5);
+        m *= Math.max(0, Math.min(1, patch));
+        mask[y*gw + x] = m;
+      }
+    }
+  } else {
+    mask.fill(1);
+  }
+  FIELD = { f, mask, gw, gh }; FIELD_KEY = key;
+  return FIELD;
+}
+
+/* bilinear sample of the field at continuous grid coords */
+function sampleField(f, gw, gh, x, y){
+  const x0 = x|0, y0 = y|0;
+  const x1 = x0+1<gw ? x0+1 : x0, y1 = y0+1<gh ? y0+1 : y0;
+  const fx = x-x0, fy = y-y0;
+  const a = f[y0*gw+x0], b = f[y0*gw+x1], c = f[y1*gw+x0], d = f[y1*gw+x1];
+  return (a*(1-fx)+b*fx)*(1-fy) + (c*(1-fx)+d*fx)*fy;
+}
+
+/* ============================================================ marching squares */
+function contourSegments(f, mask, gw, gh, level){
+  const segs = [];
+  for (let y = 0; y < gh - 1; y++){
+    for (let x = 0; x < gw - 1; x++){
+      if (mask[y*gw + x] < 0.5) continue;
+      const tl = f[y*gw+x], tr = f[y*gw+x+1], br = f[(y+1)*gw+x+1], bl = f[(y+1)*gw+x];
+      let c = 0;
+      if (tl > level) c |= 8;
+      if (tr > level) c |= 4;
+      if (br > level) c |= 2;
+      if (bl > level) c |= 1;
+      if (c === 0 || c === 15) continue;
+      const top = () => [x + (level - tl) / (tr - tl), y];
+      const rgt = () => [x + 1, y + (level - tr) / (br - tr)];
+      const bot = () => [x + (level - bl) / (br - bl), y + 1];
+      const lft = () => [x, y + (level - tl) / (bl - tl)];
+      const push = (a, b) => segs.push(a[0], a[1], b[0], b[1]);
+      switch (c){
+        case 1: case 14: push(lft(), bot()); break;
+        case 2: case 13: push(bot(), rgt()); break;
+        case 3: case 12: push(lft(), rgt()); break;
+        case 4: case 11: push(top(), rgt()); break;
+        case 6: case 9:  push(top(), bot()); break;
+        case 7: case 8:  push(lft(), top()); break;
+        case 5: push(lft(), top()); push(bot(), rgt()); break;
+        case 10: push(top(), rgt()); push(lft(), bot()); break;
+      }
+    }
+  }
+  return segs;
+}
+function allContours(fld, o){
+  const out = [];
+  const L = o.levels;
+  for (let k = 1; k <= L; k++){
+    const level = k / (L + 1);
+    const isIndex = o.idx > 0 && (k % o.idx === 0);
+    out.push({ level, isIndex, segs: contourSegments(fld.f, fld.mask, fld.gw, fld.gh, level) });
+  }
+  return out;
+}
+
+/* ============================================================ read state */
+function readState(scale){
+  scale = scale || 1;
+  const { w:W, h:H } = formatDims($('format').value);
+  const outW = Math.round(W * scale), outH = Math.round(H * scale);
+  const gridN = Math.max(200, Math.min(760, Math.round(Math.min(outW, outH) / 4.2)));
+  let gw, gh;
+  if (outW >= outH){ gh = gridN; gw = Math.round(gridN * outW / outH); }
+  else { gw = gridN; gh = Math.round(gridN * outH / outW); }
+  return {
+    seed:    $('seed').value.trim() || '0',
+    mode:    MODE.id,
+    ridged:  $('tridged').dataset.on === '1',
+    format:  $('format').value,
+    W:outW, H:outH, gw, gh,
+    scale:   +$('scale').value / 10,
+    octaves: +$('oct').value,
+    persistence: +$('rough').value / 100,
+    warp:    +$('warp').value / 100,
+    expo:    +$('expo').value / 100,
+    contrast:+$('contrast').value / 100,
+    shade:   +$('shade').value / 100,
+    levels:  +$('levels').value,
+    lw:      +$('lw').value / 10,
+    lop:     +$('lop').value / 100,
+    idx:     +$('idx').value,
+    pfollow: $('pfollow').value,
+    pcount:  (+$('pcount').value) * 1000,
+    psize:   +$('psize').value / 10,
+    popac:   +$('popac').value / 100,
+    pspread: +$('pspread').value / 100,
+    pjitter: +$('pjit').value,
+    mask:    $('tmask').dataset.on === '1',
+    radius:  +$('rad').value / 100,
+    soft:    +$('soft').value / 100,
+    invert:  $('tinvert').dataset.on === '1',
+    vig:     $('tvig').dataset.on === '1',
+    grain:   +$('grain').value / 100,
+    alpha:   $('talpha').dataset.on === '1',
+    scaleFactor: scale
+  };
+}
+
+/* ============================================================ render (canvas) */
+let LAST = null;
+function render(scale){
+  const o = readState(scale);
+  const fld = buildField(o);
+  const cv = $('out');
+  cv.width = o.W; cv.height = o.H;
+  const g = cv.getContext('2d');
+  if (!o.alpha){ g.fillStyle = PAL.bg; g.fillRect(0, 0, o.W, o.H); }
+
+  const doRelief = o.mode === 'relief' || o.mode === 'both';
+  const doContour = o.mode === 'contour' || o.mode === 'both';
+  const doPoints = o.mode === 'points';
+
+  if (doRelief) drawRelief(g, fld, o);
+  if (doPoints) drawPoints(g, fld, o);
+  if (doContour) drawContours(g, fld, o);
+  if (o.vig && !o.alpha) drawVignette(g, o);
+  if (o.grain > 0) drawGrain(g, o);
+
+  cv.classList.toggle('alpha', o.alpha);
+  LAST = o;
+  return { cv, o, fld };
+}
+
+function drawRelief(g, fld, o){
+  const { f, mask, gw, gh } = fld;
+  const lut = rampLUT(PAL.ramp);
+  const img = new ImageData(gw, gh);
+  const d = img.data;
+  const expo = o.expo, sh = o.shade;
+  for (let y = 0; y < gh; y++){
+    for (let x = 0; x < gw; x++){
+      const i = y*gw + x;
+      let h = f[i] * expo;
+      h = h > 1 ? 1 : h;
+      let li = (h * 255) | 0;
+      let r = lut[li*4], gg = lut[li*4+1], b = lut[li*4+2];
+      if (sh > 0){
+        const xl = x > 0 ? x-1 : x, xr = x < gw-1 ? x+1 : x;
+        const yu = y > 0 ? y-1 : y, yd = y < gh-1 ? y+1 : y;
+        const gx = f[y*gw + xr] - f[y*gw + xl];
+        const gy = f[yd*gw + x] - f[yu*gw + x];
+        let s = 1 + (gx * -0.7 + gy * -0.7) * sh * gw * 0.05;
+        s = s < 0.25 ? 0.25 : s > 1.7 ? 1.7 : s;
+        r *= s; gg *= s; b *= s;
+      }
+      const a = o.mask ? mask[i] : 1;
+      d[i*4]   = r; d[i*4+1] = gg; d[i*4+2] = b;
+      d[i*4+3] = o.alpha ? (a * 255) : 255;
+      if (!o.alpha && o.mask && a < 1){
+        // blend toward bg where masked, on opaque plate
+        const bg = hexToRgb(PAL.bg);
+        d[i*4]   = r*a + bg[0]*(1-a);
+        d[i*4+1] = gg*a + bg[1]*(1-a);
+        d[i*4+2] = b*a + bg[2]*(1-a);
+      }
+    }
+  }
+  const tmp = document.createElement('canvas');
+  tmp.width = gw; tmp.height = gh;
+  tmp.getContext('2d').putImageData(img, 0, 0);
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(tmp, 0, 0, o.W, o.H);
+}
+
+function drawContours(g, fld, o){
+  const sx = o.W / (fld.gw - 1), sy = o.H / (fld.gh - 1);
+  const col = lineColor();
+  const contours = allContours(fld, o);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const c of contours){
+    if (!c.segs.length) continue;
+    g.strokeStyle = col;
+    g.globalAlpha = o.lop * (c.isIndex ? 1 : 0.72);
+    g.lineWidth = o.lw * o.scaleFactor * (c.isIndex ? 1.7 : 1);
+    g.beginPath();
+    const s = c.segs;
+    for (let i = 0; i < s.length; i += 4){
+      g.moveTo(s[i]*sx, s[i+1]*sy);
+      g.lineTo(s[i+2]*sx, s[i+3]*sy);
+    }
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+
+function drawPoints(g, fld, o){
+  const { f, mask, gw, gh } = fld;
+  const R = mulberry(hash(o.seed + '|points|' + o.pfollow));
+  const dn = makePerlin(o.seed + '|pdetail');
+  const col = lineColor();
+  const W = o.W, H = o.H;
+  const baseSize = Math.max(0.6, o.psize * o.scaleFactor);
+  const jit = o.pjitter * o.scaleFactor;
+  const N = o.pcount;
+  const levels = o.levels;
+  const follow = o.pfollow;
+  const gamma  = 2.6 - o.pspread * 2.3;    // relief: low spread → concentrate on highs
+  const band   = 0.02 + o.pspread * 0.22;  // contours: tighter band → hugs the isoline
+  const slopeK = 0.4 + o.pspread * 3.2;    // slope: edge sensitivity
+  const invBand = 1 / (band * band * 0.5 + 1e-6);
+  g.fillStyle = col;
+  for (let i = 0; i < N; i++){
+    const gx = R() * (gw - 1), gy = R() * (gh - 1);
+    const ix = gx | 0, iy = gy | 0;
+    const m = mask[iy*gw + ix];
+    if (m < 0.04) continue;
+    const v = sampleField(f, gw, gh, gx, gy);   // bilinear → points sit right on the line
+    let p;
+    if (follow === 'relief'){
+      p = Math.pow(v, gamma);
+    } else if (follow === 'slope'){
+      const xr = ix<gw-1?ix+1:ix, xl = ix>0?ix-1:ix, yd = iy<gh-1?iy+1:iy, yu = iy>0?iy-1:iy;
+      const gxg = f[iy*gw+xr] - f[iy*gw+xl], gyg = f[yd*gw+ix] - f[yu*gw+ix];
+      p = Math.min(1, Math.hypot(gxg, gyg) * gw * 0.05 * slopeK);
+    } else { // contours — sharp gaussian band around each iso-level
+      const t = v * (levels + 1);
+      const d = t - Math.round(t);
+      p = Math.exp(-(d * d) * invBand);
+    }
+    /* fine organic density variation → clumps and filaments along the line */
+    const det = fbm(dn, gx * 0.085, gy * 0.085, 4, 0.55, 2) * 0.5 + 0.5;
+    p *= (0.25 + 1.05 * det) * m;
+    if (R() > p) continue;
+    /* per-point brightness (biased dim) + occasional larger grain = LIDAR dust */
+    g.globalAlpha = o.popac * (0.22 + 0.78 * R() * R());
+    const s = R() < 0.12 ? baseSize * 1.8 : baseSize;
+    const px = (gx/(gw-1)) * W + (R()-0.5) * jit - s/2;
+    const py = (gy/(gh-1)) * H + (R()-0.5) * jit - s/2;
+    g.fillRect(px, py, s, s);
+  }
+  g.globalAlpha = 1;
+}
+
+function drawVignette(g, o){
+  const grd = g.createRadialGradient(o.W/2, o.H/2, Math.min(o.W,o.H)*0.28, o.W/2, o.H/2, Math.max(o.W,o.H)*0.72);
+  const c = PAL.light ? '255,255,255' : '0,0,0';
+  grd.addColorStop(0, `rgba(${c},0)`); grd.addColorStop(1, `rgba(${c},0.6)`);
+  g.fillStyle = grd; g.fillRect(0, 0, o.W, o.H);
+}
+function drawGrain(g, o){
+  const R = mulberry(hash(o.seed + '|grain'));
+  const n = Math.floor(o.W*o.H*0.03);
+  for (let i = 0; i < n; i++){
+    const a = R()*o.grain*0.5;
+    const tone = R()<0.5 ? '0,0,0' : '255,255,255';
+    g.fillStyle = `rgba(${tone},${a})`;
+    g.fillRect(R()*o.W, R()*o.H, 1, 1);
+  }
+}
+
+/* ============================================================ svg export */
+const n1 = v => (Math.round(v*10)/10);
+function buildSVG(){
+  const o = readState(1);
+  const fld = buildField(o);
+  const P = [`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${o.W}" height="${o.H}" viewBox="0 0 ${o.W} ${o.H}">`];
+  if (!o.alpha) P.push(`<rect width="${o.W}" height="${o.H}" fill="${PAL.bg}"/>`);
+
+  const doRelief = o.mode === 'relief' || o.mode === 'both';
+  const doContour = o.mode === 'contour' || o.mode === 'both';
+  const doPoints = o.mode === 'points';
+
+  /* relief & point clouds are raster — embed as an <image> so the SVG matches the plate */
+  if (doRelief || doPoints){
+    const tmp = document.createElement('canvas'); tmp.width = o.W; tmp.height = o.H;
+    const tg = tmp.getContext('2d');
+    if (o.alpha) tg.clearRect(0,0,o.W,o.H);
+    if (doRelief) drawRelief(tg, fld, o);
+    if (doPoints) drawPoints(tg, fld, o);
+    const url = tmp.toDataURL('image/png');
+    P.push(`<image x="0" y="0" width="${o.W}" height="${o.H}" preserveAspectRatio="none" xlink:href="${url}" href="${url}"/>`);
+  }
+  if (doContour){
+    const sx = o.W / (fld.gw - 1), sy = o.H / (fld.gh - 1);
+    const col = lineColor();
+    const contours = allContours(fld, o);
+    for (const c of contours){
+      if (!c.segs.length) continue;
+      const s = c.segs; let d = '';
+      for (let i = 0; i < s.length; i += 4) d += `M${n1(s[i]*sx)} ${n1(s[i+1]*sy)}L${n1(s[i+2]*sx)} ${n1(s[i+3]*sy)}`;
+      const op = (o.lop * (c.isIndex ? 1 : 0.72)).toFixed(3);
+      const w = (o.lw * (c.isIndex ? 1.7 : 1)).toFixed(2);
+      P.push(`<path d="${d}" fill="none" stroke="${col}" stroke-opacity="${op}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`);
+    }
+  }
+  if (o.vig && !o.alpha){
+    const c = PAL.light ? '#fff' : '#000';
+    P.push(`<radialGradient id="vg" cx="50%" cy="50%" r="72%"><stop offset="30%" stop-color="${c}" stop-opacity="0"/><stop offset="100%" stop-color="${c}" stop-opacity="0.6"/></radialGradient><rect width="${o.W}" height="${o.H}" fill="url(#vg)"/>`);
+  }
+  P.push('</svg>');
+  return P.join('');
+}
+
+/* ============================================================ download */
+function saveBlob(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+}
+function plateName(ext, suf){
+  const o = readState(1);
+  return `topo_${o.mode}${o.ridged?'-ridged':''}_${PAL.id}_${o.seed.replace(/[^a-z0-9]+/gi,'')}${suf}.${ext}`;
+}
+function downloadPNG(scale){
+  const { cv } = render(scale);
+  cv.toBlob(b => saveBlob(b, plateName('png', scale>1?'@'+scale+'x':'')), 'image/png');
+  render(1);
+}
+function downloadSVG(){ saveBlob(new Blob([buildSVG()], { type:'image/svg+xml;charset=utf-8' }), plateName('svg','')); }
+
+/* ============================================================ ui */
+function update(){
+  const t0 = performance.now();
+  const { o, fld } = render(1);
+  const dt = Math.round(performance.now() - t0);
+  const detail = o.mode === 'points'
+    ? ` · ${o.pfollow}${o.pfollow==='contours' ? ' '+o.levels+' lvl' : ''} · ${(o.pcount/1000)|0}k pts`
+    : (o.mode !== 'relief' ? ' · ' + o.levels + ' levels' : '');
+  $('meta').innerHTML =
+    `<b>${MODE.name}</b>${o.ridged?' · ridged':''} · ${PAL.name} · ${o.format} · ${o.W}×${o.H} · ` +
+    `field ${fld.gw}×${fld.gh}${detail} · seed <b>${o.seed}</b> · <b>${dt}ms</b>`;
+  const frame = $('frame'); frame.dataset.zoom = $('zoom').value;
+  $('out').style.width  = frame.dataset.zoom==='fit' ? '' : (o.W+'px');
+  $('out').style.height = frame.dataset.zoom==='fit' ? '' : (o.H+'px');
+}
+function syncGroups(){
+  const doRelief = MODE.id === 'relief' || MODE.id === 'both';
+  const doPoints = MODE.id === 'points';
+  const doContour = MODE.id === 'contour' || MODE.id === 'both' || (doPoints && $('pfollow').value === 'contours');
+  $('reliefgrp').hidden = !doRelief;
+  $('contourgrp').hidden = !doContour;
+  $('pointsgrp').hidden = !doPoints;
+  $('masksub').style.display = $('tmask').dataset.on === '1' ? '' : 'none';
+}
+
+/* mode chips */
+function paintModes(){
+  $('modechips').innerHTML = MODES.map(m =>
+    `<button class="chip" data-id="${m.id}" data-on="${m.id===MODE.id?1:0}">${m.name}</button>`).join('');
+  $('modenote').textContent = MODE.note;
+}
+$('modechips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  MODE = MODES.find(m => m.id === b.dataset.id);
+  paintModes(); syncGroups(); update();
+});
+
+/* palette pick */
+function swatch(p){
+  const cols = [p.bg, p.ramp[Math.floor(p.ramp.length/2)][1], p.ramp[p.ramp.length-1][1], p.line];
+  return `<span class="sw">${cols.map(c=>`<i style="background:${c}"></i>`).join('')}</span>`;
+}
+function paintPal(){
+  $('palsw').outerHTML = swatch(PAL).replace('class="sw', 'id="palsw" class="sw');
+  $('palname').textContent = PAL.name;
+  $('pallist').innerHTML = PALETTES.map(p =>
+    `<button class="pick-row" role="option" data-id="${p.id}" data-sel="${p.id===PAL.id?1:0}">${swatch(p)}<span>${p.name}</span></button>`).join('');
+}
+$('palbtn').addEventListener('click', () => {
+  const open = $('palpick').classList.toggle('open');
+  $('palbtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+$('pallist').addEventListener('click', e => {
+  const b = e.target.closest('.pick-row'); if (!b) return;
+  PAL = PALETTES.find(p => p.id === b.dataset.id);
+  if ($('tacc').dataset.on !== '1') $('accent').value = /^#/.test(PAL.line) ? PAL.line : '#e6edf5';
+  $('palpick').classList.remove('open');
+  paintPal(); update();
+});
+document.addEventListener('click', e => { if (!e.target.closest('#palpick')) $('palpick').classList.remove('open'); });
+
+/* lock + dice */
+function paintLock(){
+  const on = $('lock').dataset.locked === '1';
+  $('shackle').setAttribute('d', on ? 'M8 10.5V8a4 4 0 0 1 8 0v2.5' : 'M8 10.5V8a4 4 0 0 1 7.5-2');
+}
+$('lock').addEventListener('click', () => { const el=$('lock'); el.dataset.locked = el.dataset.locked==='1'?'0':'1'; paintLock(); });
+function paintPips(n){
+  const pos = { 1:[[12,12]], 2:[[8,8],[16,16]], 3:[[8,8],[12,12],[16,16]],
+    4:[[8,8],[16,8],[8,16],[16,16]], 5:[[8,8],[16,8],[12,12],[8,16],[16,16]],
+    6:[[8,8],[16,8],[8,12],[16,12],[8,16],[16,16]] }[n];
+  $('pips').innerHTML = pos.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.4"/>`).join('');
+}
+function newSeed(){ return String(Math.floor(Math.random()*9000)+1000); }
+$('dice').addEventListener('click', () => {
+  $('dice').classList.remove('rolling'); void $('dice').offsetWidth; $('dice').classList.add('rolling');
+  paintPips(1 + Math.floor(Math.random()*6));
+  MODE = MODES[Math.floor(Math.random()*MODES.length)];
+  PAL = PALETTES[Math.floor(Math.random()*PALETTES.length)];
+  if ($('tacc').dataset.on !== '1') $('accent').value = /^#/.test(PAL.line) ? PAL.line : '#e6edf5';
+  if ($('lock').dataset.locked !== '1') $('seed').value = newSeed();
+  paintModes(); paintPal(); syncGroups(); update();
+});
+$('reroll').addEventListener('click', () => {
+  if ($('lock').dataset.locked !== '1') $('seed').value = newSeed();
+  update();
+});
+
+/* sliders */
+const SLIDERS = [
+  ['scale','scaleval', v=>(v/10).toFixed(1)], ['oct','octval', v=>v], ['rough','roughval', v=>v+'%'],
+  ['warp','warpval', v=>v+'%'], ['expo','expoval', v=>v+'%'], ['contrast','contrastval', v=>v+'%'],
+  ['shade','shadeval', v=>v+'%'], ['levels','levelsval', v=>v], ['lw','lwval', v=>(v/10).toFixed(1)],
+  ['lop','lopval', v=>v+'%'], ['idx','idxval', v=>v==='0'?'off':v], ['rad','radval', v=>v+'%'],
+  ['soft','softval', v=>v+'%'], ['grain','grainval', v=>v+'%'],
+  ['pcount','pcountval', v=>v+'k'], ['psize','psizeval', v=>(v/10).toFixed(1)],
+  ['popac','popacval', v=>v+'%'], ['pspread','pspreadval', v=>v+'%'], ['pjit','pjitval', v=>v]
+];
+for (const [id,out,fmt] of SLIDERS)
+  $(id).addEventListener('input', () => { $(out).textContent = fmt($(id).value); update(); });
+$('format').addEventListener('change', update);
+$('accent').addEventListener('input', update);
+$('pfollow').addEventListener('change', () => { syncGroups(); update(); });
+
+/* toggles */
+for (const id of ['tridged','tmask','tinvert','tvig','tacc','talpha']){
+  $(id).addEventListener('click', () => {
+    const on = $(id).dataset.on==='1' ? '0' : '1';
+    $(id).dataset.on = on; $(id).setAttribute('aria-pressed', on==='1'?'true':'false');
+    if (id === 'tmask') syncGroups();
+    update();
+  });
+}
+$('seed').addEventListener('input', update);
+$('zoom').addEventListener('change', update);
+
+/* export */
+$('dl1').addEventListener('click', () => downloadPNG(1));
+$('dl2').addEventListener('click', () => downloadPNG(2));
+$('dl3').addEventListener('click', () => downloadPNG(3));
+$('dlsvg').addEventListener('click', downloadSVG);
+
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,select,textarea')) return;
+  if (e.key==='r' || e.key==='R') $('dice').click();
+  if (e.key==='g' || e.key==='G') $('reroll').click();
+});
+
+/* boot */
+paintModes(); paintPal(); paintLock(); paintPips(4); syncGroups();
+for (const [id,out,fmt] of SLIDERS) $(out).textContent = fmt($(id).value);
+update();
+</script>
+</body>
+</html>

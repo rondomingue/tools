@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORB//FORGE - planetary orbital SVG generator</title>
+<style>
+  :root{
+    --bg:#080b0f; --panel:#12171f; --line:#26303c; --line-soft:#1c2430;
+    --ink:#e8eef6; --dim:#8d9aac; --faint:#596677;
+    --accent:#67d7f2; --accent-b:#49e0bd;
+    --mono:ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:12px;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:304px 1fr;min-height:100vh}
+  .rail{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow-y:auto;max-height:100vh}
+  .brand{font-size:15px;font-weight:700;letter-spacing:-.02em;margin-bottom:2px}
+  .brand span{color:var(--accent-b)}
+  .tag{font-size:9.5px;color:var(--faint);letter-spacing:.14em;text-transform:uppercase;margin-bottom:20px}
+  .grp{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line-soft)}
+  .grp:last-child{border:0}
+  .lbl{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:block}
+  .lbl b{float:right;font-weight:400;color:var(--dim);letter-spacing:0;text-transform:none}
+  input[type=text],select{
+    width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+    border-radius:3px;padding:7px 8px;font-family:var(--mono);font-size:11px;
+  }
+  input[type=file]{width:100%;font-family:var(--mono);font-size:10px;color:var(--dim)}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:6px;align-items:center}
+  .row>*{flex:1}
+  button{
+    background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;
+    padding:8px 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;cursor:pointer;
+    text-transform:uppercase;transition:border-color .15s,background .15s,color .15s;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#06232d;font-weight:700}
+  button.primary:hover{background:var(--accent-b);border-color:var(--accent-b);color:#05251d}
+  .tgl[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0a1b23}
+  #dice,#lock{flex:0 0 42px;display:grid;place-items:center;padding:6px 0}
+  #dice svg,#lock svg{width:17px;height:17px;display:block}
+  .ico-stroke{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .ico-fill{fill:currentColor}
+  #lock[data-locked="1"]{border-color:var(--accent);color:var(--accent)}
+  #dice.rolling{animation:roll .45s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes roll{0%{transform:rotate(0) scale(1)}55%{transform:rotate(200deg) scale(1.18)}100%{transform:rotate(360deg) scale(1)}}
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .chip{text-align:left;text-transform:none;letter-spacing:0;padding:7px 8px;line-height:1.35;font-size:10.5px;color:var(--dim)}
+  .chip em{display:block;font-style:normal;font-size:8.5px;color:var(--faint);letter-spacing:.04em}
+  .chip[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0a1b23}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;margin-top:-5px;width:13px;height:13px;border-radius:50%;background:var(--accent);border:0}
+  .pick{position:relative}
+  .pick-btn{width:100%;display:flex;align-items:center;gap:8px;text-align:left;text-transform:none;letter-spacing:0;padding:6px 8px}
+  .sw{display:flex;gap:2px;flex:0 0 auto}
+  .sw i{width:8px;height:15px;border-radius:1.5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+  .pick-name{flex:1;font-size:11px;color:var(--ink)}
+  .pick-caret{color:var(--faint);font-size:8px;transition:transform .15s}
+  .pick.open .pick-caret{transform:rotate(180deg)}
+  .pick-list{
+    position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;display:none;max-height:264px;overflow-y:auto;padding:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;box-shadow:0 18px 46px rgba(0,0,0,.65)
+  }
+  .pick.open .pick-list{display:block}
+  .pick-row{display:flex;align-items:center;gap:8px;width:100%;padding:5px 6px;border:0;border-radius:3px;background:transparent;cursor:pointer;font-family:var(--mono);font-size:11px;text-transform:none;letter-spacing:0;color:var(--dim)}
+  .pick-row:hover{background:var(--bg);color:var(--ink)}
+  .pick-row[data-sel="1"]{color:var(--accent)}
+  .hint{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:8px}
+  .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:14px;overflow:auto}
+  .frame{max-width:100%;max-height:74vh;overflow:auto;line-height:0;box-shadow:0 18px 60px rgba(0,0,0,.55);border:1px solid var(--line)}
+  #out{display:block;background:#000}
+  #out.alpha{
+    background-color:#171c23;
+    background-image:linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%),linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%);
+    background-size:18px 18px;background-position:0 0,9px 9px;
+  }
+  .frame[data-zoom="fit"] #out{max-width:100%;max-height:calc(74vh - 2px);width:auto;height:auto}
+  .meta{font-size:10px;color:var(--faint);letter-spacing:.08em}
+  @media (max-width:720px){
+    .app{grid-template-columns:1fr}.rail{max-height:none;overflow-y:visible;border-right:0;border-bottom:1px solid var(--line)}
+    .stage{padding:18px;min-height:70vh}.frame{max-height:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">ORB<span>//</span>FORGE</div>
+    <div class="tag">planetary orbital svg generator</div>
+
+    <div class="grp">
+      <label class="lbl" for="seed">Seed</label>
+      <div class="row">
+        <input type="text" id="seed" value="1969">
+        <button id="lock" data-locked="0" title="Lock seed" aria-label="Lock seed">
+          <svg viewBox="0 0 24 24"><rect class="ico-stroke" x="5" y="11" width="14" height="9" rx="1.5"/><path class="ico-stroke" id="shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        </button>
+        <button id="dice" title="Roll preset, palette, seed" aria-label="Roll everything">
+          <svg viewBox="0 0 24 24"><rect class="ico-stroke" x="4" y="4" width="16" height="16" rx="3"/><g class="ico-fill" id="pips"></g></svg>
+        </button>
+      </div>
+      <div class="row" style="margin-top:6px"><button class="primary" id="gen">Generate</button></div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Preset</label>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="format">Format</label>
+      <select id="format">
+        <option value="1:1" selected>Square - 1:1</option>
+        <option value="16:9">Widescreen - 16:9</option>
+        <option value="4:5">Poster - 4:5</option>
+        <option value="9:16">Portrait - 9:16</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Palette</label>
+      <div class="pick" id="palpick">
+        <button class="pick-btn" id="palbtn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" id="palsw"></span><span class="pick-name" id="palname"></span><span class="pick-caret">▼</span>
+        </button>
+        <div class="pick-list" id="pallist" role="listbox"></div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="subject">Catalog subject</label>
+      <select id="subject">
+        <option value="01. MERCURY">01. MERCURY</option>
+        <option value="02. VENUS">02. VENUS</option>
+        <option value="03. EARTH">03. EARTH</option>
+        <option value="04. MARS">04. MARS</option>
+        <option value="05. JUPITER">05. JUPITER</option>
+        <option value="06. SATURN" selected>06. SATURN</option>
+        <option value="07. URANUS">07. URANUS</option>
+        <option value="08. NEPTUNE">08. NEPTUNE</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px">Planet <b id="planetval">24%</b></label>
+      <input type="range" id="planet" min="0" max="60" step="1" value="24" aria-label="Planet size">
+
+      <label class="lbl" style="margin-top:10px">Map opacity <b id="mapval">34%</b></label>
+      <input type="range" id="mapop" min="0" max="100" step="1" value="34" aria-label="Map opacity">
+
+      <label class="lbl" style="margin-top:10px">Latitude <b id="latval">45%</b></label>
+      <input type="range" id="lat" min="0" max="160" step="5" value="45" aria-label="Latitude density">
+
+      <label class="lbl" style="margin-top:10px">Import map SVG</label>
+      <input type="file" id="mapfile" accept=".svg,image/svg+xml" aria-label="Import planet map SVG">
+      <div class="hint">Optional. Import your Earth or Mars SVG map and it will be clipped into the planet disc. Export SVG keeps it embedded.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Orbits <b id="orbitsval">64%</b></label>
+      <input type="range" id="orbits" min="10" max="220" step="5" value="64" aria-label="Orbit density">
+
+      <label class="lbl" style="margin-top:10px">Outer radius <b id="outerval">55%</b></label>
+      <input type="range" id="outer" min="0" max="100" step="5" value="55" aria-label="Outer circle radius">
+
+      <label class="lbl" style="margin-top:10px">Ornament <b id="ornval">78%</b></label>
+      <input type="range" id="ornament" min="0" max="220" step="5" value="78" aria-label="Ornament density">
+
+      <label class="lbl" style="margin-top:10px">Nodes <b id="satval">54%</b></label>
+      <input type="range" id="sat" min="0" max="200" step="5" value="54" aria-label="Node density">
+
+      <label class="lbl" style="margin-top:10px">Dots <b id="dotsval">120%</b></label>
+      <input type="range" id="dots" min="0" max="240" step="5" value="120" aria-label="Dot density">
+
+      <label class="lbl" style="margin-top:10px">Catalog <b id="labelval">100%</b></label>
+      <input type="range" id="labels" min="0" max="180" step="5" value="100" aria-label="Catalog text opacity">
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Composition</label>
+      <div class="row">
+        <button class="tgl" id="tstars" data-on="1" aria-pressed="true">Stars</button>
+        <button class="tgl" id="taxis" data-on="1" aria-pressed="true">Axis</button>
+      </div>
+      <label class="lbl" style="margin-top:10px">Vignette <b id="vigval">35%</b></label>
+      <input type="range" id="vig" min="0" max="100" step="1" value="35" aria-label="Vignette">
+      <label class="lbl" style="margin-top:10px">Exposure <b id="expval">100%</b></label>
+      <input type="range" id="exp" min="40" max="180" step="5" value="100" aria-label="Exposure">
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Export</label>
+      <div class="row">
+        <button id="dl1">PNG 1x</button>
+        <button id="dl2">PNG 2x</button>
+        <button id="dlsvg">SVG</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="tgl" id="talpha" data-on="0" aria-pressed="false">Transparent background</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <select id="zoom"><option value="fit" selected>View: fit</option><option value="100">View: 100%</option></select>
+      </div>
+      <div class="hint">SVG is the master format. PNG renders at 1920 px on the long edge; 2x exports 3840 px.</div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="frame" id="frame" data-zoom="fit"><img id="out" alt="Generated orbital SVG"></div>
+    <div class="meta" id="meta"></div>
+  </main>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2;
+const FORMATS = {'1:1':[1,1],'16:9':[16,9],'4:5':[4,5],'9:16':[9,16]};
+const LONG = 1920;
+let R, currentSVG = '', currentName = 'orbit.svg', currentUrl = '', MAP_SVG = '';
+
+function hash(str){ let h = 2166136261 >>> 0; for (let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h,16777619); } return h >>> 0; }
+function mulberry(a){ return function(){ a|=0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rnd = () => R();
+const rint = (a,b) => a + Math.floor(R() * (b - a + 1));
+const pick = a => a[Math.floor(R() * a.length)];
+const chance = p => R() < p;
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const n = v => Math.round(v * 1000) / 1000;
+const pt = (cx,cy,r,a) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+function rgba(hex,a){ const x = parseInt(hex.slice(1),16); return `rgba(${x>>16&255},${x>>8&255},${x&255},${n(a)})`; }
+function polar(cx,cy,r,a){ const p = pt(cx,cy,r,a); return `${n(p[0])} ${n(p[1])}`; }
+function arcPath(cx,cy,r,a0,a1){
+  let d = a1 - a0;
+  while (d <= -TAU) d += TAU;
+  while (d > TAU) d -= TAU;
+  const large = Math.abs(d) > Math.PI ? 1 : 0;
+  const sweep = d >= 0 ? 1 : 0;
+  const p0 = pt(cx,cy,r,a0), p1 = pt(cx,cy,r,a0 + d);
+  return `M ${n(p0[0])} ${n(p0[1])} A ${n(r)} ${n(r)} 0 ${large} ${sweep} ${n(p1[0])} ${n(p1[1])}`;
+}
+function ellipseArc(cx,cy,rx,ry,rot,a0,a1){
+  const c = Math.cos(rot), s = Math.sin(rot);
+  const xy = a => [cx + Math.cos(a)*rx*c - Math.sin(a)*ry*s, cy + Math.cos(a)*rx*s + Math.sin(a)*ry*c];
+  const p0 = xy(a0), p1 = xy(a1), large = Math.abs(a1-a0) > Math.PI ? 1 : 0, sweep = a1 >= a0 ? 1 : 0;
+  return `M ${n(p0[0])} ${n(p0[1])} A ${n(rx)} ${n(ry)} ${n(rot*180/Math.PI)} ${large} ${sweep} ${n(p1[0])} ${n(p1[1])}`;
+}
+function mapInner(svg){
+  if (!svg) return '';
+  return svg.replace(/<\?xml[\s\S]*?\?>/i,'').replace(/<!DOCTYPE[\s\S]*?>/i,'').replace(/<!--[\s\S]*?-->/g,'').replace(/<svg\b([^>]*)>/i,'<g class="imported-map">').replace(/<\/svg>\s*$/i,'</g>');
+}
+function mapView(svg){
+  const m = /viewBox=["']\s*([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)\s*["']/i.exec(svg || '');
+  return m ? {x:+m[1], y:+m[2], w:+m[3], h:+m[4]} : {x:0, y:0, w:4096, h:4096};
+}
+
+const PALETTES = [
+  {id:'mono',name:'Monochrome Plate',bg:'#090a0b',ink:['#f2f2f2','#b9b9b9','#737373','#373737'],acc:['#ffffff','#9a9a9a']},
+  {id:'soft',name:'Soft Graphite',bg:'#0d0e0f',ink:['#d9d9d9','#a1a1a1','#666666','#2e2e2e'],acc:['#eeeeee','#7f7f7f']},
+  {id:'film',name:'Film Negative',bg:'#060606',ink:['#ffffff','#c7c7c7','#858585','#3b3b3b'],acc:['#ffffff','#aaaaaa']},
+  {id:'paper',name:'Pale Draft',bg:'#dadada',ink:['#050505','#343434','#6d6d6d','#a4a4a4'],acc:['#000000','#555555']}
+];
+let PAL = PALETTES[0];
+
+const PRESETS = [
+  {id:'saturn',name:'Saturn Plate',note:'wide ring study',rings:.72,tilt:.52,ecc:.48,sats:.35,labels:1.0,poly:false},
+  {id:'mercury',name:'Mercury Seal',note:'angular center',rings:.62,tilt:.42,ecc:.38,sats:.55,labels:1.0,poly:true},
+  {id:'jupiter',name:'Jupiter Frame',note:'quiet geometry',rings:.82,tilt:.48,ecc:.42,sats:.45,labels:1.0,poly:true},
+  {id:'minimal',name:'Minimal Orbit',note:'sparse field',rings:.48,tilt:.38,ecc:.26,sats:.25,labels:1.0,poly:false}
+];
+let PRESET = PRESETS[2];
+
+function readOpts(){
+  return {
+    seed:$('seed').value || '0', subject:$('subject').value, format:$('format').value, planet:+$('planet').value/100,
+    mapop:+$('mapop').value/100, lat:+$('lat').value/100,
+    orbits:+$('orbits').value/100, outer:+$('outer').value/100, ornament:+$('ornament').value/100, sat:+$('sat').value/100, dots:+$('dots').value/100,
+    labels:+$('labels').value/100, stars:$('tstars').dataset.on==='1', axis:$('taxis').dataset.on==='1',
+    vig:+$('vig').value/100, exp:+$('exp').value/100, alpha:$('talpha').dataset.on==='1'
+  };
+}
+
+function paintStars(W,H,o,ink){
+  if (!o.stars) return '';
+  const out = [];
+  const count = Math.round(42 + 92 * o.orbits);
+  for (let i=0;i<count;i++){
+    const x = W*.04 + rnd()*W*.92, y = H*.04 + rnd()*H*.92, r = (.25 + rnd()*.72) * (i%15===0 ? 1.55 : 1);
+    out.push(`<circle cx="${n(x)}" cy="${n(y)}" r="${n(r)}" fill="${rgba(pick(ink),.045+rnd()*.22)}"/>`);
+  }
+  return `<g id="star-field">${out.join('')}</g>`;
+}
+
+function paintPlanet(W,H,o,pal,cx,cy,pr,uid){
+  if (pr < 2) return '';
+  const ink = pal.ink, acc = pal.acc;
+  const grad = `${uid}-planet-grad`, clip = `${uid}-planet-clip`, mapClip = `${uid}-map-clip`;
+  const defs = [
+    `<radialGradient id="${grad}" cx="34%" cy="28%" r="72%"><stop offset="0" stop-color="${ink[0]}" stop-opacity=".34"/><stop offset=".45" stop-color="${ink[1]}" stop-opacity=".12"/><stop offset="1" stop-color="${ink[3]}" stop-opacity=".04"/></radialGradient>`,
+    `<clipPath id="${clip}"><circle cx="${n(cx)}" cy="${n(cy)}" r="${n(pr)}"/></clipPath>`,
+    `<clipPath id="${mapClip}"><circle cx="${n(cx)}" cy="${n(cy)}" r="${n(pr*.96)}"/></clipPath>`
+  ];
+  const body = [];
+  body.push(`<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(pr)}" fill="url(#${grad})" stroke="${rgba(ink[0],.34)}" stroke-width="${n(Math.max(.8,W/1400))}"/>`);
+  const latN = Math.max(2, Math.round(4 + o.lat*10));
+  for (let i=-latN;i<=latN;i++){
+    const k = i / latN, ry = pr * Math.sqrt(Math.max(0,1-k*k));
+    const a = .07 + (Math.abs(i)%3)*.025;
+    body.push(`<ellipse cx="${n(cx)}" cy="${n(cy+k*pr*.92)}" rx="${n(ry)}" ry="${n(ry*.075)}" fill="none" stroke="${rgba(ink[Math.min(2,Math.abs(i)%ink.length)],a*o.mapop)}" stroke-width="${n([.35,.5,.72][Math.abs(i)%3]+W/5200)}"/>`);
+  }
+  const lonN = Math.max(3, Math.round(4 + o.lat*7));
+  for (let i=0;i<lonN;i++){
+    const x = -pr + i * (2*pr/(lonN-1));
+    const rx = Math.abs(pr * Math.sin((i/(lonN-1))*Math.PI));
+    body.push(`<ellipse cx="${n(cx+x)}" cy="${n(cy)}" rx="${n(rx*.1)}" ry="${n(pr*.96)}" fill="none" stroke="${rgba(ink[2],(.06+(i%4)*.018)*o.mapop)}" stroke-width="${n([.3,.42,.58, .8][i%4]+W/6000)}"/>`);
+  }
+  if (MAP_SVG){
+    const imported = mapInner(MAP_SVG);
+    const vb = mapView(MAP_SVG);
+    const sc = (pr * 1.88) / Math.max(vb.w, vb.h);
+    const tx = cx - (vb.x + vb.w / 2) * sc;
+    const ty = cy - (vb.y + vb.h / 2) * sc;
+    body.push(`<g clip-path="url(#${mapClip})" opacity="${n(o.mapop)}" transform="translate(${n(tx)} ${n(ty)}) scale(${n(sc)})">${imported}</g>`);
+  }
+  body.push(`<path d="${arcPath(cx,cy,pr*1.04,-.5,1.3)}" fill="none" stroke="${rgba(ink[0],.48)}" stroke-width="${n(Math.max(.8,W/1500))}" stroke-linecap="round"/>`);
+  return `<defs>${defs.join('')}</defs><g id="planet-map">${body.join('')}</g>`;
+}
+
+function paintOrbits(W,H,o,pal,cx,cy,baseR){
+  const ink = pal.ink, acc = pal.acc, out = [];
+  const count = Math.round((5 + o.orbits*10) * PRESET.rings);
+  const frameR = baseR * (1.28 + o.outer*.42);
+  const frameCount = Math.round(8 + o.outer*10);
+  for (let i=0;i<frameCount;i++){
+    const r = frameR - i * (W * (.0008 + o.outer*.0013));
+    const rx = r * (1 + [0,.012,.028,.006,.02][i%5]);
+    const ry = r * (1 - [0,.025,.06,.012,.04][i%5]);
+    const rot = (i%4===2 ? -8 : i%4===3 ? 6 : 0) * Math.PI/180;
+    const col = i%6===0 ? pick(acc) : ink[1];
+    const sw = [.32,.48,.72,1.08,1.62, .56][i%6] + W/7000;
+    const op = Math.min(.28,.07 + (i%5)*.032 + o.outer*.04);
+    const transform = `rotate(${n(rot*180/Math.PI)} ${n(cx)} ${n(cy)})`;
+    if (i%5===2){
+      const a0 = (i%7)*TAU/7 + .12, span = TAU*(.58 + (i%3)*.08);
+      out.push(`<path d="${ellipseArc(cx,cy,rx,ry,rot,a0,a0+span)}" fill="none" stroke="${rgba(col,op+.06)}" stroke-width="${n(sw)}" stroke-linecap="round"/>`);
+    } else if (i%4===1){
+      out.push(`<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(rx)}" ry="${n(ry)}" transform="${transform}" fill="none" stroke="${rgba(col,op)}" stroke-width="${n(sw)}" stroke-dasharray="${n(2+i%4*1.5)} ${n(24+i%5*7)}"/>`);
+    } else {
+      out.push(`<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(rx)}" ry="${n(ry)}" transform="${transform}" fill="none" stroke="${rgba(col,op)}" stroke-width="${n(sw)}"/>`);
+    }
+    if (o.dots > .35 && i%3===0){
+      const dotCount = 4 + (i%4), phase = i*TAU/10;
+      for (let d=0;d<dotCount;d++){
+        const a = phase + d/dotCount*TAU, c=Math.cos(rot), s=Math.sin(rot), dx=Math.cos(a)*rx, dy=Math.sin(a)*ry;
+        out.push(`<circle cx="${n(cx+dx*c-dy*s)}" cy="${n(cy+dx*s+dy*c)}" r="${n(.42+(d%2)*.22)}" fill="${rgba(col,.28+(d%3)*.06)}"/>`);
+      }
+    }
+  }
+  for (let i=0;i<6;i++){
+    const r = baseR * (.68 + i*.13);
+    out.push(`<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="none" stroke="${rgba(ink[0],.18 - i*.035)}" stroke-width="${n(.75+W/2600)}"/>`);
+  }
+  for (let i=0;i<count;i++){
+    const rr = baseR * (.56 + i/count * .82 + (rnd()-.5)*.025);
+    const rx = rr * (1 + rnd()*PRESET.ecc*.22);
+    const ry = rr * (.22 + rnd()*PRESET.tilt*.48);
+    const rot = (chance(.62) ? 0 : Math.PI/2) + (rnd()-.5)*.28;
+    const col = chance(.08) ? pick(acc) : pick(ink);
+    const weightRhythm = [.34,.52,.78,1.18,1.72, .46, .66];
+    const sw = weightRhythm[i % weightRhythm.length] + rnd()*.16;
+    const op = .09 + (i%5)*.035 + rnd()*.12;
+    if (chance(.24)){
+      const dash = `${n(1.5+(i%4)*1.8)} ${n(9+(i%5)*6)}`;
+      out.push(`<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(rx)}" ry="${n(ry)}" transform="rotate(${n(rot*180/Math.PI)} ${n(cx)} ${n(cy)})" fill="none" stroke="${rgba(col,op)}" stroke-width="${n(sw)}" stroke-dasharray="${dash}"/>`);
+    } else if (chance(.36)){
+      const span = (.18 + rnd()*.42)*TAU, a0 = rnd()*TAU;
+      out.push(`<path d="${ellipseArc(cx,cy,rx,ry,rot,a0,a0+span)}" fill="none" stroke="${rgba(col,op+.08)}" stroke-width="${n(sw)}" stroke-linecap="round"/>`);
+    } else {
+      out.push(`<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(rx)}" ry="${n(ry)}" transform="rotate(${n(rot*180/Math.PI)} ${n(cx)} ${n(cy)})" fill="none" stroke="${rgba(col,op)}" stroke-width="${n(sw)}"/>`);
+    }
+    if (chance(Math.min(.94, .34 + o.dots*.58) * (.7 + o.ornament*.3))){
+      const dots = Math.max(3, Math.round(3 + o.dots*8 + (i%4))), phase = (i%8)*TAU/16 + (rnd()-.5)*.06;
+      for (let d=0; d<dots; d++){
+        const a = phase + d/dots*TAU, c = Math.cos(rot), s = Math.sin(rot);
+        const dx = Math.cos(a)*rx, dy = Math.sin(a)*ry;
+        const x = cx + dx*c - dy*s, y = cy + dx*s + dy*c;
+        out.push(`<circle cx="${n(x)}" cy="${n(y)}" r="${n(.38+(d%3)*.16+rnd()*.16)}" fill="${rgba(col,.24+(d%4)*.045)}"/>`);
+      }
+    }
+    if (chance(.12 * o.ornament)){
+      const ticks = pick([48,60,72,84]);
+      for (let t=0;t<ticks;t+=3){
+        const a = t/ticks*TAU + rot, p0 = pt(cx,cy,rr,a), p1 = pt(cx,cy,rr + (6+rnd()*18),a);
+        out.push(`<line x1="${n(p0[0])}" y1="${n(p0[1])}" x2="${n(p1[0])}" y2="${n(p1[1])}" stroke="${rgba(pick(ink),.12+(t%9)*.012)}" stroke-width="${n([.35,.5,.8,1.15][(t/3)%4|0])}"/>`);
+      }
+    }
+  }
+  return `<g id="orbital-paths">${out.join('')}</g>`;
+}
+
+function paintOrnaments(W,H,o,pal,cx,cy,baseR){
+  const ink = pal.ink, acc = pal.acc, out = [];
+  const rings = Math.round(3 + o.ornament * 5);
+  for (let i=0;i<rings;i++){
+    const r = baseR * (.55 + rnd()*.72);
+    const parts = pick([6,8,12,16]);
+    for (let k=0;k<parts;k++){
+      if (!chance(.68)) continue;
+      const a = k/parts*TAU;
+      const p = pt(cx,cy,r,a), q = pt(cx,cy,r + baseR*(.035+rnd()*.09),a);
+      const col = chance(.08) ? pick(acc) : pick(ink);
+      out.push(`<line x1="${n(p[0])}" y1="${n(p[1])}" x2="${n(q[0])}" y2="${n(q[1])}" stroke="${rgba(col,.16+rnd()*.28)}" stroke-width="${n([.42,.68,1.05,1.55][k%4]+rnd()*.16)}" stroke-linecap="round"/>`);
+      if (chance(.28)){
+        out.push(`<circle cx="${n(q[0])}" cy="${n(q[1])}" r="${n(1.2+rnd()*2.4)}" fill="none" stroke="${rgba(col,.22+rnd()*.28)}" stroke-width="${n(.45+rnd()*.75)}"/>`);
+      }
+    }
+  }
+  const rays = Math.round(5 + o.ornament*7);
+  for (let i=0;i<rays;i++){
+    const a = rnd()*TAU, r0 = baseR*(.3+rnd()*.48), r1 = baseR*(.9+rnd()*.32);
+    const p = pt(cx,cy,r0,a), q = pt(cx,cy,r1,a + (rnd()-.5)*.08);
+    out.push(`<path d="M ${n(p[0])} ${n(p[1])} L ${n(q[0])} ${n(q[1])}" stroke="${rgba(pick(ink),.08+rnd()*.18)}" stroke-width="${n([.35,.55,.9,1.3][i%4]+rnd()*.12)}"/>`);
+  }
+  return `<g id="orbital-ornament">${out.join('')}</g>`;
+}
+
+function paintGeometry(W,H,o,pal,cx,cy,baseR){
+  if (!PRESET.poly || o.ornament <= .05) return '';
+  const ink = pal.ink, out = [], sides = pick([4,6,8]);
+  for (let pass=0; pass<2; pass++){
+    const r = baseR * (.62 + pass*.16), rot = (pass ? Math.PI/sides : 0);
+    const pts = [];
+    for (let i=0;i<sides;i++) pts.push(pt(cx,cy,r,rot + i/sides*TAU - Math.PI/2));
+    out.push(`<polygon points="${pts.map(p=>`${n(p[0])} ${n(p[1])}`).join(' ')}" fill="${rgba(ink[0],pass?0:.035)}" stroke="${rgba(ink[0],.22-pass*.06)}" stroke-width="${n(.7+W/3300)}"/>`);
+    for (let i=0;i<sides;i++){
+      const p = pts[i], q = pts[(i+Math.floor(sides/2))%sides];
+      out.push(`<line x1="${n(p[0])}" y1="${n(p[1])}" x2="${n(q[0])}" y2="${n(q[1])}" stroke="${rgba(ink[1],.13)}" stroke-width="${n(.45+W/5200)}"/>`);
+    }
+  }
+  for (const a of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
+    const p0 = pt(cx,cy,baseR*.25,a), p1 = pt(cx,cy,baseR*1.35,a);
+    out.push(`<line x1="${n(p0[0])}" y1="${n(p0[1])}" x2="${n(p1[0])}" y2="${n(p1[1])}" stroke="${rgba(ink[0],.22)}" stroke-width="${n(.55+W/4200)}"/>`);
+  }
+  return `<g id="formal-geometry">${out.join('')}</g>`;
+}
+
+function paintSatellites(W,H,o,pal,cx,cy,baseR){
+  const ink = pal.ink, acc = pal.acc, out = [];
+  const count = Math.round((2 + o.sat*6) * PRESET.sats);
+  for (let i=0;i<count;i++){
+    const a = (i / Math.max(1,count)) * TAU + (rnd()-.5)*.18, r = baseR*(.82+rnd()*.38);
+    const p = pt(cx,cy,r,a), col = chance(.38) ? pick(acc) : pick(ink);
+    const s = W*(.003+rnd()*.004);
+    out.push(`<circle cx="${n(p[0])}" cy="${n(p[1])}" r="${n(s*.34)}" fill="${rgba(col,.5)}"/>`);
+    if (chance(.36)){
+      const q = pt(cx,cy,r + baseR*(.06+rnd()*.12),a + (rnd()-.5)*.14);
+      out.push(`<path d="M ${n(p[0])} ${n(p[1])} L ${n(q[0])} ${n(q[1])}" stroke="${rgba(col,.16)}" stroke-width="${n(.45+W/3600)}"/>`);
+    }
+  }
+  return `<g id="satellite-assets">${out.join('')}</g>`;
+}
+
+function paintCatalog(W,H,o,pal){
+  if (o.labels <= 0) return '';
+  const x = W * .116, y = H * .154, op = Math.min(1,o.labels) * .86;
+  return `<g id="catalog-title" fill="${rgba(pal.ink[0],op)}" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="start">
+    <text x="${n(x)}" y="${n(y)}" font-size="${n(W*.014)}" letter-spacing="${n(W*.0052)}">${esc(o.subject)}</text>
+    <text x="${n(x)}" y="${n(y + H*.035)}" font-size="${n(W*.0062)}" letter-spacing="${n(W*.0032)}" opacity=".72">LAYERED VECTOR FILE</text>
+  </g>`;
+}
+
+function buildSVG(){
+  const o = readOpts();
+  R = mulberry(hash(o.seed + '|' + PAL.id + '|' + PRESET.id));
+  const [fw,fh] = FORMATS[o.format], W = Math.round(fw>=fh ? LONG : LONG*fw/fh), H = Math.round(fw>=fh ? LONG*fh/fw : LONG);
+  const cx = W/2, cy = H/2, baseR = Math.min(W,H)*.265, pr = Math.min(W,H)*o.planet;
+  const uid = 'orb-' + hash(JSON.stringify(o) + PAL.id + PRESET.id).toString(36);
+  const ink = PAL.ink.map(c => c), body = [];
+  if (!o.alpha) body.push(`<rect width="${W}" height="${H}" fill="${PAL.bg}"/>`);
+  body.push(paintStars(W,H,o,ink));
+  if (o.axis){
+    body.push(`<g id="axis" stroke="${rgba(PAL.ink[1],.19)}" stroke-width="${n(Math.max(.7,W/3000))}"><line x1="${n(cx)}" y1="${n(cy-baseR*1.62)}" x2="${n(cx)}" y2="${n(cy+baseR*1.62)}"/><line x1="${n(cx-baseR*1.62)}" y1="${n(cy)}" x2="${n(cx+baseR*1.62)}" y2="${n(cy)}"/></g>`);
+  }
+  body.push(paintOrbits(W,H,o,PAL,cx,cy,baseR));
+  body.push(paintOrnaments(W,H,o,PAL,cx,cy,baseR));
+  body.push(paintGeometry(W,H,o,PAL,cx,cy,baseR));
+  body.push(paintPlanet(W,H,o,PAL,cx,cy,pr,uid));
+  body.push(paintSatellites(W,H,o,PAL,cx,cy,baseR));
+  body.push(paintCatalog(W,H,o,PAL));
+  if (o.vig > 0 && !o.alpha){
+    body.push(`<radialGradient id="${uid}-vig" cx="50%" cy="50%" r="72%"><stop offset="52%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity="${n(o.vig*.92)}"/></radialGradient><rect width="${W}" height="${H}" fill="url(#${uid}-vig)"/>`);
+  }
+  const filter = o.exp === 1 ? '' : ` filter="brightness(${n(o.exp)})"`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+<title>ORB//FORGE ${esc(PRESET.name)} ${esc(o.seed)}</title>
+<desc>Seeded planetary orbital mapping asset generated by ORB//FORGE.</desc>
+<g${filter}>${body.join('\n')}</g>
+</svg>`;
+}
+
+function draw(){
+  currentSVG = buildSVG();
+  const o = readOpts();
+  currentName = `orbit-${PRESET.id}-${PAL.id}-${o.seed}.svg`;
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = URL.createObjectURL(new Blob([currentSVG],{type:'image/svg+xml'}));
+  $('out').src = currentUrl;
+  $('out').className = o.alpha ? 'alpha' : '';
+  $('meta').textContent = `${currentName.replace('.svg','')} // ${PRESET.name.toUpperCase()} // ${PAL.name.toUpperCase()}`;
+}
+function saveBlob(blob,name){ const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); }
+function downloadSVG(){ saveBlob(new Blob([currentSVG],{type:'image/svg+xml'}), currentName); }
+function downloadPNG(scale){
+  const svg = buildSVG(), o = readOpts(), [fw,fh] = FORMATS[o.format];
+  const W = Math.round((fw>=fh ? LONG : LONG*fw/fh)*scale), H = Math.round((fw>=fh ? LONG*fh/fw : LONG)*scale);
+  const img = new Image();
+  const url = URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+  img.onload = () => {
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const g = cv.getContext('2d'); if (!o.alpha) g.fillStyle = PAL.bg, g.fillRect(0,0,W,H);
+    g.drawImage(img,0,0,W,H);
+    cv.toBlob(b => saveBlob(b, currentName.replace('.svg', scale>1?'@2x.png':'.png')), 'image/png');
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+function newSeed(){ return String(Math.floor(Math.random()*9000)+1000); }
+function rollAll(){
+  if ($('lock').dataset.locked !== '1') $('seed').value = newSeed();
+  PRESET = pick(PRESETS); PAL = pick(PALETTES);
+  paintChips(); paintPal(); paintPips(rint(1,6)); $('dice').classList.remove('rolling'); void $('dice').offsetWidth; $('dice').classList.add('rolling'); draw();
+}
+function paintPips(num){
+  const pos = {1:[[12,12]],2:[[8,8],[16,16]],3:[[8,8],[12,12],[16,16]],4:[[8,8],[16,8],[8,16],[16,16]],5:[[8,8],[16,8],[12,12],[8,16],[16,16]],6:[[8,7],[16,7],[8,12],[16,12],[8,17],[16,17]]}[num];
+  $('pips').innerHTML = pos.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="1.35"/>`).join('');
+}
+function paintLock(){
+  const on = $('lock').dataset.locked === '1';
+  $('shackle').setAttribute('d', on ? 'M8 11V8a4 4 0 0 1 8 0v3' : 'M8 11V8a4 4 0 0 1 7.2-2.4');
+}
+function paintChips(){
+  $('chips').innerHTML = PRESETS.map(p => `<button class="chip" data-id="${p.id}" data-on="${p.id===PRESET.id?'1':'0'}">${p.name}<em>${p.note}</em></button>`).join('');
+}
+function swatch(p){ return [...p.ink.slice(0,2),...p.acc.slice(0,2)].map(c=>`<i style="background:${c}"></i>`).join(''); }
+function paintPal(){
+  $('palsw').innerHTML = swatch(PAL); $('palname').textContent = PAL.name;
+  $('pallist').innerHTML = PALETTES.map(p => `<button class="pick-row" data-id="${p.id}" data-sel="${p.id===PAL.id?'1':'0'}"><span class="sw">${swatch(p)}</span><span>${p.name}</span></button>`).join('');
+}
+function setLabel(id,val){ $(id).textContent = val; }
+const SLIDERS = [
+  ['planet','planetval',v=>v+'%'],['mapop','mapval',v=>v+'%'],['lat','latval',v=>v+'%'],
+  ['orbits','orbitsval',v=>v+'%'],['outer','outerval',v=>v+'%'],['ornament','ornval',v=>v+'%'],['sat','satval',v=>v+'%'],['dots','dotsval',v=>v+'%'],['labels','labelval',v=>v+'%'],
+  ['vig','vigval',v=>v+'%'],['exp','expval',v=>v+'%']
+];
+
+$('chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; PRESET = PRESETS.find(p=>p.id===b.dataset.id); paintChips(); draw(); });
+$('palbtn').addEventListener('click', () => { const open = $('palpick').classList.toggle('open'); $('palbtn').setAttribute('aria-expanded', open ? 'true' : 'false'); });
+$('pallist').addEventListener('click', e => { const b = e.target.closest('.pick-row'); if (!b) return; PAL = PALETTES.find(p=>p.id===b.dataset.id); $('palpick').classList.remove('open'); paintPal(); draw(); });
+document.addEventListener('click', e => { if (!$('palpick').contains(e.target)) $('palpick').classList.remove('open'); });
+$('lock').addEventListener('click', () => { $('lock').dataset.locked = $('lock').dataset.locked === '1' ? '0' : '1'; paintLock(); });
+$('dice').addEventListener('click', rollAll);
+$('gen').addEventListener('click', () => { if ($('lock').dataset.locked !== '1') $('seed').value = newSeed(); draw(); });
+for (const [id,out,fmt] of SLIDERS) $(id).addEventListener('input', () => { setLabel(out,fmt($(id).value)); draw(); });
+for (const id of ['format','seed','subject']) $(id).addEventListener('input', draw);
+for (const id of ['tstars','taxis','talpha']) $(id).addEventListener('click', () => { const el=$(id); const on=el.dataset.on==='1'?'0':'1'; el.dataset.on=on; el.setAttribute('aria-pressed',on==='1'?'true':'false'); draw(); });
+$('zoom').addEventListener('input', () => $('frame').dataset.zoom = $('zoom').value);
+$('dlsvg').addEventListener('click', downloadSVG);
+$('dl1').addEventListener('click', () => downloadPNG(1));
+$('dl2').addEventListener('click', () => downloadPNG(2));
+$('mapfile').addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { MAP_SVG = String(reader.result || ''); draw(); };
+  reader.readAsText(file);
+});
+
+paintChips(); paintPal(); paintPips(5); paintLock();
+for (const [id,out,fmt] of SLIDERS) setLabel(out,fmt($(id).value));
+draw();
+</script>
+</body>
+</html>

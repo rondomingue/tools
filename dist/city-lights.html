@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CITY//EMIT — city light emission generator</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#151a21; --line:#242c37; --line-soft:#1c232c;
+    --ink:#e6ebf2; --dim:#8b97a8; --faint:#5a6675;
+    --accent:#f2a33a; --accent-b:#77d8ff;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:12px;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
+  .rail{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow-y:auto;max-height:100vh}
+  .brand{font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:2px}
+  .brand span{color:var(--accent-b)}
+  .tag{font-size:9.5px;color:var(--faint);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:20px}
+  .grp{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line-soft)}
+  .grp:last-child{border:0}
+  .lbl{font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:block}
+  select,input[type=text]{
+    width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+    border-radius:3px;padding:7px 8px;font-family:var(--mono);font-size:11px;
+  }
+  select:focus,input:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:6px;align-items:center}
+  .row>*{flex:1}
+  button{
+    background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;
+    padding:8px 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.06em;cursor:pointer;
+    text-transform:uppercase;transition:border-color .15s,background .15s,color .15s;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button:disabled{cursor:not-allowed;opacity:.45}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#241203;font-weight:700}
+  button.primary:hover{background:var(--accent-b);border-color:var(--accent-b);color:#041c26}
+  .hint{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:8px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;margin-top:-5px;
+    width:13px;height:13px;border-radius:50%;background:var(--accent);border:0;
+  }
+  input[type=range]:focus{outline:none}
+  .lbl b{float:right;font-weight:400;color:var(--dim);letter-spacing:0;text-transform:none}
+  #dice,#lock{flex:0 0 42px;display:grid;place-items:center;padding:6px 0}
+  #dice svg,#lock svg{width:17px;height:17px;display:block}
+  .ico-stroke{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .ico-fill{fill:currentColor}
+  #lock[data-locked="1"]{border-color:var(--accent);color:var(--accent)}
+  #dice.rolling{animation:roll .45s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes roll{0%{transform:rotate(0) scale(1)}55%{transform:rotate(200deg) scale(1.18)}100%{transform:rotate(360deg) scale(1)}}
+  @media (prefers-reduced-motion: reduce){#dice.rolling{animation:none}}
+  .tgl[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#241809}
+  .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:14px;overflow:auto}
+  .frame{
+    max-width:100%;max-height:74vh;overflow:auto;line-height:0;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);border:1px solid var(--line);
+  }
+  #out{display:block;background:#000}
+  #out.alpha{
+    background-color:#171c23;
+    background-image:
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%),
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%);
+    background-size:18px 18px;background-position:0 0,9px 9px;
+  }
+  .frame[data-zoom="fit"] #out{max-width:100%;max-height:calc(74vh - 2px);width:auto;height:auto}
+  .meta{font-size:10px;color:var(--faint);letter-spacing:0.08em}
+  .meta b{color:var(--dim);font-weight:400}
+  @media (max-width:720px){
+    .app{grid-template-columns:1fr}
+    .rail{max-height:none;overflow-y:visible;border-right:0;border-bottom:1px solid var(--line)}
+    .stage{padding:18px;min-height:70vh}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">CITY<span>//</span>EMIT</div>
+    <div class="tag">city light emission texture generator</div>
+
+    <div class="grp">
+      <label class="lbl" for="seed">Seed</label>
+      <div class="row">
+        <input type="text" id="seed" value="2049">
+        <button id="lock" data-locked="0" title="Lock the seed" aria-label="Lock seed">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="5" y="11" width="14" height="9" rx="1.5"/>
+            <path class="ico-stroke" id="shackle" d=""/>
+          </svg>
+        </button>
+        <button id="dice" title="Roll style, palette, seed (R)" aria-label="Roll everything">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="4" y="4" width="16" height="16" rx="3"/>
+            <g class="ico-fill" id="pips"></g>
+          </svg>
+        </button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="primary" id="gen">Generate</button>
+        <button id="undo" title="Undo last change (Cmd/Ctrl+Z)" disabled>Undo</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="format">Format</label>
+      <select id="format">
+        <option value="1:1" selected>Square — 1:1</option>
+        <option value="2:1">Wide — 2:1</option>
+        <option value="4:1">Facade strip — 4:1</option>
+        <option value="16:9">Widescreen — 16:9</option>
+        <option value="9:16">Vertical — 9:16</option>
+      </select>
+
+      <label class="lbl" style="margin-top:12px" for="style">Style</label>
+      <select id="style">
+        <option value="facade" selected>Facade windows</option>
+        <option value="strip">Horizontal window strips</option>
+        <option value="aerial">Aerial city grid</option>
+        <option value="islands">Fragmented city islands</option>
+        <option value="mixed">Mixed distant city</option>
+      </select>
+
+      <label class="lbl" style="margin-top:12px" for="shape">Shape</label>
+      <select id="shape">
+        <option value="rect" selected>Rect windows</option>
+        <option value="bar">Bars</option>
+        <option value="dot">Dots</option>
+        <option value="square">Squares</option>
+        <option value="mixed">Mixed</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="palette">Color</label>
+      <select id="palette">
+        <option value="sodium" selected>Sodium warm</option>
+        <option value="office">Office mixed</option>
+        <option value="cool">Cool cyan</option>
+        <option value="neon">Neon accents</option>
+        <option value="mono">White emission</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px">Intensity <b id="intval">110%</b></label>
+      <input type="range" id="intensity" min="10" max="250" step="5" value="110" aria-label="Emission intensity">
+
+      <label class="lbl" style="margin-top:10px">Glow <b id="glowval">55%</b></label>
+      <input type="range" id="glow" min="0" max="150" step="5" value="55" aria-label="Glow strength">
+
+      <label class="lbl" style="margin-top:10px">Bloom radius <b id="blurval">8 px</b></label>
+      <input type="range" id="blur" min="0" max="40" step="1" value="8" aria-label="Bloom radius">
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Density <b id="densval">70%</b></label>
+      <input type="range" id="density" min="0" max="200" step="5" value="70" aria-label="Light density">
+
+      <label class="lbl" style="margin-top:10px">Light size <b id="sizeval">7 px</b></label>
+      <input type="range" id="size" min="1" max="32" step="1" value="7" aria-label="Light size">
+
+      <label class="lbl" style="margin-top:10px">Spacing <b id="spaceval">18 px</b></label>
+      <input type="range" id="spacing" min="4" max="80" step="1" value="18" aria-label="Window spacing">
+
+      <label class="lbl" style="margin-top:10px">Jitter <b id="jitval">35%</b></label>
+      <input type="range" id="jitter" min="0" max="100" step="1" value="35" aria-label="Placement jitter">
+
+      <label class="lbl" style="margin-top:10px">Blackout <b id="blackval">32%</b></label>
+      <input type="range" id="blackout" min="0" max="90" step="1" value="32" aria-label="Dark window groups">
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Roads / blocks <b id="roadval">45%</b></label>
+      <input type="range" id="roads" min="0" max="150" step="5" value="45" aria-label="Aerial road density">
+
+      <label class="lbl" style="margin-top:10px">Variation <b id="varval">70%</b></label>
+      <input type="range" id="variation" min="0" max="150" step="5" value="70" aria-label="Pattern variation">
+
+      <label class="lbl" style="margin-top:10px">Grain <b id="grainval">18%</b></label>
+      <input type="range" id="grain" min="0" max="100" step="1" value="18" aria-label="Emission grain">
+
+      <div class="row" style="margin-top:10px">
+        <button class="tgl" id="talpha" data-on="0" aria-pressed="false">Transparent</button>
+        <button class="tgl" id="tgrid" data-on="0" aria-pressed="false">Building grid</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Export</label>
+      <div class="row">
+        <button id="dl1">PNG 1x</button>
+        <button id="dl2">PNG 2x</button>
+        <button id="dl3">PNG 3x</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="dlmask">Mask</button>
+        <button id="dlraw">Raw no glow</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <select id="zoom">
+          <option value="fit" selected>View: fit</option>
+          <option value="100">View: 100%</option>
+        </select>
+      </div>
+      <div class="hint">Use PNG for emissive color, Mask for grayscale material control, or Transparent for alpha-window cards on distant geometry. Glow is baked into PNG output; Mask stays clean.</div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="frame" id="frame" data-zoom="fit"><canvas id="out"></canvas></div>
+    <div class="meta" id="meta"></div>
+  </main>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2;
+function hash(str){
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let R = mulberry(1);
+const chance = p => R() < p;
+const rint = (a, b) => a + Math.floor(R() * (b - a + 1));
+const pick = a => a[Math.floor(R() * a.length)];
+
+const PALETTES = {
+  sodium:['#ffd372','#ff9b22','#fff3c4','#ff5a1d','#ffe5a0'],
+  office:['#fff5cc','#dffcff','#ffc66d','#86dfff','#f6f6ff','#a8ffcf'],
+  cool:['#d9fbff','#74d9ff','#2aa8ff','#b8fff0','#546dff'],
+  neon:['#fff4bb','#37dfff','#8b5cff','#45ff63','#ff2868','#ff9b20'],
+  mono:['#ffffff','#d9d9d9','#f6f6f6','#b8b8b8']
+};
+const FORMATS = {'1:1':[1,1], '2:1':[2,1], '4:1':[4,1], '16:9':[16,9], '9:16':[9,16]};
+const LONG = 2048;
+
+function hexToRgb(hex){
+  const n = parseInt(hex.slice(1), 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+function rgba(hex, a){
+  const [r,g,b] = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function readOpts(){
+  return {
+    seed:$('seed').value.trim() || '0',
+    format:$('format').value,
+    style:$('style').value,
+    shape:$('shape').value,
+    palette:$('palette').value,
+    intensity:+$('intensity').value / 100,
+    glow:+$('glow').value / 100,
+    blur:+$('blur').value,
+    density:+$('density').value / 100,
+    size:+$('size').value,
+    spacing:+$('spacing').value,
+    jitter:+$('jitter').value / 100,
+    blackout:+$('blackout').value / 100,
+    roads:+$('roads').value / 100,
+    variation:+$('variation').value / 100,
+    grain:+$('grain').value / 100,
+    alpha:$('talpha').dataset.on === '1',
+    grid:$('tgrid').dataset.on === '1'
+  };
+}
+function fmtSize(format, scale){
+  const [fw, fh] = FORMATS[format];
+  return [
+    Math.round((fw >= fh ? LONG : LONG * fw / fh) * scale),
+    Math.round((fw >= fh ? LONG * fh / fw : LONG) * scale)
+  ];
+}
+function drawLight(g, x, y, w, h, shape, col, a){
+  g.fillStyle = rgba(col, a);
+  const kind = shape === 'mixed' ? pick(['rect','rect','bar','dot','square']) : shape;
+  if (kind === 'dot'){
+    g.beginPath(); g.arc(x + w / 2, y + h / 2, Math.max(0.6, Math.min(w, h) / 2), 0, TAU); g.fill();
+  } else if (kind === 'square'){
+    const s = Math.min(w, h); g.fillRect(x, y, s, s);
+  } else if (kind === 'bar'){
+    g.fillRect(x, y + h * 0.32, w, Math.max(1, h * 0.36));
+  } else {
+    g.fillRect(x, y, w, h);
+  }
+}
+function drawFacade(g, W, H, o, strip = false){
+  const colors = PALETTES[o.palette];
+  const baseSpace = o.spacing;
+  const cols = Math.ceil(W / (baseSpace * (strip ? 1.5 : 1.15)));
+  const towers = strip ? rint(2, 5) : rint(5, 12);
+  for (let t = 0; t < towers; t++){
+    const tw = strip ? W * (0.38 + R() * 0.24) : W * (0.07 + R() * 0.16);
+    const tx = strip ? R() * (W - tw) : t * W / towers + R() * W / towers * 0.28;
+    const ty = strip ? H * (0.05 + t / towers * 0.86) : H * R() * 0.08;
+    const th = strip ? H * (0.12 + R() * 0.11) : H * (0.76 + R() * 0.22);
+    if (o.grid){
+      g.fillStyle = 'rgba(20,18,14,0.55)';
+      g.fillRect(tx, ty, tw, th);
+    }
+    const sx = baseSpace * (0.75 + R() * 0.7);
+    const sy = baseSpace * (0.55 + R() * 0.55);
+    for (let y = ty + sy * 0.4; y < ty + th - sy; y += sy){
+      const rowCut = chance(o.blackout * 0.55);
+      for (let x = tx + sx * 0.25; x < tx + tw - sx * 0.4; x += sx){
+        if (rowCut || chance(1 - o.density * (0.38 + R() * 0.72))) continue;
+        const ww = o.size * (strip ? 1.8 : 1.15) * (0.55 + R() * (1.1 + o.variation));
+        const hh = o.size * (0.42 + R() * 0.9);
+        const jx = (R() - 0.5) * sx * o.jitter;
+        const jy = (R() - 0.5) * sy * o.jitter * 0.5;
+        const col = pick(colors);
+        drawLight(g, x + jx, y + jy, ww, hh, o.shape, col, Math.min(1, (0.35 + R() * 0.65) * o.intensity));
+        if (chance(0.22 * o.variation)) drawLight(g, x + jx + ww * 0.18, y + jy + hh * 1.3, ww * 0.5, Math.max(1, hh * 0.22), 'bar', col, 0.25 * o.intensity);
+      }
+    }
+  }
+}
+function drawRoad(g, x0, y0, x1, y1, col, w, a){
+  g.strokeStyle = rgba(col, a);
+  g.lineWidth = w;
+  g.lineCap = 'round';
+  g.beginPath();
+  g.moveTo(x0, y0);
+  const mx = (x0 + x1) / 2 + (R() - 0.5) * Math.abs(x1 - x0) * 0.25;
+  const my = (y0 + y1) / 2 + (R() - 0.5) * Math.abs(y1 - y0) * 0.25;
+  g.quadraticCurveTo(mx, my, x1, y1);
+  g.stroke();
+}
+function drawAerial(g, W, H, o){
+  const colors = PALETTES[o.palette];
+  const roads = Math.round((18 + o.roads * 55) * (W / LONG));
+  for (let i = 0; i < roads; i++){
+    const horizontal = chance(0.55);
+    const p = R();
+    const x0 = horizontal ? -W * 0.05 : p * W;
+    const y0 = horizontal ? p * H : -H * 0.05;
+    const x1 = horizontal ? W * 1.05 : Math.max(0, Math.min(W, x0 + (R() - 0.5) * W * 0.3));
+    const y1 = horizontal ? Math.max(0, Math.min(H, y0 + (R() - 0.5) * H * 0.3)) : H * 1.05;
+    drawRoad(g, x0, y0, x1, y1, pick(colors), 0.8 + R() * o.size * 0.28, (0.08 + R() * 0.22) * o.intensity);
+    if (chance(0.65)) drawRoad(g, x0, y0, x1, y1, '#fff8d6', 0.35 + R() * 1.2, (0.05 + R() * 0.18) * o.intensity);
+  }
+  const clusters = Math.round(90 * o.density + 80 * o.roads);
+  for (let i = 0; i < clusters; i++){
+    const cx = R() * W, cy = R() * H;
+    const n = rint(5, 28);
+    const rad = o.spacing * (0.8 + R() * 4.5);
+    const col = pick(colors);
+    for (let k = 0; k < n; k++){
+      if (chance(o.blackout * 0.45)) continue;
+      const a = R() * TAU, rr = Math.pow(R(), 1.8) * rad;
+      const sz = o.size * (0.22 + R() * 0.9);
+      drawLight(g, cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, sz, sz * (0.6 + R() * 1.5), chance(0.65) ? 'dot' : o.shape, col, (0.22 + R() * 0.78) * o.intensity);
+    }
+  }
+}
+function blobPath(g, cx, cy, r, rough){
+  g.beginPath();
+  const n = 18;
+  for (let i = 0; i <= n; i++){
+    const a = i / n * TAU;
+    const rr = r * (0.55 + R() * rough);
+    const x = cx + Math.cos(a) * rr;
+    const y = cy + Math.sin(a) * rr;
+    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  }
+  g.closePath();
+}
+function drawIslands(g, W, H, o){
+  const colors = PALETTES[o.palette];
+  const islands = Math.round(12 + o.density * 42);
+  for (let i = 0; i < islands; i++){
+    const cx = R() * W, cy = R() * H;
+    const r = o.spacing * (1.4 + R() * 6.5);
+    g.save();
+    blobPath(g, cx, cy, r, 0.8 + o.variation * 0.65);
+    g.clip();
+    g.fillStyle = rgba('#11111b', 0.22);
+    g.fillRect(cx - r * 1.3, cy - r * 1.3, r * 2.6, r * 2.6);
+    for (let k = 0; k < rint(12, 55); k++){
+      const x = cx + (R() - 0.5) * r * 2.2;
+      const y = cy + (R() - 0.5) * r * 2.2;
+      const sz = o.size * (0.2 + R() * 1.1);
+      drawLight(g, x, y, sz * (0.7 + R() * 2.6), sz, o.shape, pick(colors), (0.2 + R() * 0.9) * o.intensity);
+    }
+    if (chance(0.5)) drawRoad(g, cx - r, cy + (R() - 0.5) * r, cx + r, cy + (R() - 0.5) * r, pick(colors), Math.max(1, o.size * 0.25), 0.24 * o.intensity);
+    g.restore();
+  }
+}
+function addGrain(g, W, H, amount){
+  if (amount <= 0) return;
+  const img = g.getImageData(0, 0, W, H);
+  const d = img.data, amp = amount * 70;
+  for (let i = 0; i < d.length; i += 4){
+    const v = (R() - 0.5) * amp;
+    d[i] = Math.max(0, Math.min(255, d[i] + v));
+    d[i+1] = Math.max(0, Math.min(255, d[i+1] + v));
+    d[i+2] = Math.max(0, Math.min(255, d[i+2] + v));
+  }
+  g.putImageData(img, 0, 0);
+}
+function renderRaw(scale){
+  const o = readOpts();
+  const [W, H] = fmtSize(o.format, scale);
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  R = mulberry(hash([o.seed,o.style,o.shape,o.palette,o.format].join('|')));
+  if (o.grid){
+    g.fillStyle = 'rgba(255,255,255,0.025)';
+    for (let x = 0; x < W; x += o.spacing * scale) g.fillRect(x, 0, 1, H);
+    for (let y = 0; y < H; y += o.spacing * scale) g.fillRect(0, y, W, 1);
+  }
+  const ss = {...o, size:o.size * scale, spacing:o.spacing * scale};
+  if (o.style === 'facade') drawFacade(g, W, H, ss, false);
+  else if (o.style === 'strip') drawFacade(g, W, H, ss, true);
+  else if (o.style === 'aerial') drawAerial(g, W, H, ss);
+  else if (o.style === 'islands') drawIslands(g, W, H, ss);
+  else { drawAerial(g, W, H, ss); drawFacade(g, W, H, ss, chance(0.45)); }
+  addGrain(g, W, H, o.grain);
+  return { cv, W, H, o };
+}
+function render(scale, rawOnly = false){
+  const r = renderRaw(scale);
+  const out = document.createElement('canvas');
+  out.width = r.W; out.height = r.H;
+  const g = out.getContext('2d');
+  if (!r.o.alpha){ g.fillStyle = '#000'; g.fillRect(0, 0, r.W, r.H); }
+  if (!rawOnly && r.o.glow > 0 && r.o.blur > 0){
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    g.globalAlpha = Math.min(1, r.o.glow);
+    g.filter = `blur(${r.o.blur * scale}px)`;
+    g.drawImage(r.cv, 0, 0);
+    g.filter = `blur(${Math.max(1, r.o.blur * 0.35 * scale)}px)`;
+    g.globalAlpha = Math.min(1, r.o.glow * 0.65);
+    g.drawImage(r.cv, 0, 0);
+    g.restore();
+  }
+  g.save();
+  g.globalCompositeOperation = 'lighter';
+  g.drawImage(r.cv, 0, 0);
+  g.restore();
+  return { cv:out, W:r.W, H:r.H, o:r.o, raw:r.cv };
+}
+function maskCanvas(src){
+  const W = src.width, H = src.height;
+  const g0 = src.getContext('2d');
+  const srcData = g0.getImageData(0, 0, W, H).data;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const img = g.createImageData(W, H);
+  const d = img.data;
+  for (let i = 0; i < srcData.length; i += 4){
+    const v = Math.max(srcData[i], srcData[i+1], srcData[i+2]);
+    d[i] = d[i+1] = d[i+2] = v;
+    d[i+3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return cv;
+}
+
+let undoHistory = [], lastUIState = null, restoringUndo = false;
+function captureUIState(){
+  const values = {};
+  document.querySelectorAll('input,select').forEach(el => { if (el.id) values[el.id] = el.value; });
+  const toggles = {};
+  document.querySelectorAll('.tgl,#lock').forEach(el => { if (el.id) toggles[el.id] = el.id === 'lock' ? el.dataset.locked : el.dataset.on; });
+  return { values, toggles };
+}
+function recordUndoState(){
+  const state = captureUIState(), key = JSON.stringify(state);
+  if (!restoringUndo && lastUIState && lastUIState.key !== key){
+    undoHistory.push(lastUIState.state);
+    if (undoHistory.length > 60) undoHistory.shift();
+  }
+  lastUIState = { key, state };
+  $('undo').disabled = undoHistory.length === 0;
+}
+function restoreUIState(state){
+  restoringUndo = true;
+  Object.entries(state.values).forEach(([id, value]) => { if ($(id)) $(id).value = value; });
+  Object.entries(state.toggles).forEach(([id, value]) => {
+    const el = $(id); if (!el) return;
+    if (id === 'lock') el.dataset.locked = value;
+    else { el.dataset.on = value; el.setAttribute('aria-pressed', value === '1' ? 'true' : 'false'); }
+  });
+  paintLock();
+  syncLabels();
+  lastUIState = null;
+  draw();
+  restoringUndo = false;
+  $('undo').disabled = undoHistory.length === 0;
+}
+function undo(){
+  const state = undoHistory.pop();
+  if (state) restoreUIState(state);
+}
+function draw(){
+  recordUndoState();
+  const r = render(1);
+  const out = $('out');
+  out.width = r.W; out.height = r.H;
+  out.classList.toggle('alpha', r.o.alpha);
+  out.getContext('2d').drawImage(r.cv, 0, 0);
+  $('meta').innerHTML = `<b>${r.o.style}</b> · ${r.o.palette} · ${r.o.shape} · ${r.W}x${r.H} · ` +
+    `density ${Math.round(r.o.density * 100)}% · glow ${Math.round(r.o.glow * 100)}% · seed <b>${r.o.seed}</b>`;
+}
+function saveBlob(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.download = name; a.href = url; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+function texName(o, tag){ return `city-emit-${o.style}-${o.palette}-${o.seed}${o.alpha ? '-alpha' : ''}${tag}.png`; }
+function download(scale, raw = false){
+  const r = render(scale, raw);
+  r.cv.toBlob(b => saveBlob(b, texName(r.o, raw ? '-raw' : (scale > 1 ? '@' + scale + 'x' : ''))), 'image/png');
+}
+function downloadMask(){
+  const r = renderRaw(1);
+  maskCanvas(r.cv).toBlob(b => saveBlob(b, texName(r.o, '-mask')), 'image/png');
+}
+function newSeed(){ return String(Math.floor(Math.random() * 9000) + 1000); }
+function paintLock(){
+  const on = $('lock').dataset.locked === '1';
+  $('shackle').setAttribute('d', on ? 'M8 11V8a4 4 0 0 1 8 0v3' : 'M8 11V8a4 4 0 0 1 7.5-2');
+}
+function paintPips(n){
+  const pos = {
+    1:[[12,12]], 2:[[8,8],[16,16]], 3:[[8,8],[12,12],[16,16]],
+    4:[[8,8],[16,8],[8,16],[16,16]], 5:[[8,8],[16,8],[12,12],[8,16],[16,16]],
+    6:[[8,8],[16,8],[8,12],[16,12],[8,16],[16,16]]
+  }[n];
+  $('pips').innerHTML = pos.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.4"/>`).join('');
+}
+const SLIDERS = [
+  ['intensity','intval', v => v + '%'],
+  ['glow','glowval', v => v + '%'],
+  ['blur','blurval', v => v + ' px'],
+  ['density','densval', v => v + '%'],
+  ['size','sizeval', v => v + ' px'],
+  ['spacing','spaceval', v => v + ' px'],
+  ['jitter','jitval', v => v + '%'],
+  ['blackout','blackval', v => v + '%'],
+  ['roads','roadval', v => v + '%'],
+  ['variation','varval', v => v + '%'],
+  ['grain','grainval', v => v + '%']
+];
+function syncLabels(){ for (const [id, out, fmt] of SLIDERS) $(out).textContent = fmt($(id).value); }
+for (const [id, out, fmt] of SLIDERS)
+  $(id).addEventListener('input', () => { $(out).textContent = fmt($(id).value); draw(); });
+for (const id of ['format','style','shape','palette']) $(id).addEventListener('input', draw);
+for (const id of ['talpha','tgrid']){
+  $(id).addEventListener('click', () => {
+    const el = $(id), on = el.dataset.on === '1' ? '0' : '1';
+    el.dataset.on = on; el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false'); draw();
+  });
+}
+$('lock').addEventListener('click', () => {
+  const el = $('lock'); el.dataset.locked = el.dataset.locked === '1' ? '0' : '1'; paintLock(); draw();
+});
+$('dice').addEventListener('click', () => {
+  $('dice').classList.remove('rolling'); void $('dice').offsetWidth; $('dice').classList.add('rolling');
+  paintPips(1 + Math.floor(Math.random() * 6));
+  $('style').value = pick(['facade','strip','aerial','islands','mixed']);
+  $('shape').value = pick(['rect','bar','dot','square','mixed']);
+  $('palette').value = pick(Object.keys(PALETTES));
+  if ($('lock').dataset.locked !== '1') $('seed').value = newSeed();
+  draw();
+});
+$('gen').addEventListener('click', () => { if ($('lock').dataset.locked !== '1') $('seed').value = newSeed(); draw(); });
+$('undo').addEventListener('click', undo);
+$('seed').addEventListener('change', draw);
+$('zoom').addEventListener('change', () => { $('frame').dataset.zoom = $('zoom').value; });
+$('dl1').addEventListener('click', () => download(1));
+$('dl2').addEventListener('click', () => download(2));
+$('dl3').addEventListener('click', () => download(3));
+$('dlmask').addEventListener('click', downloadMask);
+$('dlraw').addEventListener('click', () => download(1, true));
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); undo(); return; }
+  if (e.target.matches('input,select,textarea')) return;
+  if (e.key === 'r' || e.key === 'R') $('dice').click();
+  if (e.key === 'g' || e.key === 'G') $('gen').click();
+});
+syncLabels(); paintLock(); paintPips(4); draw();
+</script>
+</body>
+</html>

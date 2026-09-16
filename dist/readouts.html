@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>READ//OUT — technical readout &amp; node-field generator</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#151a21; --line:#242c37; --line-soft:#1c232c;
+    --ink:#e6ebf2; --dim:#8b97a8; --faint:#5a6675;
+    --accent:#5ec8f5; --accent-b:#4ee0c1;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:12px;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:308px 1fr;min-height:100vh}
+
+  .rail{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow-y:auto;max-height:100vh}
+  .brand{font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:2px}
+  .brand span{color:var(--accent-b)}
+  .tag{font-size:9.5px;color:var(--faint);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:20px}
+  .grp{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line-soft)}
+  .grp:last-child{border:0}
+  .lbl{font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:block}
+  select,input[type=text],textarea{
+    width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+    border-radius:3px;padding:7px 8px;font-family:var(--mono);font-size:11px;
+  }
+  textarea{resize:vertical;line-height:1.5}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:6px;align-items:center}
+  .row>*{flex:1}
+  button{
+    background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;
+    padding:8px 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.06em;cursor:pointer;
+    text-transform:uppercase;transition:border-color .15s,background .15s,color .15s;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#07222e;font-weight:700}
+  button.primary:hover{background:var(--accent-b);border-color:var(--accent-b);color:#04231c}
+  .hint{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:8px}
+
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;margin-top:-5px;
+    width:13px;height:13px;border-radius:50%;background:var(--accent);border:0;
+  }
+  input[type=range]:disabled::-webkit-slider-thumb{background:var(--faint)}
+  input[type=range]:focus{outline:none}
+  .lbl b{float:right;font-weight:400;color:var(--dim);letter-spacing:0;text-transform:none}
+
+  #dice,#lock{flex:0 0 42px;display:grid;place-items:center;padding:6px 0}
+  #dice svg,#lock svg{width:17px;height:17px;display:block}
+  .ico-stroke{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .ico-fill{fill:currentColor}
+  #lock[data-locked="1"]{border-color:var(--accent);color:var(--accent)}
+  #dice.rolling{animation:roll .45s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes roll{0%{transform:rotate(0) scale(1)}55%{transform:rotate(200deg) scale(1.18)}100%{transform:rotate(360deg) scale(1)}}
+  @media (prefers-reduced-motion: reduce){#dice.rolling{animation:none}}
+
+  .tgl[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0b1a22}
+  .sub{margin-top:12px;padding-left:10px;border-left:1px solid var(--line-soft)}
+  .sub[hidden]{display:none}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+
+  .pick{position:relative}
+  .pick-btn{width:100%;display:flex;align-items:center;gap:8px;text-align:left;text-transform:none;letter-spacing:0;padding:6px 8px}
+  .sw{display:flex;gap:2px;flex:0 0 auto}
+  .sw i{width:8px;height:15px;border-radius:1.5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+  .pick-name{flex:1;font-size:11px;color:var(--ink)}
+  .pick-caret{color:var(--faint);font-size:8px;transition:transform .15s}
+  .pick.open .pick-caret{transform:rotate(180deg)}
+  .pick-list{
+    position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;display:none;
+    max-height:280px;overflow-y:auto;padding:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;
+    box-shadow:0 18px 46px rgba(0,0,0,.65);
+  }
+  .pick.open .pick-list{display:block}
+  .pick-row{
+    display:flex;align-items:center;gap:8px;width:100%;padding:5px 6px;border:0;border-radius:3px;
+    background:transparent;cursor:pointer;font-family:var(--mono);font-size:11px;
+    text-transform:none;letter-spacing:0;color:var(--dim);
+  }
+  .pick-row:hover{background:var(--bg);color:var(--ink)}
+  .pick-row[data-sel="1"]{color:var(--accent)}
+
+  .cwrap{position:relative;flex:0 0 34px;height:31px}
+  input[type=color]{
+    position:absolute;inset:0;width:100%;height:100%;padding:0;
+    border:1px solid var(--line);border-radius:3px;background:var(--bg);cursor:pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:2px}
+
+  .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:14px;overflow:auto}
+  .frame{
+    max-width:100%;max-height:82vh;overflow:auto;line-height:0;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);border:1px solid var(--line);
+  }
+  #out{display:block;background:#000}
+  #out.alpha{
+    background-color:#171c23;
+    background-image:
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%),
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%);
+    background-size:18px 18px;background-position:0 0,9px 9px;
+  }
+  .frame[data-zoom="fit"] #out{max-width:100%;max-height:calc(82vh - 2px);width:auto;height:auto}
+  .meta{font-size:10px;color:var(--faint);letter-spacing:0.08em;text-align:center;line-height:1.7}
+  .meta b{color:var(--dim);font-weight:400}
+
+  @media (max-width: 760px){
+    .app{grid-template-columns:1fr}
+    .rail{max-height:none;overflow-y:visible;border-right:0;border-bottom:1px solid var(--line)}
+    .stage{padding:18px;min-height:70vh}
+    .frame{max-height:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">READ<span>//</span>OUT</div>
+    <div class="tag">technical readout &amp; node-field generator</div>
+
+    <div class="grp">
+      <label class="lbl" for="seed">Seed</label>
+      <div class="row">
+        <input type="text" id="seed" value="0079" spellcheck="false" style="flex:1">
+        <button id="lock" data-locked="0" title="Lock the seed" aria-label="Lock seed">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="5" y="10.5" width="14" height="9" rx="2"/>
+            <path class="ico-stroke" id="shackle" d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>
+          </svg>
+        </button>
+        <button id="dice" title="Roll layout, palette, seed (R)" aria-label="Roll everything">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="4" y="4" width="16" height="16" rx="3"/>
+            <g class="ico-fill" id="pips"></g>
+          </svg>
+        </button>
+      </div>
+      <button class="primary" id="reroll" style="width:100%;margin-top:8px">⟳ Regenerate field</button>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Layout</label>
+      <div class="chips grid2" id="chips"></div>
+      <div class="hint" id="presetnote"></div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="format">Format</label>
+      <select id="format">
+        <option value="wide" selected>Widescreen — 16:9</option>
+        <option value="ultra">Ultrawide — 21:9</option>
+        <option value="cinema">Panorama — 5:2</option>
+        <option value="sq">Square — 1:1</option>
+        <option value="port">Portrait — 9:16</option>
+        <option value="a">A-series — 1:1.414</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Palette</label>
+      <div class="pick" id="palpick">
+        <button class="pick-btn" id="palbtn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" id="palsw"></span>
+          <span class="pick-name" id="palname"></span>
+          <span class="pick-caret">▼</span>
+        </button>
+        <div class="pick-list" id="pallist" role="listbox"></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span class="pick-name" style="flex:1;color:var(--dim)">Accent override</span>
+        <div class="cwrap"><input type="color" id="accent" value="#5ec8f5" aria-label="Accent colour"></div>
+        <button class="tgl" id="tacc" data-on="0" style="flex:0 0 58px">use</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Field</label>
+      <label class="lbl">Density <b id="densval">100%</b></label>
+      <input type="range" id="dens" min="15" max="220" step="5" value="100" aria-label="Density">
+
+      <label class="lbl" style="margin-top:10px">Columns <b id="colsval">4</b></label>
+      <input type="range" id="cols" min="1" max="7" step="1" value="4" aria-label="Columns">
+
+      <label class="lbl" style="margin-top:10px">Whitespace <b id="wsval">45%</b></label>
+      <input type="range" id="ws" min="0" max="100" step="1" value="45" aria-label="Whitespace">
+
+      <label class="lbl" style="margin-top:10px">Rows / cluster <b id="rowsval">5</b></label>
+      <input type="range" id="rows" min="1" max="12" step="1" value="5" aria-label="Rows per cluster">
+
+      <label class="lbl" style="margin-top:10px">Text size <b id="sizeval">100%</b></label>
+      <input type="range" id="size" min="55" max="180" step="5" value="100" aria-label="Text size">
+
+      <label class="lbl" style="margin-top:10px">Margin <b id="marginval">8%</b></label>
+      <input type="range" id="margin" min="0" max="20" step="1" value="8" aria-label="Margin">
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Fields &amp; ink</label>
+      <label class="lbl">Highlight fields <b id="fieldsval">28%</b></label>
+      <input type="range" id="fields" min="0" max="100" step="1" value="28" aria-label="Highlight field frequency">
+      <div class="hint">Transparent field boxes tucked behind readout rows — the selected / masked look. This is the signature of the plate; on transparent export they carry the only fill.</div>
+
+      <label class="lbl" style="margin-top:10px">Contrast <b id="contrastval">100%</b></label>
+      <input type="range" id="contrast" min="30" max="160" step="5" value="100" aria-label="Contrast">
+
+      <label class="lbl" style="margin-top:10px">Accent frequency <b id="accfreqval">14%</b></label>
+      <input type="range" id="accfreq" min="0" max="100" step="1" value="14" aria-label="Accent frequency">
+
+      <label class="lbl" style="margin-top:10px">Scramble <b id="scrambleval">0%</b></label>
+      <input type="range" id="scramble" min="0" max="100" step="1" value="0" aria-label="Scramble / redaction">
+      <div class="hint">Scramble redacts codes into same-width glyph noise — the classified / corrupted variant.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Markers &amp; wiring</label>
+      <label class="lbl">Markers <b id="markersval">40%</b></label>
+      <input type="range" id="markers" min="0" max="100" step="1" value="40" aria-label="Markers">
+
+      <label class="lbl" style="margin-top:10px">Connectors <b id="wiresval">30%</b></label>
+      <input type="range" id="wires" min="0" max="100" step="1" value="30" aria-label="Connectors">
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="words">Lexicon <b id="wordcount">0 / 12</b></label>
+      <input type="text" id="words" placeholder="ORION, VEC-9, HALDEN…" aria-label="Recurring words">
+      <label class="lbl" style="margin-top:10px">Mix <b id="wordmixval">45%</b></label>
+      <input type="range" id="wordmix" min="0" max="100" step="5" value="45" disabled aria-label="Lexicon mix">
+      <div class="hint">Comma-separated, first twelve used, set in caps to match the plate. Mix is how often a token pulls from your list instead of the stock instrument vocabulary.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Overlays</label>
+      <div class="grid2">
+        <button class="tgl" id="creg"   data-on="1" aria-pressed="true">Reg marks</button>
+        <button class="tgl" id="csight" data-on="1" aria-pressed="true">Sights</button>
+        <button class="tgl" id="csidebar" data-on="1" aria-pressed="true">Sidebar</button>
+        <button class="tgl" id="cgrid"  data-on="0" aria-pressed="false">Base grid</button>
+        <button class="tgl" id="cframe" data-on="0" aria-pressed="false">Frame</button>
+        <button class="tgl" id="cscan"  data-on="0" aria-pressed="false">Scanlines</button>
+      </div>
+      <label class="lbl" style="margin-top:12px">Vignette <b id="vigval">30%</b></label>
+      <input type="range" id="vig" min="0" max="100" step="1" value="30" aria-label="Vignette">
+      <label class="lbl" style="margin-top:10px">Grain <b id="grainval">0%</b></label>
+      <input type="range" id="grain" min="0" max="100" step="1" value="0" aria-label="Grain">
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Export</label>
+      <div class="row">
+        <button id="dl1">↓ PNG 1×</button>
+        <button id="dl2">↓ PNG 2×</button>
+        <button id="dl3">↓ PNG 3×</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="dlsvg" style="flex:1">↓ SVG — vector</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="tgl" id="talpha" data-on="0" aria-pressed="false" style="flex:1">Transparent background</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <select id="zoom">
+          <option value="fit" selected>View: fit</option>
+          <option value="100">View: 100%</option>
+        </select>
+      </div>
+      <div class="hint">Plate renders at 2200 on the long edge — 3× lands at 6600. SVG writes live vector text so every readout stays editable in Illustrator / Figma; grain, scanlines &amp; vignette are pixel effects baked into PNG only.</div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="frame" id="frame" data-zoom="fit"><canvas id="out"></canvas></div>
+    <div class="meta" id="meta"></div>
+  </main>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const MONO = "ui-monospace,Menlo,Consolas,monospace";
+const TAU = Math.PI * 2;
+
+/* ============================================================ rng */
+function hash(str){
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let R = mulberry(1);
+const rnd   = ()     => R();
+const rint  = (a, b) => a + Math.floor(R() * (b - a + 1));
+const rrange= (a, b) => a + R() * (b - a);
+const pick  = arr    => arr[Math.floor(R() * arr.length)];
+const chance= p      => R() < p;
+function weightedPick(weights){
+  const keys = Object.keys(weights).filter(k => weights[k] > 0);
+  let total = 0; for (const k of keys) total += weights[k];
+  let r = R() * total;
+  for (const k of keys){ r -= weights[k]; if (r <= 0) return k; }
+  return keys[keys.length - 1];
+}
+
+/* ============================================================ format */
+const FORMATS = {
+  wide:  { r: 16/9,  tall:false },
+  ultra: { r: 21/9,  tall:false },
+  cinema:{ r: 5/2,   tall:false },
+  sq:    { r: 1,     tall:false },
+  port:  { r: 9/16,  tall:true  },
+  a:     { r: 1/1.4142, tall:true }
+};
+const LONG = 2200;
+function formatDims(id){
+  const f = FORMATS[id] || FORMATS.wide;
+  if (f.tall) return { w: Math.round(LONG * f.r), h: LONG };
+  return { w: LONG, h: Math.round(LONG / f.r) };
+}
+
+/* ============================================================ palettes
+   Readouts are near-monochrome: three or four greys of ink on a deep field,
+   with one saturated accent used sparingly — the section number, the live
+   value, the one hot channel. `field` is the transparent highlight tucked
+   behind rows; on alpha export it is the only fill the plate carries. */
+const PALETTES = [
+  { id:'mono',    name:'Mono',         light:false, bg:'#08090b', ink:['#f3f5f8','#aab2bd','#6b7480','#3c434e'], accents:['#ffffff'],           field:'rgba(255,255,255,0.085)' },
+  { id:'graphite',name:'Graphite',     light:false, bg:'#101216', ink:['#d7dde4','#98a1ac','#636b76','#3a414b'], accents:['#c8d2dd'],           field:'rgba(214,224,235,0.07)' },
+  { id:'signal',  name:'Signal Red',   light:false, bg:'#0a0b0d', ink:['#eef1f4','#a6aeb8','#6a727d','#3b424c'], accents:['#ff2e42','#ff6076'], field:'rgba(255,255,255,0.08)' },
+  { id:'cyan',    name:'Cyan Deep',    light:false, bg:'#05090c', ink:['#dfeaf0','#8fb1bd','#54727d','#2f454d'], accents:['#5ec8f5','#39e0c1'], field:'rgba(158,222,240,0.08)' },
+  { id:'amber',   name:'Amber CRT',    light:false, bg:'#0a0703', ink:['#ffe6b8','#c9a56b','#8a6f3f','#4d3d1f'], accents:['#ffb43a','#ff6a2b'], field:'rgba(255,214,150,0.08)' },
+  { id:'terminal',name:'Terminal',     light:false, bg:'#040705', ink:['#c8ffd4','#7fce93','#4b8a5c','#295234'], accents:['#5dff8f','#c8ff5c'], field:'rgba(150,255,180,0.08)' },
+  { id:'ice',     name:'Ice',          light:false, bg:'#04070b', ink:['#e4eefb','#a2b6cf','#617694','#39485c'], accents:['#66f0ff','#a99cff'], field:'rgba(200,222,255,0.08)' },
+  { id:'void',    name:'Void',         light:false, bg:'#000000', ink:['#ffffff','#c9d2dc','#8e9aa6','#525c66'], accents:['#ffffff'],           field:'rgba(255,255,255,0.10)' },
+  { id:'blueprint',name:'Blueprint',   light:true,  bg:'#e9edf3', ink:['#132449','#31488c','#5f74ad','#95a2c4'], accents:['#132449','#c8341c'], field:'rgba(19,36,73,0.07)' },
+  { id:'paper',   name:'Paper',        light:true,  bg:'#f2efe7', ink:['#16130f','#4a453d','#7c766a','#b1aa9c'], accents:['#c0341c','#16130f'], field:'rgba(22,19,15,0.06)' }
+];
+let PAL = PALETTES[0];
+
+/* ============================================================ layouts */
+const PRESETS = [
+  { id:'wall',     name:'Wall',     note:'dense multi-column wall of readouts',
+    kind:'columns', wsK:0.5, weights:{ code:5, titled:2, kv:3, list:1, waves:2, bars:2, barcode:1, matrix:2 }, sidebar:false },
+  { id:'ledger',   name:'Ledger',   note:'sparse clusters in a deep field',
+    kind:'columns', wsK:2.4, weights:{ code:6, titled:1, kv:4, list:0, waves:0, bars:1, barcode:0, matrix:0 }, sidebar:false, sparse:true },
+  { id:'trees',    name:'Trees',    note:'aligned columns of data trees',
+    kind:'columns', wsK:0.8, weights:{ code:4, titled:3, kv:3, list:2, waves:1, bars:2, barcode:0, matrix:1 }, sidebar:false },
+  { id:'manifest', name:'Manifest', note:'titled blocks leadered to sights',
+    kind:'manifest', wsK:1.6, weights:{ titled:1 }, sidebar:true },
+  { id:'network',  name:'Network',  note:'slot nodes wired to a hub list',
+    kind:'network', net:'hub', wsK:1.0, weights:{}, sidebar:false },
+  { id:'mesh',     name:'Mesh',     note:'dense node web — nearest-neighbour wiring',
+    kind:'network', net:'mesh', wsK:1.0, weights:{}, sidebar:false },
+  { id:'bus',      name:'Bus',      note:'nodes tapped along a data spine',
+    kind:'network', net:'bus', wsK:1.0, weights:{}, sidebar:false },
+  { id:'cluster',  name:'Cluster',  note:'multi-hub node clusters',
+    kind:'network', net:'cluster', wsK:1.0, weights:{}, sidebar:false },
+  { id:'panels',   name:'Panels',   note:'framed HUD windows on a grid',
+    kind:'panels', wsK:1.0, weights:{}, sidebar:false },
+  { id:'gallery',  name:'Gallery',  note:'contact-sheet grid of portrait-photo placeholders',
+    kind:'gallery', wsK:1.0, weights:{}, sidebar:false },
+  { id:'dossier',  name:'Dossier',  note:'wanted / ID cards with a portrait slot + fields',
+    kind:'dossier', wsK:1.0, weights:{}, sidebar:false }
+];
+let PRESET = PRESETS[0];
+
+/* ============================================================ colour helpers */
+function withAlpha(hex, a){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;
+}
+function accentCol(){
+  if ($('tacc').dataset.on === '1') return $('accent').value;
+  return pick(PAL.accents);
+}
+/* dim ramp: 0 bright … 3 faint, pushed by the contrast dial */
+let CONTRAST = 1;
+function inkOf(level){
+  const i = Math.max(0, Math.min(3, level));
+  return PAL.ink[i];
+}
+function faintLine(){ return PAL.light ? `rgba(22,19,15,${0.34*CONTRAST})` : `rgba(220,230,242,${0.20*CONTRAST})`; }
+function hairline(){  return PAL.light ? `rgba(22,19,15,${0.55*CONTRAST})` : `rgba(220,230,242,${0.34*CONTRAST})`; }
+
+/* ============================================================ measuring */
+const MC = document.createElement('canvas').getContext('2d');
+function fontStr(px, css, weight){ return `${weight} ${px}px ${css}`; }
+function textW(t, px, weight){ MC.font = fontStr(px, MONO, weight||400); return MC.measureText(t).width; }
+function charW(px){ return textW('0', px, 400); }
+
+/* ============================================================ lexicon + text synthesis */
+const PRE = ['SYS','SPO','SY','ASL','KSL','PROG','ARG','INT','REF','VEC','ORN','HAL','NIS','KL','AR','AT','FT','KP','MC','HF','LF','GAIN','NODE','PASS','BUF','SIG','CH','TRK','IDX','SEQ','RAW','ENV','OSC','FLT','MOD','AMP','DAT','SRC','DST'];
+const HEAD = ['NOISE GAIN OUT','SYS CHECK','REF SIGNAL','DATA TREE','INPUT CHECK','OUTPUT BUFFER','CLUSTER PORT','CHANNEL MAP','VECTOR TABLE','TRACE INDEX','LEVEL METER','PROTOCOL','TERMINAL','MANIFEST','READOUT','NODE ARRAY','SCAN LOG','BUFFER FILL','GAIN STAGE','FILTER BANK','PHASE LOCK','SYNC WORD'];
+const SUBHEAD = ['Q7 REF HF-3','A-200','KSL.230','VEC-9','MK.II','R2','LX-40','B/07','HALDEN','ORION-4','T-660','X4.2'];
+const SEP = ['//','>>','::','—','·','-'];
+const GLYPHS = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'.split('');
+let LEX = [];       // user words
+let LEXMIX = 0;
+
+function token(){
+  if (LEX.length && chance(LEXMIX)) return pick(LEX);
+  return pick(PRE);
+}
+function padnum(n){ let s=''; for(let i=0;i<n;i++) s += rint(0,9); return s; }
+function dotnum(){ return `${rint(1,99)}.${padnum(3)}`; }
+function ratio(){ return `[${rint(50,700)}/${rint(100,999)}]`; }
+function hexish(){ let s=''; const H='0123456789ABCDEF'; for(let i=0;i<rint(4,6);i++) s+=H[rint(0,15)]; return s; }
+
+function codeForms(){
+  const t = () => token();
+  return [
+    () => `${t()} ${dotnum()}`,
+    () => `${padnum(7)} ${pick(SEP)} ${padnum(4)}`,
+    () => `${t()}.${t()} ${padnum(3)}`,
+    () => `${padnum(8)}-${padnum(6)}//${rint(100,999)}`,
+    () => `${hexish()} ${pick(SEP)} ${padnum(4)}   ${t()}`,
+    () => `${t()} ${rint(1,9)}${padnum(2)}   >>   ${rint(100,900)}`,
+    () => `${t()} ${ratio()}`,
+    () => `${t()}.${padnum(2)} ${pick(SEP)} ${t()}`,
+    () => `${t()} ${rint(1,99)}${pick(['A','B','C','K','M'])}   ${padnum(3)}`,
+    () => `${padnum(4)}${pick(SEP)}${padnum(4)}${pick(SEP)}${padnum(3)}`
+  ];
+}
+function scramble(str, p){
+  if (p <= 0) return str;
+  let out = '';
+  for (const ch of str){
+    if (/[A-Z0-9]/.test(ch) && chance(p)) out += pick(GLYPHS);
+    else out += ch;
+  }
+  return out;
+}
+function codeLine(maxc, o){
+  let s = pick(codeForms())();
+  s = scramble(s, o.scramble);
+  if (maxc && s.length > maxc) s = s.slice(0, maxc);
+  return s;
+}
+function headLine(o){
+  let s = (LEX.length && chance(LEXMIX)) ? pick(LEX) : pick(HEAD);
+  return scramble(s, o.scramble * 0.6);
+}
+function subLine(o){ return scramble(pick(SUBHEAD), o.scramble * 0.6); }
+
+/* ============================================================ scene primitives */
+let SCENE = null, ITEMS = null, BLOCKS = null;
+
+function T(x, y, str, opt){
+  const o = opt || {};
+  ITEMS.push({ t:'text', x, y, t2:str, size:o.size, font:'var(--mono)', weight:o.weight||400,
+    fill:o.fill || inkOf(1), anchor:o.align||'start', track:o.track||0, rot:o.rot||0, z:'type' });
+}
+function rect(x, y, w, h, opt){
+  const o = opt || {};
+  ITEMS.push({ t:'rect', x, y, w, h, fill:o.fill||null, stroke:o.stroke||null, lw:o.lw||1, dash:o.dash||null, z:o.z });
+}
+function line(x1, y1, x2, y2, opt){
+  const o = opt || {};
+  ITEMS.push({ t:'line', x1, y1, x2, y2, stroke:o.stroke||hairline(), lw:o.lw||1, dash:o.dash||null, z:o.z });
+}
+function dot(x, y, r, opt){
+  const o = opt || {};
+  ITEMS.push({ t:'dot', x, y, r, fill:o.fill||null, stroke:o.stroke||null, lw:o.lw||1, z:o.z });
+}
+function poly(pts, opt){
+  const o = opt || {};
+  ITEMS.push({ t:'poly', pts, fill:o.fill||inkOf(0), z:o.z });
+}
+function fieldRect(x, y, w, h){ rect(x, y, w, h, { fill:PAL.field, z:'under' }); }
+
+/* ---- shared block ornaments ---- */
+function tickDivider(x, y, w, o){
+  const bw = w * rrange(0.5, 0.82);
+  line(x, y, x + bw, y, { stroke:hairline(), lw:1.4 });
+  const gx = x + bw + o.size*0.6;
+  line(gx, y, gx + o.size*rrange(0.6,1.3), y, { stroke:hairline(), lw:1.4 });
+}
+function accentTab(x, y, h){ rect(x - o_size*0.55, y, Math.max(2.4, o_size*0.22), h, { fill:accentCol() }); }
+
+/* current text size in px, shared into ornament helpers */
+let o_size = 12;
+
+/* ============================================================ readout blocks
+   Each builder pushes items into ITEMS and returns the height it consumed.
+   x,y is the top-left of the cluster; w is the column width it may use. */
+function bCode(x, y, w, o){
+  const s = o.size, lh = s * 1.6, cw = charW(s);
+  const maxc = Math.max(6, Math.floor(w / cw));
+  let cy = y;
+  if (chance(0.55)){ tickDivider(x, y + s*0.2, w, o); cy += s * 0.9; }
+  const tab = chance(0.5);
+  const n = rint(o.rowsMin, o.rowsMax);
+  const top = cy;
+  for (let i = 0; i < n; i++){
+    cy += lh;
+    const acc = chance(o.accfreq);
+    const bright = i === 0 ? chance(0.7) : chance(0.28);
+    if (chance(o.fields) && !acc){
+      const fw = Math.min(w, (rint(Math.floor(maxc*0.4), maxc)) * cw + cw);
+      fieldRect(x - cw*0.35, cy - s*0.86, fw, s*1.18);
+    }
+    const str = codeLine(maxc, o);
+    T(x, cy, str, { size:s, weight: bright?500:400, fill: acc ? accentCol() : inkOf(bright?0:2) });
+  }
+  if (tab){ o_size = s; accentTab(x, top + lh*0.2, (cy - top)); }
+  return (cy - y) + s * 0.8;
+}
+
+function bTitled(x, y, w, o){
+  const s = o.size, lh = s * 1.6, cw = charW(s);
+  const maxc = Math.max(6, Math.floor(w / cw));
+  let cy = y + s*1.1;
+  o_size = s; accentTab(x, y + s*0.2, lh * 1.7);
+  T(x, cy, headLine(o), { size:s*1.05, weight:700, fill:inkOf(0) }); cy += lh*0.95;
+  T(x, cy, subLine(o), { size:s*0.98, weight:500, fill:inkOf(1) });
+  /* accent detail column to the right of the title */
+  if (chance(0.6)){
+    const dx = x + w*0.52;
+    let dy = y + s*1.1;
+    const dn = rint(2,4);
+    for (let i=0;i<dn;i++){ T(dx, dy, codeLine(Math.floor((w-dx+x)/cw), o), { size:s*0.82, fill: i<2 ? accentCol() : inkOf(2) }); dy += lh*0.82; }
+  }
+  cy += lh*0.9;
+  const n = rint(Math.max(2,o.rowsMin), o.rowsMax);
+  for (let i=0;i<n;i++){
+    if (chance(o.fields*0.7)) fieldRect(x - cw*0.35, cy - s*0.78, (rint(4, maxc))*cw*0.9, s*1.1);
+    T(x, cy, codeLine(maxc, o), { size:s*0.9, fill: inkOf(chance(0.3)?1:2) });
+    cy += lh*0.9;
+  }
+  return (cy - y) + s*0.6;
+}
+
+function bKV(x, y, w, o){
+  const s = o.size, lh = s * 1.6, cw = charW(s);
+  const boxed = chance(0.55);
+  const n = rint(2, Math.max(3, o.rowsMax-1));
+  const pad = boxed ? cw*0.7 : 0;
+  const bx = x, by = y;
+  let cy = y + pad + s;
+  const rowsY = [];
+  for (let i=0;i<n;i++){
+    rowsY.push(cy);
+    const key = scramble(`${token()}.${pick(['AD','KSL','ASL','REF','CH','LV'])} ${rint(1,9)}${padnum(2)}`, o.scramble);
+    const val = `${rint(100,900)}`;
+    const acc = chance(o.accfreq);
+    if (chance(o.fields)) fieldRect(bx + pad - cw*0.3, cy - s*0.82, w - pad*2 + cw*0.3, s*1.12);
+    T(bx + pad, cy, key, { size:s*0.92, fill:inkOf(2) });
+    T(bx + pad + w - pad*2, cy, val, { size:s*0.92, align:'end', weight:500, fill: acc?accentCol():inkOf(0) });
+    /* the >> pointer sits inboard of the value */
+    T(bx + pad + w*0.62, cy, '>>', { size:s*0.9, align:'end', fill:inkOf(2) });
+    cy += lh*0.95;
+  }
+  cy += pad;
+  if (boxed) rect(bx, by, w, cy - by, { stroke:hairline(), lw:1.4 });
+  return (cy - y) + s*0.6;
+}
+
+function bList(x, y, w, o){
+  const s = o.size, lh = s * 1.9, cw = charW(s);
+  let cy = y + s;
+  const n = rint(4, Math.max(5, o.rowsMax));
+  for (let i=0;i<n;i++){
+    const num = String(i+1).padStart(2,'0');
+    T(x, cy, num + '.', { size:s*1.02, weight:700, fill:inkOf(0) });
+    const name = scramble((LEX.length && chance(LEXMIX)) ? pick(LEX) : (pick(HEAD).split(' ')[0] + pick(['','-'+rint(1,9),'.'+padnum(2)])), o.scramble*0.5);
+    const nx = x + cw*3.4;
+    const fw = w - cw*3.4;
+    fieldRect(nx - cw*0.2, cy - s*0.86, fw, s*1.2);
+    T(nx, cy, name, { size:s*0.98, fill:inkOf(0) });
+    cy += lh;
+  }
+  return (cy - y);
+}
+
+function bWaves(x, y, w, o){
+  const s = o.size, cw = charW(s);
+  const rows = rint(3,5);
+  const lblW = cw*7;
+  const bw = w - lblW;
+  let cy = y + s;
+  const lh = s * 1.5;
+  for (let r=0;r<rows;r++){
+    T(x, cy, scramble(`PASS/0${pick(['A','B','C','D','E','F'])}`, o.scramble), { size:s*0.8, fill:inkOf(2) });
+    const bars = Math.max(8, Math.floor(bw / (cw*0.5)));
+    const step = bw / bars;
+    const base = cy - s*0.15;
+    for (let i=0;i<bars;i++){
+      const hgt = Math.pow(R(), 1.6) * s * 1.5 + 1;
+      rect(x + lblW + i*step, base - hgt, Math.max(1, step*0.62), hgt, { fill: inkOf(r===0?1:2) });
+    }
+    cy += lh;
+  }
+  return (cy - y);
+}
+
+function bBars(x, y, w, o){
+  const s = o.size, cw = charW(s), lh = s*1.7;
+  const n = rint(2,4);
+  let cy = y + s;
+  for (let i=0;i<n;i++){
+    T(x, cy, scramble(`${token()} ${pick(['LV','CH','DB'])}`, o.scramble), { size:s*0.82, fill:inkOf(2) });
+    const bx = x + cw*7, bw = w - cw*10, bh = s*0.5;
+    const by = cy - s*0.55;
+    rect(bx, by, bw, bh, { stroke:faintLine(), lw:1 });
+    const segs = rint(6, 14), gap = 1.2, sw = (bw - gap*(segs-1))/segs;
+    const on = rint(1, segs);
+    for (let k=0;k<on;k++) rect(bx + k*(sw+gap), by, sw, bh, { fill: (k>segs*0.8 && chance(o.accfreq*2)) ? accentCol() : inkOf(1) });
+    T(x + w, cy, String(rint(0,99)).padStart(2,'0'), { size:s*0.82, align:'end', fill:inkOf(0) });
+    cy += lh;
+  }
+  return (cy - y);
+}
+
+function bBarcode(x, y, w, o){
+  const s = o.size, h = s * rrange(2.2, 3.4);
+  let cx = x;
+  while (cx < x + w - 2){
+    const bw = rrange(1, 5);
+    if (chance(0.55)) rect(cx, y, bw, h, { fill:inkOf(0) });
+    cx += bw + rrange(1, 4);
+  }
+  T(x, y + h + s*1.1, scramble(padnum(12), o.scramble), { size:s*0.78, fill:inkOf(2), track:1 });
+  return h + s*1.8;
+}
+
+function bMatrix(x, y, w, o){
+  const s = o.size, cw = charW(s);
+  const cell = Math.max(4, s*0.5);
+  const cols = Math.max(4, Math.floor(w / (cell*1.8)));
+  const rows = rint(2, 4);
+  T(x, y + s*0.9, scramble(`${token()}.${padnum(2)}`, o.scramble), { size:s*0.82, fill:inkOf(2) });
+  let gy = y + s*1.6;
+  for (let r=0;r<rows;r++){
+    for (let c=0;c<cols;c++){
+      const on = chance(0.5);
+      rect(x + c*cell*1.8, gy + r*cell*1.8, cell, cell, on ? { fill: chance(o.accfreq)?accentCol():inkOf(1) } : { stroke:faintLine(), lw:1 });
+    }
+  }
+  return (gy - y) + rows*cell*1.8 + s*0.4;
+}
+
+const BUILDERS = { code:bCode, titled:bTitled, kv:bKV, list:bList, waves:bWaves, bars:bBars, barcode:bBarcode, matrix:bMatrix };
+
+/* ============================================================ markers & sights */
+function sight(cx, cy, r, o){
+  const col = chance(0.15) ? accentCol() : inkOf(2);
+  const gap = r * 0.28;
+  line(cx - r, cy, cx - gap, cy, { stroke:col, lw:1.4 });
+  line(cx + gap, cy, cx + r, cy, { stroke:col, lw:1.4 });
+  line(cx, cy - r, cx, cy - gap, { stroke:col, lw:1.4 });
+  line(cx, cy + gap, cx, cy + r, { stroke:col, lw:1.4 });
+}
+function bracket(x, y, s, sx, sy){
+  const col = inkOf(2);
+  line(x, y, x + s*sx, y, { stroke:col, lw:1.6 });
+  line(x, y, x, y + s*sy, { stroke:col, lw:1.6 });
+}
+function tinyDot(x, y){ dot(x, y, 1.6, { fill:inkOf(2) }); }
+function chevrons(x, y, s){ T(x, y, '>>', { size:s, fill:inkOf(2) }); }
+
+function scatterMarkers(box, o){
+  if (o.markers <= 0) return;
+  const n = Math.round(o.markers * 26 * (box.w*box.h) / (2200*1240));
+  for (let i=0;i<n;i++){
+    const x = box.x + R()*box.w, y = box.y + R()*box.h;
+    const k = R();
+    if (k < 0.42) sight(x, y, rrange(9, 22), o);
+    else if (k < 0.66) tinyDot(x, y);
+    else if (k < 0.82) chevrons(x, y, o.size*rrange(0.9,1.2));
+    else bracket(x, y, rrange(10,20), pick([1,-1]), pick([1,-1]));
+  }
+}
+
+/* ============================================================ connectors */
+function leader(x1, y1, x2, y2){
+  const col = faintLine();
+  const mx = x1 + (x2 - x1) * rrange(0.4, 0.7);
+  line(x1, y1, mx, y1, { stroke:col, lw:1.2, z:'under' });
+  line(mx, y1, mx, y2, { stroke:col, lw:1.2, z:'under' });
+  line(mx, y2, x2, y2, { stroke:col, lw:1.2, z:'under' });
+  dot(x1, y1, 2, { fill:inkOf(2), z:'under' });
+}
+function wire(x1, y1, x2, y2){
+  const col = faintLine();
+  const mx = (x1 + x2) / 2 + gaussish()*30;
+  line(x1, y1, mx, y1, { stroke:col, lw:1.3, z:'under' });
+  line(mx, y1, mx, y2, { stroke:col, lw:1.3, z:'under' });
+  line(mx, y2, x2, y2, { stroke:col, lw:1.3, z:'under' });
+}
+function gaussish(){ return (R()+R()+R()-1.5) * 0.9; }
+
+/* ============================================================ overlays */
+function regMarks(box){
+  const s = 26, off = box.x*0.5 + 6;
+  const c = [[box.x-off, box.y-off, 1,1],[box.x+box.w+off, box.y-off,-1,1],
+             [box.x-off, box.y+box.h+off,1,-1],[box.x+box.w+off, box.y+box.h+off,-1,-1]];
+  for (const [x,y,sx,sy] of c) bracket(x, y, s, sx, sy);
+}
+function baseGrid(W, H){
+  const step = 46, col = PAL.light ? 'rgba(22,19,15,0.05)' : 'rgba(210,224,240,0.045)';
+  for (let x=step; x<W; x+=step) line(x, 0, x, H, { stroke:col, lw:1, z:'under' });
+  for (let y=step; y<H; y+=step) line(0, y, W, y, { stroke:col, lw:1, z:'under' });
+}
+function sidebar(box, o){
+  const bandX = box.x + box.w - box.w*0.09;
+  const seg = box.h / rint(2,3);
+  let n = 2, gy = box.y;
+  for (let i=0;i<n && gy < box.y+box.h-seg*0.5;i++){
+    const num = String(rint(2, 12)).padStart(2,'0');
+    T(bandX, gy + seg*0.5, num, { size:o.size*5.4, weight:700, fill: chance(0.6)?accentCol():inkOf(0) });
+    /* vertical code string reading upward */
+    T(bandX + o.size*3.2, gy + seg*0.72, scramble(`ID ${dotnum()}  ${token()} ${padnum(3)}`, o.scramble), { size:o.size*0.86, fill:inkOf(2), rot:-Math.PI/2 });
+    line(bandX, gy + seg*0.62, bandX, gy + seg*0.95, { stroke:hairline(), lw:1.4 });
+    gy += seg;
+  }
+}
+
+/* ============================================================ layout engines */
+function layoutColumns(box, o){
+  const cols = PRESET.sparse ? Math.max(1, Math.min(3, o.cols)) : o.cols;
+  const gutter = box.w * 0.028;
+  const colW = (box.w - gutter*(cols-1)) / cols;
+  const wsK = PRESET.wsK;
+  const budget = Math.round(o.dens * (PRESET.sparse ? 6 : 16));
+  let placed = 0;
+  for (let c=0;c<cols;c++){
+    const colX = box.x + c*(colW + gutter);
+    let y = box.y + (PRESET.sparse ? rrange(0, box.h*0.14) : rrange(0, box.h*0.05));
+    let guard = 0;
+    while (y < box.y + box.h - o.size*4 && guard++ < 60 && placed < budget*cols){
+      if (chance(o.ws)){ y += o.size * rrange(2.2, 8) * wsK; continue; }
+      const type = weightedPick(PRESET.weights);
+      const bw = colW * rrange(0.72, 0.98);
+      const before = ITEMS.length;
+      const h = BUILDERS[type](colX, y, bw, o);
+      BLOCKS.push({ x:colX, y, w:bw, h, type });
+      placed++;
+      y += h + o.size * rrange(1.6, 4) * (PRESET.sparse ? 1.8 : 1);
+    }
+  }
+}
+
+function layoutManifest(box, o){
+  const leftW = box.w * 0.36;
+  const sightX = box.x + box.w * 0.60;
+  let y = box.y + rrange(0, box.h*0.05);
+  let guard = 0;
+  while (y < box.y + box.h - o.size*6 && guard++ < 20){
+    const h = bTitled(box.x, y, leftW, o);
+    const rowY = y + o.size*2.2;
+    if (chance(0.85)){
+      const sy = rowY + rrange(-o.size, o.size*2);
+      leader(box.x + leftW*0.9, rowY, sightX, sy);
+      sight(sightX, sy, 16, o);
+      T(sightX + 26, sy + o.size*0.35, scramble(`${padnum(3)}.${padnum(3)}`, o.scramble), { size:o.size*0.9, fill:inkOf(1) });
+    }
+    BLOCKS.push({ x:box.x, y, w:leftW, h, type:'titled' });
+    y += h + o.size * rrange(4, 8);
+  }
+}
+
+/* one slot-node box; returns its geometry + connection ports */
+function slotNode(nx, ny, o, opt){
+  opt = opt || {};
+  const cw = charW(o.size);
+  const nw = cw * rrange(5, 8), nh = o.size * 1.5;
+  rect(nx, ny, nw, nh, { stroke:hairline(), lw:1.3 });
+  const fillw = nw * rrange(0.2, 0.7);
+  rect(nx + 2, ny + 2, fillw - 3, nh - 4, { fill:inkOf(1) });
+  const lbl = scramble(`SLOT_${String(rint(1,16)).padStart(2,'0')}`, o.scramble);
+  if (opt.labelLeft){
+    T(nx - cw*0.8, ny + nh*0.72, lbl, { size:o.size*0.86, align:'end', fill:inkOf(1) });
+    dot(nx - cw*0.4, ny + nh*0.5, 2.4, { fill:inkOf(0) });
+  } else {
+    T(nx + nw + cw*0.8, ny + nh*0.72, lbl, { size:o.size*0.86, fill:inkOf(1) });
+    dot(nx + nw + cw*0.4, ny + nh*0.5, 2.4, { fill:inkOf(0) });
+  }
+  return { x:nx, y:ny, w:nw, h:nh, cx:nx+nw*0.5, cy:ny+nh*0.5,
+           right:{ x:nx+nw, y:ny+nh*0.5 }, left:{ x:nx, y:ny+nh*0.5 } };
+}
+/* node budget scales with the Density dial */
+function netNodeCount(base, o){ return Math.max(3, Math.round(base * (0.5 + o.dens * 1.1))); }
+
+function layoutNetwork(box, o){
+  const t = PRESET.net || 'hub';
+  if (t === 'mesh')         netMesh(box, o);
+  else if (t === 'bus')     netBus(box, o);
+  else if (t === 'cluster') netCluster(box, o);
+  else                      netHub(box, o);
+}
+
+/* hub — the original: a scatter of nodes wired into one list on the right */
+function netHub(box, o){
+  const hubW = box.w * 0.3;
+  const hubX = box.x + box.w - hubW;
+  const hubY = box.y + box.h*0.2;
+  const hubH = bList(hubX, hubY, hubW, o);
+  BLOCKS.push({ x:hubX, y:hubY, w:hubW, h:hubH, type:'list' });
+  const hubPortX = hubX - charW(o.size)*1.2;
+  const n = netNodeCount(7, o);
+  for (let i=0;i<n;i++){
+    const nx = box.x + rrange(0, box.w*0.42);
+    const ny = box.y + rrange(0, box.h - o.size*3);
+    const nd = slotNode(nx, ny, o);
+    const portY = hubY + rrange(o.size, hubH - o.size);
+    wire(nd.right.x, nd.right.y, hubPortX, portY);
+    dot(hubPortX, portY, 2, { fill:inkOf(2) });
+  }
+  bWaves(box.x, box.y, box.w*0.34, o);
+  bBarcode(box.x, box.y + box.h - o.size*3.4, box.w*0.22, o);
+}
+
+/* mesh — nodes across the whole field, each wired to its nearest neighbours */
+function netMesh(box, o){
+  const cw = charW(o.size);
+  const n = netNodeCount(14, o);
+  const nodes = [];
+  for (let i=0;i<n;i++){
+    const nx = box.x + rrange(0, box.w - cw*9);
+    const ny = box.y + rrange(0, box.h - o.size*2);
+    nodes.push(slotNode(nx, ny, o, { labelLeft: chance(0.5) }));
+  }
+  const k = 2 + (chance(o.wires) ? 1 : 0);
+  const seen = new Set();
+  for (let i=0;i<nodes.length;i++){
+    const a = nodes[i];
+    const order = nodes.map((b,j)=>({ j, d:(b.cx-a.cx)**2 + (b.cy-a.cy)**2 }))
+                       .filter(e=>e.j!==i).sort((p,q)=>p.d-q.d);
+    for (let m=0;m<k && m<order.length;m++){
+      const j = order[m].j, key = i<j ? i+'-'+j : j+'-'+i;
+      if (seen.has(key)) continue; seen.add(key);
+      const b = nodes[j];
+      const pa = b.cx > a.cx ? a.right : a.left;
+      const pb = b.cx > a.cx ? b.left : b.right;
+      wire(pa.x, pa.y, pb.x, pb.y);
+      dot(pb.x, pb.y, 1.8, { fill:inkOf(2) });
+    }
+  }
+  bWaves(box.x, box.y, box.w*0.24, o);
+}
+
+/* bus — a central spine with nodes tapping in above and below */
+function netBus(box, o){
+  const cw = charW(o.size);
+  const spineY = box.y + box.h*0.5;
+  const sx0 = box.x + box.w*0.05, sx1 = box.x + box.w*0.95;
+  line(sx0, spineY, sx1, spineY, { stroke:hairline(), lw:2.2 });
+  line(sx0, spineY+3.5, sx1, spineY+3.5, { stroke:faintLine(), lw:1.2 });
+  bracket(sx0, spineY-7, 12, 1, 1); bracket(sx1, spineY+7, 12, -1, -1);
+  const n = netNodeCount(12, o);
+  for (let i=0;i<n;i++){
+    const tx = rrange(sx0 + cw*2, sx1 - cw*9);
+    const above = chance(0.5);
+    const dist = rrange(o.size*2.4, box.h*0.36);
+    const ny = above ? spineY - dist - o.size*1.5 : spineY + dist;
+    const nd = slotNode(tx, ny, o);
+    const from = above ? nd.y + nd.h : nd.y;
+    line(nd.cx, from, nd.cx, spineY, { stroke:faintLine(), lw:1.3, z:'under' });
+    dot(nd.cx, spineY, 2.4, { fill:inkOf(1) });
+  }
+  bBarcode(box.x + box.w*0.4, box.y + box.h - o.size*3.2, box.w*0.2, o);
+}
+
+/* cluster — two or three small hubs, each with its own ring of nodes */
+function netCluster(box, o){
+  const cw = charW(o.size);
+  const hubs = rint(2, 3);
+  const perHub = netNodeCount(6, o);
+  const cellW = box.w / hubs;
+  for (let h=0; h<hubs; h++){
+    const cx = box.x + cellW*(h + 0.5);
+    const hubW = Math.min(cellW*0.46, box.w*0.2);
+    const hubX = cx - hubW*0.5;
+    const hubY = box.y + box.h*rrange(0.3, 0.42);
+    const hubH = bList(hubX, hubY, hubW, o);
+    BLOCKS.push({ x:hubX, y:hubY, w:hubW, h:hubH, type:'list' });
+    for (let i=0;i<perHub;i++){
+      const rightSide = chance(0.5);
+      const nx = rightSide ? cx + rrange(hubW*0.6, cellW*0.46)
+                           : cx - rrange(hubW*0.6, cellW*0.46) - cw*6;
+      const ny = box.y + rrange(0, box.h - o.size*2);
+      const nd = slotNode(nx, ny, o, { labelLeft: rightSide });
+      const port = { x: rightSide ? hubX + hubW : hubX, y: hubY + rrange(o.size, hubH - o.size) };
+      const np = rightSide ? nd.left : nd.right;
+      wire(np.x, np.y, port.x, port.y);
+      dot(port.x, port.y, 2, { fill:inkOf(2) });
+    }
+  }
+}
+
+function layoutPanels(box, o){
+  const cols = Math.max(2, Math.min(4, o.cols));
+  const rows = rint(2, 3);
+  const gx = box.w*0.03, gy = box.h*0.05;
+  const cw = (box.w - gx*(cols-1)) / cols;
+  const ch = (box.h - gy*(rows-1)) / rows;
+  for (let r=0;r<rows;r++){
+    for (let c=0;c<cols;c++){
+      if (chance(0.14)) continue; // occasional gap
+      const spanW = (c < cols-1 && chance(0.16)) ? 2 : 1;
+      const px = box.x + c*(cw+gx);
+      const py = box.y + r*(ch+gy);
+      const pw = cw*spanW + (spanW>1?gx:0), ph = ch;
+      panelWindow(px, py, pw, ph, o);
+      BLOCKS.push({ x:px, y:py, w:pw, h:ph, type:'panel' });
+      if (spanW>1) c++;
+    }
+  }
+}
+function panelWindow(x, y, w, h, o){
+  const s = o.size, cw = charW(s);
+  rect(x, y, w, h, { stroke:hairline(), lw:1.5 });
+  /* header bar */
+  const hb = s*2;
+  rect(x, y, w, hb, { fill:PAL.field });
+  line(x, y+hb, x+w, y+hb, { stroke:hairline(), lw:1.3 });
+  T(x + cw*0.8, y + hb*0.68, scramble(pick(HEAD), o.scramble*0.5), { size:s*0.9, weight:600, fill:inkOf(0) });
+  T(x + w - cw*0.8, y + hb*0.68, `${rint(10,24)}/24`, { size:s*0.86, align:'end', fill:inkOf(1) });
+  /* corner ticks */
+  bracket(x + cw*0.5, y + hb + cw*0.5, 10, 1, 1);
+  bracket(x + w - cw*0.5, y + h - cw*0.5, 10, -1, -1);
+  /* centred label */
+  if (chance(0.5)){
+    T(x + w*0.5, y + h*0.56, '[ ' + scramble(pick(['COMMS','T.DATA','ACTIVE','S.COMM','LOADING','SECTOR']), o.scramble*0.4) + ' ]', { size:s*1.1, align:'middle', weight:600, fill:inkOf(1) });
+  }
+  /* inner content rows */
+  let iy = y + hb + s*1.8;
+  const rows = rint(1,3);
+  for (let i=0;i<rows && iy < y+h-s;i++){
+    T(x + cw*0.8, iy, codeLine(Math.floor((w-cw*1.6)/cw), o), { size:s*0.82, fill:inkOf(2) });
+    iy += s*1.5;
+  }
+  /* footer strip */
+  const fb = s*1.4;
+  rect(x, y + h - fb, w, fb, { fill:PAL.field });
+  line(x, y+h-fb, x+w, y+h-fb, { stroke:hairline(), lw:1.2 });
+  T(x + cw*0.8, y + h - fb*0.4, scramble(padnum(6), o.scramble), { size:s*0.76, fill:inkOf(2) });
+}
+
+/* ============================================================ portrait placeholders
+   Gallery / Dossier lay out empty portrait slots meant to receive real photos.
+   Each slot is a framed box with crop marks and a faint head-and-shoulders
+   silhouette so it unmistakably reads as "portrait goes here". */
+const SURNAMES = ['KOVAC','REYES','OKORO','HALE','VOSS','TANAKA','MERCER','DUBOIS','NOVAK','SILVA','KHAN','FROST','LARSEN','ABARA','WOLFE','CRUZ','STERN','OSEI','RIOS','BAUER','SOKOLOV','NAKAMURA','ELLIS','HARDT','MOREAU','IVANOV','HASSAN','PARK','LUND','GRECO'];
+const GIVEN = 'ABCDEFGHJKLMNPRSTVWZ'.split('');
+const STATUS = ['WANTED','AT LARGE','DETAINED','CLEARED','PENDING','ACTIVE','FLAGGED','UNKNOWN','MISSING','ARMED'];
+const SUBJPFX = ['SUBJ','CASE','REF','ID','UNIT','FILE'];
+
+function personName(o){
+  if (LEX.length && chance(LEXMIX)) return scramble(pick(LEX), o.scramble*0.4);
+  return scramble(`${pick(SURNAMES)}, ${pick(GIVEN)}.`, o.scramble*0.35);
+}
+function subjCode(pfx, idx){ return `${pfx}-${String(idx+1).padStart(3,'0')}`; }
+
+function bustSilhouette(x, y, w, h){
+  const cx = x + w*0.5;
+  const col = PAL.light ? 'rgba(22,19,15,0.09)' : 'rgba(222,232,244,0.075)';
+  const headR = Math.min(w, h) * 0.15;
+  const headCy = y + h*0.4;
+  const shTop = headCy + headR*0.75;
+  const shBot = y + h;
+  const shHalfTop = w*0.15, shHalfBot = w*0.36;
+  poly([[cx-shHalfTop, shTop],[cx+shHalfTop, shTop],[cx+shHalfBot, shBot],[cx-shHalfBot, shBot]], { fill:col });
+  dot(cx, headCy, headR, { fill:col });
+}
+function portraitFrame(x, y, w, h, o, opt){
+  opt = opt || {};
+  const cw = charW(o.size);
+  rect(x, y, w, h, { fill:PAL.field });
+  bustSilhouette(x, y, w, h);
+  rect(x, y, w, h, { stroke:hairline(), lw:1.5 });
+  /* corner crop marks */
+  const m = Math.min(w, h)*0.09, cl = Math.min(w, h)*0.08;
+  bracket(x+m, y+m, cl, 1, 1);   bracket(x+w-m, y+m, cl, -1, 1);
+  bracket(x+m, y+h-m, cl, 1, -1); bracket(x+w-m, y+h-m, cl, -1, -1);
+  if (opt.tag !== false) T(x + cw*0.6, y + o.size*1.05, opt.tag || 'IMG', { size:o.size*0.7, fill:inkOf(2) });
+}
+
+/* Gallery — a contact sheet of portrait frames, each captioned below */
+function layoutGallery(box, o){
+  const cw0 = charW(o.size);
+  const cols = Math.max(2, Math.min(6, o.cols + 1));
+  const gx = Math.max(6, box.w*0.008), gy = Math.max(6, box.h*0.012);
+  const cw = (box.w - gx*(cols-1)) / cols;
+  const capH = o.size*2.6;
+  const targetCell = cw*1.34 + capH;
+  let rows = Math.max(1, Math.min(4, Math.round((box.h + gy) / (targetCell + gy))));
+  const cellH = (box.h - gy*(rows-1)) / rows;
+  const photoH = cellH - capH;
+  const pfx = pick(SUBJPFX);
+  let idx = 0;
+  for (let r=0;r<rows;r++){
+    for (let c=0;c<cols;c++){
+      const px = box.x + c*(cw+gx);
+      const py = box.y + r*(cellH+gy);
+      portraitFrame(px, py, cw, photoH, o, { tag:subjCode(pfx, idx) });
+      /* caption strip */
+      const cy = py + photoH;
+      const acc = chance(0.3);
+      if (chance(o.fields)) fieldRect(px, cy + o.size*0.35, cw, o.size*1.15);
+      T(px, cy + o.size*1.15, scramble(pick(STATUS), o.scramble*0.3), { size:o.size*0.78, weight:600, fill: acc?accentCol():inkOf(0) });
+      T(px + cw, cy + o.size*1.15, scramble(padnum(5), o.scramble*0.4), { size:o.size*0.7, align:'end', fill:inkOf(2) });
+      T(px, cy + o.size*2.15, personName(o), { size:o.size*0.82, fill:inkOf(1) });
+      BLOCKS.push({ x:px, y:py, w:cw, h:cellH, type:'portrait' });
+      idx++;
+    }
+  }
+}
+
+/* Dossier — larger ID / wanted cards: portrait slot on the left, fields right */
+function layoutDossier(box, o){
+  const cols = Math.max(1, Math.min(3, o.cols - 1));
+  const gx = box.w*0.03, gy = box.h*0.045;
+  const cw = (box.w - gx*(cols-1)) / cols;
+  const targetH = cw*0.66;
+  let rows = Math.max(1, Math.min(3, Math.round((box.h + gy) / (targetH + gy))));
+  const ch = (box.h - gy*(rows-1)) / rows;
+  const pfx = pick(SUBJPFX);
+  let idx = 0;
+  for (let r=0;r<rows;r++){
+    for (let c=0;c<cols;c++){
+      dossierCard(box.x + c*(cw+gx), box.y + r*(ch+gy), cw, ch, o, pfx, idx);
+      BLOCKS.push({ x:box.x + c*(cw+gx), y:box.y + r*(ch+gy), w:cw, h:ch, type:'dossier' });
+      idx++;
+    }
+  }
+}
+function dossierCard(x, y, w, h, o, pfx, idx){
+  const s = o.size, cw = charW(s);
+  rect(x, y, w, h, { stroke:hairline(), lw:1.6 });
+  /* header banner */
+  const hb = s*2.3;
+  rect(x, y, w, hb, { fill:PAL.field });
+  line(x, y+hb, x+w, y+hb, { stroke:hairline(), lw:1.3 });
+  T(x + cw*0.8, y + hb*0.66, pick(['WANTED','IDENTITY','DOSSIER','SUBJECT','BULLETIN']), { size:s*1.05, weight:700, fill:accentCol() });
+  T(x + w - cw*0.8, y + hb*0.66, subjCode(pfx, idx), { size:s*0.92, align:'end', weight:600, fill:inkOf(0) });
+  /* portrait slot on the left */
+  const pad = cw*0.9;
+  const pfW = (w - pad*2) * 0.4;
+  const pfY = y + hb + pad, pfH = h - hb - pad*2;
+  portraitFrame(x + pad, pfY, pfW, pfH, o, { tag:'IMG' });
+  /* meta column on the right */
+  const mx = x + pad + pfW + cw*1.4;
+  const mw = x + w - pad - mx;
+  let my = pfY + s*1.1;
+  T(mx, my, personName(o), { size:s*1.15, weight:700, fill:inkOf(0) }); my += s*2.3;
+  const rowH = s*1.55;
+  const fields = [
+    ['STATUS', scramble(pick(STATUS), o.scramble*0.3)],
+    ['SEX',    pick(['M','F','X'])],
+    ['HGT',    `${rint(15,20)}${rint(0,9)} CM`],
+    ['DOB',    `${padnum(2)}.${padnum(2)}.${rint(60,99)}`],
+    ['MARKS',  scramble(`${token()}-${padnum(2)}`, o.scramble)],
+    ['REF',    scramble(`${padnum(4)}//${padnum(3)}`, o.scramble)]
+  ];
+  const nf = Math.min(fields.length, Math.max(3, Math.floor((y + h - pad - s*3 - my) / rowH)));
+  for (let i=0;i<nf;i++){
+    const [k, v] = fields[i];
+    const acc = k === 'STATUS';
+    if (chance(o.fields*0.8)) fieldRect(mx - cw*0.3, my - s*0.8, mw + cw*0.3, s*1.12);
+    T(mx, my, k, { size:s*0.82, fill:inkOf(2) });
+    T(mx + mw, my, v, { size:s*0.9, align:'end', weight: acc?600:400, fill: acc?accentCol():inkOf(0) });
+    my += rowH;
+  }
+  /* barcode along the bottom of the meta column */
+  bBarcode(mx, y + h - pad - s*2.6, mw, o);
+}
+
+/* ============================================================ scene build */
+function build(o){
+  R = mulberry(hash(o.seed + '|' + PRESET.id + '|' + o.format + '|' + o.cols));
+  CONTRAST = o.contrast;
+  LEX = o.words; LEXMIX = o.wordmix;
+  o_size = o.size;
+  const { w:W, h:H } = formatDims(o.format);
+  const m = Math.max(0, o.margin) * Math.min(W, H);
+  const box = { x:m, y:m, w:W - 2*m, h:H - 2*m };
+  ITEMS = []; BLOCKS = [];
+
+  if (o.grid) baseGrid(W, H);
+
+  if (PRESET.kind === 'columns')  layoutColumns(box, o);
+  else if (PRESET.kind === 'manifest') layoutManifest(box, o);
+  else if (PRESET.kind === 'network')  layoutNetwork(box, o);
+  else if (PRESET.kind === 'panels')   layoutPanels(box, o);
+  else if (PRESET.kind === 'gallery')  layoutGallery(box, o);
+  else if (PRESET.kind === 'dossier')  layoutDossier(box, o);
+
+  if (o.wires > 0 && PRESET.kind === 'columns'){
+    const cand = BLOCKS.filter(b => b.type !== 'barcode');
+    for (const b of cand){
+      if (!chance(o.wires * 0.4)) continue;
+      const sx = b.x + b.w * 0.98, sy = b.y + b.h * rrange(0.2, 0.7);
+      const tx = sx + rrange(box.w*0.05, box.w*0.16);
+      if (tx > box.x + box.w) continue;
+      const ty = sy + rrange(-o.size*2, o.size*2);
+      leader(sx, sy, tx, ty); sight(tx, ty, 14, o);
+    }
+  }
+
+  if (o.sight) scatterMarkers(box, o);
+  if (o.sidebar && PRESET.sidebar) sidebar(box, o);
+  if (o.reg) regMarks(box);
+  if (o.frame) rect(box.x, box.y, box.w, box.h, { stroke:hairline(), lw:1.5 });
+
+  SCENE = { W, H, items:ITEMS, bg:PAL.bg, light:PAL.light, O:o, blocks:BLOCKS.length };
+  return SCENE;
+}
+
+/* ============================================================ read UI state */
+function readState(){
+  const wcnt = $('words').value.split(/[,\n]/).map(w=>w.trim().toUpperCase().slice(0,24)).filter(Boolean).slice(0,12);
+  return {
+    seed:    $('seed').value.trim() || '0',
+    format:  $('format').value,
+    dens:    +$('dens').value / 100,
+    cols:    +$('cols').value,
+    ws:      +$('ws').value / 100 * 0.5,
+    rowsMin: 1,
+    rowsMax: +$('rows').value,
+    size:    Math.round(15 + (+$('size').value/100 - 1) * 15),
+    margin:  +$('margin').value / 100,
+    fields:  +$('fields').value / 100,
+    contrast:+$('contrast').value / 100,
+    accfreq: +$('accfreq').value / 100,
+    scramble:+$('scramble').value / 100,
+    markers: +$('markers').value / 100,
+    wires:   +$('wires').value / 100,
+    words:   wcnt,
+    wordmix: +$('wordmix').value / 100,
+    reg:     $('creg').dataset.on === '1',
+    sight:   $('csight').dataset.on === '1',
+    sidebar: $('csidebar').dataset.on === '1',
+    grid:    $('cgrid').dataset.on === '1',
+    frame:   $('cframe').dataset.on === '1',
+    scan:    $('cscan').dataset.on === '1' ? 0.4 : 0,
+    vig:     +$('vig').value / 100,
+    grain:   +$('grain').value / 100
+  };
+}
+
+/* ============================================================ canvas render */
+function render(scale){
+  const S = SCENE || build(readState());
+  const O = S.O;
+  const cv = $('out');
+  const alpha = $('talpha').dataset.on === '1';
+  cv.width = S.W * scale; cv.height = S.H * scale;
+  const g = cv.getContext('2d');
+  g.save(); g.scale(scale, scale);
+  if (!alpha){ g.fillStyle = S.bg; g.fillRect(0, 0, S.W, S.H); }
+  g.textBaseline = 'alphabetic';
+
+  const under = S.items.filter(i => i.z === 'under');
+  const type  = S.items.filter(i => i.z === 'type');
+  const over  = S.items.filter(i => i.z !== 'under' && i.z !== 'type');
+  for (const it of under) drawItem(g, it);
+  for (const it of type)  drawItem(g, it);
+  for (const it of over)  drawItem(g, it);
+
+  if (O.vig > 0 && !alpha) drawVignette(g, S, O.vig);
+  if (O.scan > 0) drawScanlines(g, S, O.scan);
+  if (O.grain > 0) drawGrain(g, S);
+  g.restore();
+  cv.classList.toggle('alpha', alpha);
+  return { cv, S };
+}
+function drawVignette(g, S, v){
+  const grd = g.createRadialGradient(S.W/2, S.H/2, Math.min(S.W,S.H)*0.25, S.W/2, S.H/2, Math.max(S.W,S.H)*0.72);
+  const c = S.light ? '255,255,255' : '0,0,0';
+  grd.addColorStop(0, `rgba(${c},0)`); grd.addColorStop(1, `rgba(${c},${v*0.75})`);
+  g.fillStyle = grd; g.fillRect(0, 0, S.W, S.H);
+}
+function drawScanlines(g, S, a){
+  g.save(); g.fillStyle = `rgba(0,0,0,${a*0.5})`;
+  for (let y=0; y<S.H; y+=3) g.fillRect(0, y, S.W, 1);
+  g.restore();
+}
+function drawGrain(g, S){
+  const n = Math.floor(S.W*S.H*0.02);
+  for (let i=0;i<n;i++){
+    const a = R()*S.O.grain*0.5;
+    const tone = R()<0.5 ? '0,0,0' : '255,255,255';
+    g.fillStyle = `rgba(${tone},${a})`;
+    g.fillRect(R()*S.W, R()*S.H, 1, 1);
+  }
+}
+
+/* ---- item drawing (canvas) ---- */
+function resolveVar(c){ return c === 'var(--mono)' ? MONO : c; }
+function drawItem(g, it){
+  switch(it.t){
+    case 'rect':
+      if (it.fill){ g.fillStyle = it.fill; g.fillRect(it.x, it.y, it.w, it.h); }
+      if (it.stroke){ g.strokeStyle = it.stroke; g.lineWidth = it.lw||1; g.setLineDash(it.dash||[]); g.strokeRect(it.x, it.y, it.w, it.h); g.setLineDash([]); }
+      break;
+    case 'line':
+      g.strokeStyle = it.stroke; g.lineWidth = it.lw||1; g.setLineDash(it.dash||[]);
+      g.beginPath(); g.moveTo(it.x1, it.y1); g.lineTo(it.x2, it.y2); g.stroke(); g.setLineDash([]);
+      break;
+    case 'dot':
+      g.beginPath(); g.arc(it.x, it.y, it.r, 0, TAU);
+      if (it.fill){ g.fillStyle = it.fill; g.fill(); }
+      if (it.stroke){ g.strokeStyle = it.stroke; g.lineWidth = it.lw||1; g.stroke(); }
+      break;
+    case 'poly':
+      g.fillStyle = it.fill; g.beginPath();
+      it.pts.forEach((p,i)=> i ? g.lineTo(p[0],p[1]) : g.moveTo(p[0],p[1]));
+      g.closePath(); g.fill();
+      break;
+    case 'text': {
+      g.save(); g.translate(it.x, it.y); if (it.rot) g.rotate(it.rot);
+      g.font = fontStr(it.size, resolveVar(it.font), it.weight);
+      g.fillStyle = it.fill;
+      g.textAlign = it.anchor==='middle' ? 'center' : it.anchor==='end' ? 'right' : 'left';
+      if (it.track) drawTracked(g, it.t2, it.track, it.anchor);
+      else g.fillText(it.t2, 0, 0);
+      g.restore(); break;
+    }
+  }
+}
+function drawTracked(g, str, track, anchor){
+  const px = track;
+  let total = 0; for (const ch of str) total += g.measureText(ch).width + px;
+  total -= px;
+  let x = anchor==='end' ? -total : anchor==='middle' ? -total/2 : 0;
+  g.textAlign = 'left';
+  for (const ch of str){ g.fillText(ch, x, 0); x += g.measureText(ch).width + px; }
+}
+
+/* ============================================================ svg export */
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function svgFont(it){ return `font-family="${MONO}" font-size="${it.size.toFixed(2)}" font-weight="${it.weight||400}"`; }
+function n1(v){ return (Math.round(v*10)/10).toString(); }
+function n2(v){ const r = Math.round(v*100)/100; return Object.is(r,-0)?'0':r.toString(); }
+function svgItem(it){
+  switch(it.t){
+    case 'rect':{
+      let a = `<rect x="${n1(it.x)}" y="${n1(it.y)}" width="${n1(it.w)}" height="${n1(it.h)}" fill="${it.fill||'none'}"`;
+      if (it.stroke) a += ` stroke="${it.stroke}" stroke-width="${it.lw||1}"${it.dash?` stroke-dasharray="${it.dash.join(' ')}"`:''}`;
+      return a + '/>';
+    }
+    case 'line':
+      return `<line x1="${n1(it.x1)}" y1="${n1(it.y1)}" x2="${n1(it.x2)}" y2="${n1(it.y2)}" stroke="${it.stroke}" stroke-width="${it.lw||1}"${it.dash?` stroke-dasharray="${it.dash.join(' ')}"`:''}/>`;
+    case 'dot':
+      return `<circle cx="${n1(it.x)}" cy="${n1(it.y)}" r="${n1(it.r)}" fill="${it.fill||'none'}"${it.stroke?` stroke="${it.stroke}" stroke-width="${it.lw||1}"`:''}/>`;
+    case 'poly':
+      return `<polygon points="${it.pts.map(p=>n1(p[0])+','+n1(p[1])).join(' ')}" fill="${it.fill}"/>`;
+    case 'text':{
+      const anc = it.anchor==='middle' ? 'middle' : it.anchor==='end' ? 'end' : 'start';
+      let xf = `translate(${n2(it.x)} ${n2(it.y)})`;
+      if (it.rot) xf += ` rotate(${(it.rot*180/Math.PI).toFixed(2)})`;
+      const ls = it.track ? ` letter-spacing="${n2(it.track)}"` : '';
+      return `<text transform="${xf}" ${svgFont(it)} fill="${it.fill}" text-anchor="${anc}"${ls}>${esc(it.t2)}</text>`;
+    }
+  }
+  return '';
+}
+function buildSVG(){
+  const S = SCENE || build(readState());
+  const alpha = $('talpha').dataset.on === '1';
+  const P = [`<svg xmlns="http://www.w3.org/2000/svg" width="${S.W}" height="${S.H}" viewBox="0 0 ${S.W} ${S.H}">`];
+  if (!alpha) P.push(`<rect width="${S.W}" height="${S.H}" fill="${S.bg}"/>`);
+  const zr = i => i.z==='under' ? 0 : i.z==='type' ? 1 : 2;
+  const ordered = [...S.items].sort((a,b)=> zr(a)-zr(b));
+  for (const it of ordered) P.push(svgItem(it));
+  if (S.O.vig > 0 && !alpha){
+    const c = S.light ? '#fff' : '#000';
+    P.push(`<radialGradient id="vg" cx="50%" cy="50%" r="72%"><stop offset="25%" stop-color="${c}" stop-opacity="0"/><stop offset="100%" stop-color="${c}" stop-opacity="${(S.O.vig*0.75).toFixed(3)}"/></radialGradient><rect width="${S.W}" height="${S.H}" fill="url(#vg)"/>`);
+  }
+  P.push('</svg>');
+  return P.join('\n');
+}
+
+/* ============================================================ download */
+function saveBlob(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+}
+function plateName(ext, suf){
+  const o = readState();
+  return `readout_${PRESET.id}_${PAL.id}_${o.seed.replace(/[^a-z0-9]+/gi,'')}${suf}.${ext}`;
+}
+function downloadPNG(scale){
+  const { cv } = render(scale);
+  cv.toBlob(b => saveBlob(b, plateName('png', scale>1?'@'+scale+'x':'')), 'image/png');
+  render(1);
+}
+function downloadSVG(){ saveBlob(new Blob([buildSVG()], { type:'image/svg+xml;charset=utf-8' }), plateName('svg','')); }
+
+/* ============================================================ ui */
+function update(){
+  build(readState());
+  render(1);
+  const S = SCENE, o = S.O;
+  $('meta').innerHTML =
+    `<b>${PRESET.name}</b> · ${PAL.name} · ${o.format} · ${S.W}×${S.H} · ` +
+    `<b>${S.blocks}</b> clusters · <b>${S.items.length}</b> elements · seed <b>${o.seed}</b>`;
+  const frame = $('frame'); frame.dataset.zoom = $('zoom').value;
+  $('out').style.width  = frame.dataset.zoom==='fit' ? '' : (S.W+'px');
+  $('out').style.height = frame.dataset.zoom==='fit' ? '' : (S.H+'px');
+}
+
+/* layout chips */
+function paintChips(){
+  $('chips').innerHTML = PRESETS.map(p =>
+    `<button class="chip tgl" data-id="${p.id}" data-on="${p.id===PRESET.id?1:0}" style="text-align:center">${p.name}</button>`).join('');
+  $('presetnote').textContent = PRESET.note;
+}
+$('chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  PRESET = PRESETS.find(p => p.id === b.dataset.id);
+  paintChips(); update();
+});
+
+/* palette pick */
+function swatch(p){
+  return `<span class="sw">${[p.bg, p.ink[0], p.ink[2], p.accents[0]].map(c=>`<i style="background:${c}"></i>`).join('')}</span>`;
+}
+function paintPal(){
+  $('palsw').outerHTML = swatch(PAL).replace('class="sw', 'id="palsw" class="sw');
+  $('palname').textContent = PAL.name;
+  $('pallist').innerHTML = PALETTES.map(p =>
+    `<button class="pick-row" role="option" data-id="${p.id}" data-sel="${p.id===PAL.id?1:0}">${swatch(p)}<span>${p.name}</span></button>`).join('');
+}
+$('palbtn').addEventListener('click', () => {
+  const open = $('palpick').classList.toggle('open');
+  $('palbtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+$('pallist').addEventListener('click', e => {
+  const b = e.target.closest('.pick-row'); if (!b) return;
+  PAL = PALETTES.find(p => p.id === b.dataset.id);
+  if ($('tacc').dataset.on !== '1') $('accent').value = PAL.accents[0];
+  $('palpick').classList.remove('open');
+  paintPal(); update();
+});
+document.addEventListener('click', e => { if (!e.target.closest('#palpick')) $('palpick').classList.remove('open'); });
+
+/* lock + dice */
+function paintLock(){
+  const on = $('lock').dataset.locked === '1';
+  $('shackle').setAttribute('d', on ? 'M8 10.5V8a4 4 0 0 1 8 0v2.5' : 'M8 10.5V8a4 4 0 0 1 7.5-2');
+}
+$('lock').addEventListener('click', () => {
+  const el = $('lock'); el.dataset.locked = el.dataset.locked==='1'?'0':'1'; paintLock();
+});
+function paintPips(n){
+  const pos = { 1:[[12,12]], 2:[[8,8],[16,16]], 3:[[8,8],[12,12],[16,16]],
+    4:[[8,8],[16,8],[8,16],[16,16]], 5:[[8,8],[16,8],[12,12],[8,16],[16,16]],
+    6:[[8,8],[16,8],[8,12],[16,12],[8,16],[16,16]] }[n];
+  $('pips').innerHTML = pos.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.4"/>`).join('');
+}
+function newSeed(){ return String(Math.floor(Math.random()*9000)+1000); }
+$('dice').addEventListener('click', () => {
+  $('dice').classList.remove('rolling'); void $('dice').offsetWidth; $('dice').classList.add('rolling');
+  paintPips(1 + Math.floor(Math.random()*6));
+  PRESET = PRESETS[Math.floor(Math.random()*PRESETS.length)];
+  PAL = PALETTES[Math.floor(Math.random()*PALETTES.length)];
+  if ($('tacc').dataset.on !== '1') $('accent').value = PAL.accents[0];
+  if ($('lock').dataset.locked !== '1') $('seed').value = newSeed();
+  paintChips(); paintPal(); update();
+});
+$('reroll').addEventListener('click', () => {
+  if ($('lock').dataset.locked !== '1') $('seed').value = newSeed();
+  update();
+});
+
+/* sliders + selects */
+const SLIDERS = [
+  ['dens','densval', v=>v+'%'], ['cols','colsval', v=>v], ['ws','wsval', v=>v+'%'],
+  ['rows','rowsval', v=>v], ['size','sizeval', v=>v+'%'], ['margin','marginval', v=>v+'%'],
+  ['fields','fieldsval', v=>v+'%'], ['contrast','contrastval', v=>v+'%'], ['accfreq','accfreqval', v=>v+'%'],
+  ['scramble','scrambleval', v=>v+'%'], ['markers','markersval', v=>v+'%'], ['wires','wiresval', v=>v+'%'],
+  ['wordmix','wordmixval', v=>v+'%'], ['vig','vigval', v=>v+'%'], ['grain','grainval', v=>v+'%']
+];
+for (const [id,out,fmt] of SLIDERS)
+  $(id).addEventListener('input', () => { $(out).textContent = fmt($(id).value); update(); });
+for (const id of ['format','accent']) $(id).addEventListener('input', update);
+
+/* toggles */
+for (const id of ['creg','csight','csidebar','cgrid','cframe','cscan','tacc','talpha']){
+  $(id).addEventListener('click', () => {
+    const on = $(id).dataset.on==='1' ? '0' : '1';
+    $(id).dataset.on = on; $(id).setAttribute('aria-pressed', on==='1'?'true':'false');
+    update();
+  });
+}
+
+/* export */
+$('dl1').addEventListener('click', () => downloadPNG(1));
+$('dl2').addEventListener('click', () => downloadPNG(2));
+$('dl3').addEventListener('click', () => downloadPNG(3));
+$('dlsvg').addEventListener('click', downloadSVG);
+
+/* lexicon */
+function syncWords(){
+  const w = readState().words;
+  $('wordcount').textContent = w.length + ' / 12';
+  $('wordmix').disabled = w.length === 0;
+}
+$('words').addEventListener('input', () => { syncWords(); update(); });
+$('seed').addEventListener('input', update);
+$('zoom').addEventListener('change', update);
+
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,select,textarea')) return;
+  if (e.key==='r' || e.key==='R') $('dice').click();
+  if (e.key==='g' || e.key==='G') $('reroll').click();
+});
+
+/* boot */
+paintChips(); paintPal(); paintLock(); paintPips(4);
+for (const [id,out,fmt] of SLIDERS) $(out).textContent = fmt($(id).value);
+syncWords();
+update();
+</script>
+</body>
+</html>
