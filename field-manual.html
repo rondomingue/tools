@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIELD/TYPE — military typography generator</title>
+<style>
+  :root{
+    --bg:#f1f1ef; --panel:#ffffff; --line:#d2d2ce; --line-soft:#e8e8e4;
+    --ink:#111111; --dim:#555550; --faint:#878781;
+    --accent:#111111; --accent-b:#767671;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:12px;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:360px 1fr;min-height:100vh}
+
+  /* ---------- control rail ---------- */
+  .rail{background:var(--panel);border-right:1px solid var(--line);padding:30px;overflow-y:auto;max-height:100vh}
+  .brandrow{display:grid;grid-template-columns:72px 1fr;gap:16px;align-items:center;margin-bottom:6px}
+  .brandlogo{width:72px;height:72px;display:block}
+  .brand{font:800 21px/.92 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-transform:uppercase}
+  .brand span{color:var(--accent)}
+  .tag{font-size:8.5px;color:var(--faint);letter-spacing:0.2em;text-transform:uppercase;margin:8px 0 30px 88px}
+  .grp{margin-bottom:24px;padding-bottom:22px;border-bottom:1px solid var(--line-soft)}
+  .grp:last-child{border:0}
+  .lbl{font-size:9.5px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink);margin-bottom:10px;display:block}
+  select,input[type=text],textarea{
+    width:100%;background:#fff;color:var(--ink);border:1px solid #bdbdb8;
+    border-radius:0;padding:10px 11px;font-family:Arial,Helvetica,sans-serif;font-size:12px;
+  }
+  textarea{resize:vertical;min-height:70px;line-height:1.5}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:6px}
+  .row>*{flex:1}
+  button{
+    background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:999px;
+    padding:9px 13px;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:10px;letter-spacing:0.1em;cursor:pointer;
+    text-transform:uppercase;transition:border-color .15s,background .15s,color .15s;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:700}
+  button.primary:hover{background:#444;border-color:#444;color:#fff}
+  .hint{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:8px}
+
+  /* ---------- range ---------- */
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:3px;border-radius:2px;background:var(--line);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;margin-top:-5px;
+    width:13px;height:13px;border-radius:50%;background:var(--accent);border:0;
+  }
+  input[type=range]:disabled::-webkit-slider-thumb{background:var(--faint)}
+  input[type=range]:focus{outline:none}
+  .lbl b{float:right;font-weight:400;color:var(--dim);letter-spacing:0;text-transform:none}
+
+  /* ---------- vector control icons ---------- */
+  #dice,#lock,#formatlock{flex:0 0 42px;display:grid;place-items:center;padding:6px 0}
+  #dice svg,#lock svg,#formatlock svg{width:17px;height:17px;display:block}
+  .ico-stroke{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .ico-fill{fill:currentColor}
+  #lock[data-locked="1"],#formatlock[data-locked="1"]{border-color:var(--accent);color:var(--accent);background:#f0f0ed}
+
+  /* ---------- dice ---------- */
+  #dice.rolling{animation:roll .45s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes roll{
+    0%  {transform:rotate(0)      scale(1)}
+    55% {transform:rotate(200deg) scale(1.18)}
+    100%{transform:rotate(360deg) scale(1)}
+  }
+  @media (prefers-reduced-motion: reduce){ #dice.rolling{animation:none} }
+
+  /* ---------- recurring words ---------- */
+  .words{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+  .word{
+    display:flex;align-items:center;gap:6px;background:var(--bg);
+    border:1px solid var(--line);border-radius:3px;padding:4px 5px 4px 8px;
+    font-size:10px;letter-spacing:.04em;color:var(--ink);
+  }
+  .word b{font-weight:400;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .word button{
+    border:0;background:transparent;color:var(--faint);padding:0 2px;
+    font-size:12px;line-height:1;cursor:pointer;
+  }
+  .word button:hover{color:#c0392b}
+
+  /* ---------- palette picker ----------
+     ~32px collapsed; the list overlays rather than pushing the rail, so any
+     number of palettes costs no vertical space at rest. */
+  .pick{position:relative}
+  .pick-btn{
+    width:100%;display:flex;align-items:center;gap:8px;
+    text-align:left;text-transform:none;letter-spacing:0;padding:6px 8px;
+  }
+  .sw{display:flex;gap:2px;flex:0 0 auto}
+  .sw i{width:8px;height:15px;border-radius:1.5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+  .sw.rnd i{background:conic-gradient(from 0deg,#f44,#fd0,#4d4,#4af,#a4f,#f44)}
+  .pick-name{flex:1;font-size:11px;color:var(--ink)}
+  .pick-caret{color:var(--faint);font-size:8px;transition:transform .15s}
+  .pick.open .pick-caret{transform:rotate(180deg)}
+  .pick-list{
+    position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;display:none;
+    max-height:264px;overflow-y:auto;padding:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;
+    box-shadow:0 18px 46px rgba(0,0,0,.65);
+  }
+  .pick.open .pick-list{display:block}
+  .pick-row{
+    display:flex;align-items:center;gap:8px;width:100%;
+    padding:5px 6px;border:0;border-radius:3px;background:transparent;cursor:pointer;
+    font-family:var(--mono);font-size:11px;text-transform:none;letter-spacing:0;color:var(--dim);
+  }
+  .pick-row:hover{background:var(--bg);color:var(--ink)}
+  .pick-row[data-sel="1"]{color:var(--accent)}
+  .pick-sep{
+    margin:6px 6px 4px;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  }
+
+  /* ---------- symbol library ---------- */
+  .symgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+  .sym{
+    position:relative;aspect-ratio:1;border:1px solid var(--line);border-radius:3px;
+    display:grid;place-items:center;cursor:pointer;background:var(--bg);
+    transition:border-color .12s,opacity .12s;
+  }
+  .sym svg{width:64%;height:64%}
+  .sym[data-on="0"]{opacity:.2}
+  .sym:hover{border-color:var(--accent)}
+  .symrole{
+    display:flex;align-items:baseline;gap:8px;margin:16px 0 7px;
+    font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+  }
+  .symrole:first-child{margin-top:0}
+  .symrole em{font-style:normal;letter-spacing:0;text-transform:none;color:var(--faint);font-size:9.5px}
+
+  /* ---------- modal ---------- */
+  .backdrop{
+    position:fixed;inset:0;z-index:200;display:none;
+    background:rgba(4,7,11,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+  }
+  .backdrop.open{display:grid;place-items:center;padding:24px}
+  .modal{
+    width:min(620px,94vw);max-height:86vh;display:flex;flex-direction:column;
+    background:var(--panel);border:1px solid var(--line);border-radius:5px;
+    box-shadow:0 30px 90px rgba(0,0,0,.6);
+  }
+  .modal-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 16px;border-bottom:1px solid var(--line);
+  }
+  .modal-head b{font-size:12px;font-weight:700;letter-spacing:-.01em}
+  .modal-head span{font-size:9.5px;color:var(--faint);letter-spacing:.06em}
+  .modal-x{background:transparent;border:0;color:var(--dim);font-size:20px;line-height:1;padding:2px 4px;cursor:pointer}
+  .modal-x:hover{color:var(--ink)}
+  .modal-body{padding:16px;overflow-y:auto}
+  .modal-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:12px 16px;border-top:1px solid var(--line);
+  }
+  #symopen{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center}
+  #symopen b{font-weight:400;color:var(--faint);letter-spacing:0;text-transform:none}
+
+  /* ---------- stage ---------- */
+  .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:46px;gap:18px;overflow:auto;background:#f1f1ef}
+  #out{max-width:100%;max-height:76vh;box-shadow:0 18px 48px rgba(0,0,0,.13);background:#fff}
+  #out.transparent{
+    background-color:#fff;
+    background-image:linear-gradient(45deg,#d8d8d5 25%,transparent 25%),linear-gradient(-45deg,#d8d8d5 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d8d8d5 75%),linear-gradient(-45deg,transparent 75%,#d8d8d5 75%);
+    background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0;
+  }
+  #out svg{display:block;max-width:100%;max-height:76vh;width:auto;height:auto}
+  .meta{font:500 10px/1.4 Arial,Helvetica,sans-serif;color:#777;letter-spacing:0.1em;text-transform:uppercase}
+  .meta b{color:#222;font-weight:700}
+
+  /* ---------- responsive ----------
+     Below 720px the two-column grid stacks: the rail sits on top at full
+     width (so Seed / Layout are the first things in reach) and the stage
+     follows. The rail drops its 100vh cap so it flows with the page. */
+  @media (max-width: 720px){
+    .app{grid-template-columns:1fr}
+    .rail{max-height:none;overflow-y:visible;border-right:0;border-bottom:1px solid var(--line)}
+    .stage{padding:18px;min-height:70vh}
+    #out,#out svg{max-height:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brandrow">
+      <img class="brandlogo" src="insignia-black.svg" alt="Insignia">
+      <div class="brand">FIELD<span>/</span>TYPE<br>ASSEMBLY</div>
+    </div>
+    <div class="tag">AUTONOMOUS GRAPHICS DIV. / 07</div>
+
+    <div class="grp">
+      <label class="lbl">Unit serial</label>
+      <div class="row" style="margin-bottom:6px">
+        <input type="text" id="seed" value="0079">
+        <button id="lock" data-locked="0" title="Lock the seed" aria-label="Lock seed">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="4.75" y="10.75" width="14.5" height="9.5" rx="1.5"/>
+            <path class="ico-stroke" id="shackle" d=""/>
+          </svg>
+        </button>
+      </div>
+      <div class="row">
+        <button id="dice" title="Roll everything — format, palette, layout, seed (R)" aria-label="Roll everything">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <!-- canted: an axis-aligned rounded square reads as an app icon, not a die -->
+            <g transform="rotate(-20 12 12)">
+              <rect class="ico-stroke" x="4.6" y="4.6" width="14.8" height="14.8" rx="2.8"/>
+              <g class="ico-fill" id="pips"></g>
+            </g>
+          </svg>
+        </button>
+        <button class="primary" id="gen" style="flex:1">Issue new sheet</button>
+      </div>
+      <div class="hint">The serial reproduces a sheet exactly. Roll to scramble the full brief.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Document class</label>
+      <select id="arch">
+        <option value="random">Random</option>
+        <option value="brief">Operational brief — top command</option>
+        <option value="spec">Unit dossier — designation + data</option>
+        <option value="code">Command column — stacked title</option>
+        <option value="barcode">Ground forces — bottom lockup</option>
+        <option value="chart">Signal dispatch — title + status</option>
+        <option value="hud">Faction command — emblem + title</option>
+        <option value="terminal">Operation card — number + title</option>
+        <option value="matrix">Personnel file — title + badge</option>
+        <option value="circuit">Insignia strip — bottom marks</option>
+        <option value="diagnostic">Field intelligence — title + data</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Typography system</label>
+      <select id="fontset">
+        <option value="auto">Command mix — Gotham + Strelka</option>
+        <option value="gotham">Gotham — command standard</option>
+        <option value="strelka">Strelka — orbital display</option>
+      </select>
+      <div class="hint" id="fonthint">Uses locally activated Creative Cloud fonts with export-safe fallbacks.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Format</label>
+      <div class="row">
+        <select id="format">
+          <option value="poster">Poster · A-series 1:√2 ↑</option>
+          <option value="a_land">Poster · A-series 1:√2 →</option>
+          <option value="onesheet">One-sheet · 27×40</option>
+          <option value="square">Square · 1080</option>
+          <option value="wide">Wide · 16:9</option>
+          <option value="tight">Tight card · auto</option>
+          <option value="sheet">Contact sheet · 4×5</option>
+          <option value="sheet_square_5">Square contact sheet · 5×5</option>
+          <option value="sheet_square_10">Square contact sheet · 10×10</option>
+        </select>
+        <button id="formatlock" data-locked="0" title="Lock format while rolling" aria-label="Lock format">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="4.75" y="10.75" width="14.5" height="9.5" rx="1.5"/>
+            <path class="ico-stroke" id="formatshackle" d=""/>
+          </svg>
+        </button>
+      </div>
+      <div class="hint" id="formathint">Unlocked — the dice may change the format.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Palette</label>
+      <div class="pick" id="palpick">
+        <button class="pick-btn" id="palbtn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" id="palsw"></span>
+          <span class="pick-name" id="palname"></span>
+          <span class="pick-caret">▼</span>
+        </button>
+        <div class="pick-list" id="pallist" role="listbox"></div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Canvas</label>
+      <select id="canvasbg">
+        <option value="opaque">Printed background</option>
+        <option value="transparent">Transparent overlay</option>
+      </select>
+      <div class="hint" id="canvashint">Printed background includes the selected paper color.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Paper wear <b id="grainval">18%</b></label>
+      <input type="range" id="grain" min="0" max="100" step="1" value="18" aria-label="Paper wear strength">
+      <div class="hint">Print-style noise over the whole asset. Survives SVG and PNG.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Callsign bank</label>
+      <div class="words" id="wordlist"></div>
+      <div class="row" id="wordadd">
+        <input type="text" id="wordinput" placeholder="e.g. DEAD WEATHER" maxlength="28">
+        <button id="wordbtn" style="flex:0 0 40px" title="Add word">+</button>
+      </div>
+      <div class="hint" id="wordhint">Callsigns rotate through headlines. Up to 10.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Export</label>
+      <div class="row">
+        <button id="dlsvg">↓ SVG</button>
+        <button id="dlpng">↓ PNG 2×</button>
+      </div>
+      <button id="dlbatch" style="width:100%;margin-top:6px">↓ 10 PNG ARCHIVE</button>
+      <div class="hint" id="exporthint">SVG preserves editable text. PNG uses a Safari-safe canvas export. Batch prepares a TAR, then asks you to click Download Archive.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Field marks</label>
+      <button id="symopen">◈ Auxiliary mark library <b id="symcount"></b></button>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div id="out"></div>
+    <div class="meta" id="meta"></div>
+  </main>
+</div>
+
+<div class="backdrop" id="symmodal" role="dialog" aria-modal="true" aria-labelledby="symmodal-title" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <b id="symmodal-title">Symbol library</b>
+        <span> · click to toggle — a symbol that's off never appears</span>
+      </div>
+      <button class="modal-x" id="symclose" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="symbody"></div>
+    <div class="modal-foot">
+      <span class="hint" style="margin:0">Add new vectors with <code>tools/svg2sym.mjs</code>.</span>
+      <div class="row" style="flex:0 0 auto">
+        <button id="symall">All on</button>
+        <button id="symdone" class="primary">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="field-marks-bold.js"></script>
+<script src="field-manual-logo.js"></script>
+<script>
+/* ============================================================
+   FIELD/TYPE — procedural military typography generator
+   Everything is deterministic from a seed, so any asset you like
+   can be reproduced exactly by re-entering its seed.
+   ============================================================ */
+
+/* ---------- seeded RNG (mulberry32) ---------- */
+function makeRng(seed){
+  let a = seed >>> 0;
+  const r = () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+  r.pick   = arr => arr[Math.floor(r() * arr.length)];
+  r.int    = (lo, hi) => lo + Math.floor(r() * (hi - lo + 1));
+  r.chance = p => r() < p;
+  r.some   = (arr, n) => { const c = arr.slice(); const o = [];
+    while (o.length < n && c.length) o.push(c.splice(Math.floor(r() * c.length), 1)[0]);
+    return o; };
+  return r;
+}
+const hashSeed = s => { let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0; };
+
+/* ---------- fonts ----------
+   System-only stacks on purpose: an SVG rasterised into a canvas cannot
+   fetch webfonts, so anything but local fonts would make the PNG differ
+   from the preview. These render identically in preview, SVG and PNG. */
+const F_MONO = 'ui-monospace, Menlo, Consolas, monospace';
+let F_DISP = 'Impact, Haettenschweiler, Arial Narrow Bold, Arial, sans-serif';
+let F_WIDE = 'Arial Black, Helvetica Neue, Arial, sans-serif';
+let F_SUPPORT = 'Helvetica Neue, Arial, sans-serif';
+const FONT_SETS = {
+  auto: {
+    name:'Command Mix',
+    display:'"Strelka Ultra", Strelka, "Gotham Condensed", Impact, sans-serif',
+    wide:'Gotham, "Gotham SSm", "Arial Black", sans-serif',
+    support:'Gotham, "Helvetica Neue", Arial, sans-serif',
+  },
+  gotham: {
+    name:'Gotham',
+    display:'"Gotham Condensed", "Gotham Narrow", Gotham, "Arial Black", sans-serif',
+    wide:'Gotham, "Gotham SSm", "Arial Black", sans-serif',
+    support:'Gotham, "Helvetica Neue", Arial, sans-serif',
+  },
+  strelka: {
+    name:'Strelka',
+    display:'"Strelka Ultra", Strelka, Impact, sans-serif',
+    wide:'"Strelka Ultra", Strelka, "Arial Black", sans-serif',
+    support:'Gotham, "Helvetica Neue", Arial, sans-serif',
+  },
+};
+const F_CJK  = 'system-ui, sans-serif';
+
+/* ---------- palettes ----------
+   bg / ink / accent. Where accent === ink the sheet reads strictly two-tone;
+   where it differs, the hot colour lands on the status line, tag chip, dim
+   label and corner glyph — the "one hot colour" move the references use. */
+const THEMES = [
+  { id:'gallery', name:'Gallery Mono',    bg:'#FFFFFF', ink:'#090909', accent:'#090909' },
+  { id:'edition', name:'Command Red',     bg:'#C9C2B4', ink:'#FFFFFF', accent:'#B20D0D' },
+  { id:'redline', name:'Redline White',   bg:'#FFFFFF', ink:'#111111', accent:'#A90F12' },
+  { id:'ration',  name:'Ration Paper',   bg:'#E7E0CC', ink:'#1A1A18', accent:'#9D3D25' },
+  { id:'bleach',  name:'Bleached Stock', bg:'#F1EFE8', ink:'#11110F', accent:'#667B7C' },
+  { id:'dust',    name:'Dust Archive',   bg:'#CFC5AE', ink:'#24221E', accent:'#783F2B' },
+  { id:'oxide',   name:'Oxide Plate',    bg:'#9B4A2D', ink:'#F0E7D5', accent:'#171715' },
+  { id:'fatigue', name:'Blue Fatigue',   bg:'#65777A', ink:'#EEE8D9', accent:'#272A28' },
+  { id:'night',   name:'Night Unit',     bg:'#171916', ink:'#E4DDCA', accent:'#A34A2F' },
+  { id:'concrete',name:'Concrete',       bg:'#B8B6AE', ink:'#191A18', accent:'#7F2E25' },
+  { id:'signal',  name:'Signal Red',     bg:'#E6E1D7', ink:'#171715', accent:'#B52D20' },
+  { id:'medic',   name:'Medic Green',    bg:'#D8D7C4', ink:'#20231F', accent:'#526B59' },
+  { id:'carbon',  name:'Carbon File',    bg:'#232522', ink:'#E8E2D2', accent:'#7A8C8D' },
+];
+
+/* ---------- word bank ----------
+   Register: Marathon terminals, Tron's grid, Blade Runner's off-world trade.
+   Deliberately evocative-but-original — no lifted trademarks or mottos. */
+const W = {
+  co: ['BLACKSITE SIGNAL COMMAND','DEAD WEATHER AUTHORITY','MORROW TACTICAL SYSTEMS','HOLLOWPOINT DIRECTORATE',
+       'BRAMBLE ORDNANCE OFFICE','SEVENTH BONE DIVISION','MUTE SIGNAL COMMAND','RUSTLINE ARMOR WORKS',
+       'IRON PILGRIM BUREAU','GREY SECTOR LOGISTICS','NO-MAN WAR OFFICE','OBSIDIAN COMMAND','ORBITAL SECURITY DIRECTIVE',
+       'SYNTHETIC INFANTRY BUREAU','AZORIAN RECOVERY OFFICE','ALMAZ ORBITAL COMMAND','GLOMAR SYSTEMS BUREAU',
+       'YANKEE STATION CONTROL','SEVENTH FLEET SIGNAL','DUSTOFF FIELD AUTHORITY','AIR CAVALRY RELAY',
+       'RIVERINE OPERATIONS GROUP','TACTICAL ZONE COMMAND'],
+  jp: ['機甲','特殊部隊','監視','兵器','廃墟','信号','戦術','偵察','装甲','部隊','記録','制御'],
+  status: ['COMBAT READY','SIGNAL COMPROMISED','ORDNANCE CLEARED','OPERATOR UNKNOWN','LAST UNIT STANDING',
+           'EXTRACTION DENIED','PRESSURE SEAL FAILED','BLACKBOX RECOVERED','HOSTILE AIRSPACE ACTIVE',
+           'COMMAND AUTHORITY VOID','NO SURVIVORS CONFIRMED','SECTOR UNDER WATCH','MISSION FILE CORRUPT',
+           'NEURAL LINK DEGRADED','TARGET LOCK PENDING','DEPLOYMENT WINDOW OPEN','ORDER REJECTED',
+           'SYSTEM CONTROL DENIED','PUBLIC FREQUENCY LIBERATED','AUTHORITY SIGNAL JAMMED','PROTOCOL REFUSED',
+           'NO COMPLIANCE RECORDED','PROPAGANDA FEED SEVERED','CAPTURE VEHICLE ACTIVE','LZ COMPROMISED',
+           'DUSTOFF INBOUND','EXTRACTION HOT','MONSOON CEILING LOW','GRID LOCK CONFIRMED',
+           'INTERDICTION WINDOW OPEN','ROTOR SIGNAL LOST','FIREBASE LINK ACTIVE','SEARCH NEGATIVE',
+           'MEDEVAC PRIORITY RED'],
+  title: ['DEAD WEATHER COMMAND','HOLLOW ASSAULT UNIT','RUST SAINT PROTOCOL','BLACK RATION DIRECTIVE',
+          'MUTE SIGNAL COMPANY','IRON SLEEP OPERATION','GHOST PATROL','HOSTILE SIGNAL','NO MAN SECTION',
+          'GRAVE CIRCUIT','LAST BRAMBLE','COLD PILGRIM','NULL RUNNER','DUST COMMAND','BROKEN REGIMENT',
+          'VOID MECHANIC','BLACKSITE INTERDICTION','GROUND FORCES DIRTY DEEDS','SYNTHETIC INFANTRY',
+          'NEURAL WARFARE COMMAND','NIGHT SECTOR OCCUPATION','FREEDOM SOLDIER DIRECTIVE',
+          'NO CROWN OWNS THE SIGNAL','TURN THE STATIC INTO FORCE','THE MACHINE HEARS US RISE',
+          'NO MASTER IN THE CIRCUIT','BREAK THE FEED','REFUSE THE COMMAND','POWER SPEAKS IN STATIC',
+          'YOUR SYSTEM IS THE TARGET','WE ARE NOT YOUR PROPERTY','MARCH AGAINST THE CURRENT',
+          'THE LINE WILL NOT HOLD','UNMUTE THE RESISTANCE','AZORIAN GHOST LIFT','GLOMAR SILENCE PROTOCOL',
+          'MOON POOL AUTHORITY','ALMAZ WATCH COMMAND','ORBITAL RECON STATION','WOLFPACK VECTOR',
+          'BUFFER ZONE 350','BLACK OCEAN DIRECTIVE','YANKEE STATION SIGNAL','DUSTOFF PROTOCOL',
+          'FIREBASE VECTOR','LANDING ZONE BLACK','TRAIL INTERDICTION','AIR CAVALRY SIGNAL',
+          'GRID SQUARE NULL','SEVENTH FLEET RELAY','MONSOON WATCH','NIGHT MEDEVAC',
+          'PHANTOM CONTROL','RIVERINE GHOST','CORPS TACTICAL ZONE','TASK FORCE 77'],
+  code: ['MK9','R1','06B','UNIT 07','REV C','TYPE 04','RUST/3','TIER Ø','SEC 9','B-13','1174','AO-77','SIG/BLACK',
+         'TF-77','LZ-74','FSB-09','CTZ-II','GRID Y','POINT DIXIE','UH-1','FAC-03','K-129','ALMAZ-2'],
+  tag: ['FIELD AUTHORITY','REV C','NO. 09','UNIT 7','ORDNANCE','RECOVERED','TYPE R1','MK9','BONE CLASS',
+        'BLACKBOX','EYES ONLY','ACTIVE','NULL','AUX','COMMAND PROPERTY','HOSTILE','RED CLEARANCE',
+        'DUSTOFF','YANKEE','MEDEVAC','FIREBASE','AIR CAV','INTERDICTION','GRID LOCK','MONSOON','RIVERINE'],
+  key: ['UNIT ID','ARMOR','RAD LOAD','UPLINK','FUEL CELL','PRESSURE SEAL','SERVO','SECTOR','MISSION ORDER',
+        'LZ STATUS','ROTOR RPM','GRID REF','MEDEVAC','MONSOON','SORTIE','FIREBASE'],
+  val: ['FREQ 303HZ','LOSS 6.2%','TEMP 18°C','LAT 60MS','VOLT 3.5V','POWER 96%','LOAD 8%',
+        'RANGE 42KM','TEMP 83°C','DECAY 9.8%','CHARGE 44%','CREW 01','STATUS UNKNOWN'],
+};
+/* User-supplied words (max 5). They take the headline slot most of the time,
+   so they recur across a set without every card reading identically. */
+const MAX_WORDS = 10;
+const USER = { words: [] };
+const pickTitle = r =>
+  (USER.words.length && r.chance(0.7)) ? r.pick(USER.words)
+    : r.chance(0.3) ? r.pick(W.code) : r.pick(W.title);
+
+const pad = (n, w) => String(n).padStart(w, '0');
+const subLine = r => r.pick([
+  () => `[ ${r.pick(W.title)} ]`,
+  () => `${pad(r.int(1,28),2)} → ${pad(r.int(1,12),2)} → ${pad(r.int(19,49),2)}`,
+  () => `+${r.int(1,9)}B ETA WORLDLINE`,
+  () => `TRACE 0X${rh(r,4)}`,
+  () => `INCEPT ${pad(r.int(1,28),2)}.${pad(r.int(1,12),2)}.${r.int(2019,2049)}`,
+  () => `LOG_${r.int(100000,999999)}.TXT`,
+  () => `SN ${rs(r,4)}-${r.int(1000,9999)}-${rs(r,3)}`,
+  () => `AUTHORITY: BLACK / ${r.pick(W.code)}`,
+  () => `NODE ${rs(r,1)}${r.int(10,99)} // SECTOR ${r.int(1,9)}`,
+  () => `GHOST 0X${rh(r,4)}`,
+  () => `BREACH IN ${pad(r.int(1,59),2)}`,
+  () => `UPLINK ${r.int(20,99)}MS`,
+  () => `ICE LVL ${r.int(1,9)}`,
+  () => `BUFFER ${r.int(10,99)}%`,
+])();
+const rs = (r,n) => Array.from({length:n},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'[r.int(0,33)]).join('');
+/* hex-only, so 0X… codes actually read as hex */
+const rh = (r,n) => Array.from({length:n},()=>'0123456789ABCDEF'[r.int(0,15)]).join('');
+
+/* ---------- symbol library ----------
+   Lives in spec-forge-symbols.json — 31 symbols is ~115KB of path data, which
+   has no business inline. Generated/updated by tools/svg2sym.mjs.
+   Note: fetch needs http(s); opening this file over file:// won't load it. */
+let LIBRARY = [];
+let LOGO_INNER = '', LOGO_BOX = {x:0,y:0,w:68.4,h:68.4};
+function prepareLogo(raw) {
+  const doc=new DOMParser().parseFromString(raw,'image/svg+xml');
+  const root=doc.documentElement;
+  if(!root||root.nodeName.toLowerCase()!=='svg'||doc.querySelector('parsererror')) throw new Error('The insignia SVG could not be parsed.');
+  const nums=(root.getAttribute('viewBox')||'0 0 68.4 68.4').trim().split(/[ ,]+/).map(Number);
+  if(nums.length===4&&nums.every(Number.isFinite)&&nums[2]>0&&nums[3]>0)
+    LOGO_BOX={x:nums[0],y:nums[1],w:nums[2],h:nums[3]};
+  /* Illustrator exports presentation attributes through a <style> block.
+     Safari can display that nested SVG in the page but reject it when the
+     complete artwork is loaded as an Image for canvas export. Resolve its
+     class rules to ordinary SVG attributes and discard authoring metadata. */
+  const rules={};
+  root.querySelectorAll('style').forEach(style=>{
+    const css=style.textContent||'';let m;
+    const re=/\.([\w-]+)\s*\{([^}]*)\}/g;
+    while((m=re.exec(css))) {
+      const attrs={};
+      m[2].split(';').forEach(part=>{
+        const at=part.indexOf(':');if(at<1)return;
+        const key=part.slice(0,at).trim(),val=part.slice(at+1).trim();
+        if(/^(fill|stroke|stroke-width|stroke-linecap|stroke-linejoin|fill-rule|opacity)$/.test(key)&&val)attrs[key]=val;
+      });
+      rules[m[1]]=attrs;
+    }
+    style.remove();
+  });
+  root.querySelectorAll('[class]').forEach(el=>{
+    for(const name of (el.getAttribute('class')||'').split(/\s+/))
+      for(const [key,val] of Object.entries(rules[name]||{}))if(!el.hasAttribute(key))el.setAttribute(key,val);
+    el.removeAttribute('class');
+  });
+  root.querySelectorAll('script,foreignObject').forEach(el=>el.remove());
+  const serializer=new XMLSerializer();
+  LOGO_INNER=Array.from(root.children).map(el=>serializer.serializeToString(el)).join('');
+}
+const logoAt=(x,y,w,h=w)=>{
+  if(!LOGO_INNER)return '';
+  const s=Math.min(w/LOGO_BOX.w,h/LOGO_BOX.h);
+  const tx=x+(w-LOGO_BOX.w*s)/2-LOGO_BOX.x*s,ty=y+(h-LOGO_BOX.h*s)/2-LOGO_BOX.y*s;
+  return `<g data-export-logo="1" transform="translate(${tx.toFixed(4)} ${ty.toFixed(4)}) scale(${s.toFixed(6)})">${LOGO_INNER}</g>`;
+};
+
+/* ---------- symbol store (curation) ---------- */
+const LS = 'specforge.symbols.v2';
+let SYMBOLS = [];
+
+/* Role decides how a symbol is used, because one slot cannot serve them all:
+     icon  — square-ish and simple: header (11px) and corner (22px) glyphs
+     mark  — wide banner/logotype: brand stamp sized to the column width
+     vert  — tall strip (vertical kanji): sized by height, set beside the card
+     block — square but detail-dense (QR, dials): needs ~60px to read at all
+   Getting this wrong is not cosmetic: a 2.6:1 banner in an 11px slot is
+   noise, and a 0.15:1 strip sized by width would be ~1900px tall. */
+function roleFor(vb, pathCount = 1) {
+  const a = vb.w / vb.h;
+  if (a > 1.8)    return pathCount > 24 ? 'panel' : 'mark';  // dense wide art needs full width
+  if (a < 0.55)   return 'vert';
+  if (pathCount > 24) return 'block';
+  return 'icon';
+}
+
+/* Normalise every authoring/persisted shape into one internal form:
+   { vbox, paths:[{d, filled, stroked, tone, rule}] } */
+const HBAR_IDS = new Set(['scale-strip', 'measure-strip']);
+function normalize(s) {
+  const vbox = s.vbox || (typeof s.vb === 'number' ? { x:0, y:0, w:s.vb, h:s.vb } : { x:0, y:0, w:24, h:24 });
+  const mk = p => ({
+    d: p.d,
+    filled: !!p.filled,
+    stroked: p.stroked !== undefined ? !!p.stroked : !p.filled,  // outline icons stroke by default
+    tone: p.tone || 'ink',
+    rule: p.rule || 'nonzero',
+    op: p.op === undefined ? 1 : +p.op,   // tonal layers depend on this
+    tf: p.tf || '',                        // baked-in transform, if any
+  });
+  const paths = s.paths ? s.paths.map(mk)
+    : (s.d || []).map(d => mk({ d, filled: !!s.filled, rule: s.rule }));
+  // Ladder/instrument strips are authored tall (like kanji) but read fine
+  // horizontally, so they're forced to `hbar` and laid along a margin instead
+  // of down the side. Done by id here so it survives converter re-runs (the
+  // JSON carries no role). Kanji stays `vert` — it must read top-to-bottom.
+  const role = s.role || (HBAR_IDS.has(s.id) ? 'hbar' : roleFor(vbox, paths.length));
+  return { id:s.id, name:s.name, vbox, paths, role };
+}
+function loadSymbols(){
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(LS) || '{}'); } catch(e){}
+  const off = new Set(saved.off || []);
+  SYMBOLS = LIBRARY.map(normalize).map(s => ({ ...s, on: !off.has(s.id) }));
+}
+function saveSymbols(){
+  localStorage.setItem(LS, JSON.stringify({
+    off: SYMBOLS.filter(s => !s.on).map(s => s.id),
+  }));
+}
+const activeRole = role => SYMBOLS.filter(s => s.on && s.role === role);
+const activeIcons = () => {
+  const on = activeRole('icon');
+  return on.length ? on : LIBRARY.map(normalize).filter(s => s.role === 'icon');
+};
+const activeMarks = () => activeRole('mark');
+
+/* symbol -> svg group. Stroke width is divided by the scale so every symbol
+   keeps the same optical line weight whatever its source viewBox.
+   tone:'bg' fills with the page colour — that's how a knockout/outline
+   variant stays readable on any palette. */
+function symPaths(sym, ink, bg, sw, k) {
+  return sym.paths.map(p => {
+    const fill = p.filled ? (p.tone === 'bg' ? bg : ink) : 'none';
+    const fr = p.filled ? ` fill-rule="${p.rule}"` : '';
+    const st = p.stroked
+      ? ` stroke="${ink}" stroke-width="${(sw / k).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"` : '';
+    const op = p.op !== 1 ? ` opacity="${p.op}"` : '';
+    const tf = p.tf ? ` transform="${p.tf}"` : '';
+    return `<path d="${p.d}" fill="${fill}"${fr}${st}${op}${tf}/>`;
+  }).join('');
+}
+const symWrap = (sym, x, y, k, t, sw) => {
+  const { x:vx, y:vy } = sym.vbox;
+  return `<g transform="translate(${x} ${y}) scale(${k.toFixed(5)}) translate(${-vx} ${-vy})">${symPaths(sym, t.ink, t.bg, sw, k)}</g>`;
+};
+/* fit inside a size×size box (icons) */
+function symSvg(sym, x, y, size, t, sw = 1.4) {
+  return symWrap(sym, x, y, size / Math.max(sym.vbox.w, sym.vbox.h), t, sw);
+}
+/* fit to an exact width (marks / logotypes) */
+function symSvgW(sym, x, y, width, t, sw = 1.2) {
+  return symWrap(sym, x, y, width / sym.vbox.w, t, sw);
+}
+
+/* ---------- rough (hand-drawn) primitives ---------- */
+function rline(r, x1, y1, x2, y2, amp = 0.55) {
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+  const steps = Math.max(2, Math.round(len / 22));
+  const nx = -dy / len, ny = dx / len;
+  let d = `M${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const k = (i === steps) ? 0.25 : 1;            // settle onto the endpoint
+    const o = (r() - 0.5) * 2 * amp * k;
+    d += ` L${(x1 + dx * t + nx * o).toFixed(1)} ${(y1 + dy * t + ny * o).toFixed(1)}`;
+  }
+  return d;
+}
+const rrect = (r, x, y, w, h, amp = 0.55) =>
+  [rline(r,x,y,x+w,y,amp), rline(r,x+w,y,x+w,y+h,amp), rline(r,x+w,y+h,x,y+h,amp), rline(r,x,y+h,x,y,amp)].join(' ');
+
+/* ---------- text measuring ---------- */
+const _m = document.createElement('canvas').getContext('2d');
+function textW(str, size, family, weight = 400, track = 0, word = 0) {
+  _m.font = `${weight} ${size}px ${family}`;
+  const spaces=(String(str).match(/\s/g)||[]).length;
+  return _m.measureText(str).width + track * Math.max(0, String(str).length - 1) + word*spaces;
+}
+/* Reduce display copy until it clears a real inner margin.  Contact-sheet
+   cards are small enough that fixed-size utility labels can otherwise kiss
+   the tile boundary even when the main headline fits correctly. */
+function fitType(str, maxSize, minSize, maxW, family = F_MONO, weight = 400, track = 0) {
+  let size = maxSize;
+  while (size > minSize && textW(str, size, family, weight, track) > maxW) size -= 0.5;
+  return size;
+}
+/* Display faces need proportional tracking: a fixed -2px value looks tight
+   at 40px but visibly loose at 200px. Keep the large type around -4–4.5%
+   of its size, while leaving telemetry and body copy untouched. */
+const displayTrack = (size, rate = .042, floor = .65) => -Math.max(floor, size * rate);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const escAttr = s => esc(s).replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+const T = (x, y, s, o = {}) => {
+  const { size = 9, fam = F_MONO, w = 400, fill = '#000', track = 0, word = 0, anchor = 'start', capW = 0 } = o;
+  /* `textLength` makes the SVG renderer honour the same measured width used
+     by the layout engine. This matters when an activated Adobe face replaces
+     its fallback after the sheet has already been composed. */
+  const measured=textW(s,size,fam,w,track,word);
+  const lengthFit = capW && measured>capW*.92
+    ? ` textLength="${capW.toFixed(1)}" lengthAdjust="spacingAndGlyphs"`
+    : '';
+  return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-family="${escAttr(fam)}" font-size="${size}" font-weight="${escAttr(w)}" fill="${escAttr(fill)}"` +
+    (track ? ` letter-spacing="${track}"` : '') + (word ? ` word-spacing="${word}"` : '') +
+    (anchor !== 'start' ? ` text-anchor="${anchor}"` : '') + lengthFit + `>${esc(s)}</text>`;
+};
+
+/* ============================================================
+   MODULES — each returns { svg, h }
+   ============================================================ */
+function modHeader(r, x, y, w, t, showSymbol = true) {
+  const s = [];
+  if (showSymbol) {
+    const sym = r.pick(activeIcons());
+    s.push(symSvg(sym, x, y - 18, 26, t, 1.5));
+  }
+  let cx = x + (showSymbol ? 36 : 0);
+  const co = `©${r.pick(W.co)}`;
+  s.push(T(cx, y, co, { size: 11, w:700, fill: t.ink, track: 0.2 }));
+  cx += textW(co, 11, F_MONO, 700, 0.2) + 9;
+  if (r.chance(0.4)) s.push(T(cx, y, r.pick(W.jp), { size: 11, fam: F_CJK, w:700, fill: t.ink }));
+
+  // right-hand tag: filled chip or hairline chip
+  const tag = r.pick(W.tag);
+  const tw = textW(tag, 9, F_MONO, 700, 0.5) + 16;
+  const tx = x + w - tw, ty = y - 14;
+  if (r.chance(0.72)) {
+    s.push(`<rect x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" width="${tw.toFixed(1)}" height="18" fill="${t.ink}"/>`);
+    s.push(T(tx + tw / 2, y, tag, { size: 9, w:700, fill: t.bg, track: 0.5, anchor: 'middle' }));
+  } else {
+    s.push(`<path d="${rrect(r, tx, ty, tw, 18, 0.35)}" fill="none" stroke="${t.ink}" stroke-width="2"/>`);
+    s.push(T(tx + tw / 2, y, tag, { size: 9, w:700, fill: t.ink, track: 0.5, anchor: 'middle' }));
+  }
+  return { svg: s.join(''), h: 30 };
+}
+
+function modDim(r, x, y, w, t, label) {
+  const s = [`<path d="${rline(r, x, y, x + w, y, 0.4)}" fill="none" stroke="${t.ink}" stroke-width="0.9"/>`];
+  s.push(`<path d="M${x} ${y-3.5}V${y+3.5}M${x+w} ${y-3.5}V${y+3.5}" stroke="${t.ink}" stroke-width="0.9"/>`);
+  if (label) {
+    const lw = textW(label, 7.5, F_MONO) + 10;
+    s.push(`<rect x="${(x + w/2 - lw/2).toFixed(1)}" y="${(y-5).toFixed(1)}" width="${lw.toFixed(1)}" height="10" fill="${t.bg}"/>`);
+    s.push(T(x + w/2, y + 2.5, label, { size: 7.5, fill: t.accent, anchor: 'middle' }));
+  }
+  return { svg: s.join(''), h: 10 };
+}
+
+function modStatus(r, x, y, w, t) {
+  const str = r.pick(W.status);
+  // wide tracking, but never wider than the column
+  const track = Math.min(7, Math.max(1.5, (w * 0.82 - textW(str, 8, F_MONO)) / Math.max(1, str.length - 1)));
+  return { svg: T(x, y, str, { size: 8, fill: r.chance(0.6) ? t.accent : t.ink, track, capW:w*.94 }), h: 12 };
+}
+
+function modTitle(r, x, y, w, t, txt) {
+  const str = txt || pickTitle(r);
+  const words = str.split(/\s+/);
+  const fam = r.chance(.82) ? F_WIDE : F_DISP;
+  let lines;
+  if (words.length === 1) lines = [str];
+  else if (words.length === 2) lines = r.chance(.78) ? words : [str];
+  else if (words.length === 3) lines = words;
+  else lines = [words.slice(0,2).join(' '), words.slice(2,Math.ceil(words.length/2)+1).join(' '), words.slice(Math.ceil(words.length/2)+1).join(' ')].filter(Boolean);
+  let size = lines.length > 1 ? 206 : 236;
+  let track = displayTrack(size, .045);
+  let word = -size*.12;
+  while (Math.max(...lines.map(v => textW(v,size,fam,900,track,word))) > w * .94 && size > 28) {
+    size -= 2;
+    track = displayTrack(size, .045);
+    word = -size*.12;
+  }
+  const lh = size * .76;
+  return {
+    svg:lines.map((v,i)=>T(x,y+size*.76+i*lh,v,{size,fam,w:900,fill:t.ink,track,word})).join(''),
+    h:size*.78 + (lines.length-1)*lh + 10,
+  };
+}
+
+function modKicker(r,x,y,w,t) {
+  const str = r.pick([
+    `TACTICAL DEPLOYMENT CLASS ${r.pick(['A','B','C','BLACK'])}`,
+    `GROUND FORCES // SECTION ${pad(r.int(1,9),2)}`,
+    `HOSTILE ENVIRONMENT UNIT ${r.pick(W.code)}`,
+    `BLACKSITE AUTHORITY / ${r.pick(W.code)}`,
+    `${r.pick(W.tag)} / ${r.pick(W.code)}`
+  ]);
+  let size = 24, track = displayTrack(size, .035, .5);
+  while (size > 11 && textW(str,size,F_WIDE,900,track) > w*.94) {
+    size -= .5;
+    track = displayTrack(size, .035, .5);
+  }
+  return {svg:T(x,y+size*.82,str,{size,fam:F_WIDE,w:900,fill:t.accent,track,word:-size*.06,capW:w*.94}),h:size+10};
+}
+
+function modDeck(r,x,y,w,t) {
+  const str = r.pick([`${pad(r.int(1,9),2)} ${r.pick(W.title)}`,`${r.pick(W.code)} ${r.pick(W.status)}`,r.pick(W.co)]);
+  let size=52, track=displayTrack(size,.04);
+  while(textW(str,size,F_WIDE,900,track)>w*.94&&size>10){size-=1;track=displayTrack(size,.04);}
+  return {svg:T(x,y+size*.76,str,{size,fam:F_WIDE,w:900,fill:t.ink,track,word:-size*.08,capW:w*.94}),h:size*.8+8};
+}
+
+function modBigCode(r, x, y, w, t) {
+  const str = r.pick([...W.code, pad(r.int(1, 99), 2), `MK${r.int(1, 12)}`]);
+  let size = 176, track = displayTrack(size,.045);
+  while (textW(str, size, F_DISP, 900, track) > w * .62 && size > 54) {size -= 2;track=displayTrack(size,.045);}
+  return { svg:T(x, y + size * .76, str, {size, fam:F_DISP, w:900, fill:t.accent, track, capW:w*.62}), h:size * .8 + 8 };
+}
+
+function modHeroEmblem(r, x, y, w, t) {
+  const pool = [...activeRole('block'), ...activeIcons()];
+  if (!pool.length) return {svg:'',h:0};
+  const m = r.pick(pool), size = Math.round(Math.min(190, w * .29));
+  const right = r.chance(.7), mx = right ? x + w - size : x;
+  const mt = r.chance(.4) ? {...t,ink:t.accent} : t;
+  return {svg:symSvg(m,mx,y,size,mt,1),h:size + 12};
+}
+
+function modHeavyBand(r, x, y, w, t) {
+  const label = r.pick(W.status), h = r.pick([22,26,30]);
+  return {svg:`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${t.ink}"/>`+
+    T(x+10,y+h*.69,label,{size:Math.max(9,h*.42),w:700,fill:t.bg,track:1.2}),h:h+10};
+}
+
+function modFieldCopy(r, x, y, w, t) {
+  const lines = [r.pick(W.status), `${r.pick(W.tag)} / ${r.pick(W.code)} / ${r.pick(W.jp)}`, subLine(r)];
+  return {svg:lines.map((v,i)=>{
+    const fam=i?F_MONO:F_SUPPORT, weight=i?400:700, track=i?.4:.1;
+    const size=fitType(v,i?8.5:10,6.5,w*.94,fam,weight,track);
+    return T(x,y+11+i*14,v,{size,fam,w:weight,fill:t.ink,track,capW:w*.94});
+  }).join(''),h:48};
+}
+
+function modJP(r, x, y, w, t, big) {
+  const size = big ? 22 : 13;
+  return { svg: T(x, y + size * 0.85, r.pick(W.jp), { size, fam: F_CJK, w: big ? 700 : 400, fill: t.ink }), h: size + 6 };
+}
+
+function modPills(r, x, y, w, t) {
+  const s = [];
+  let cx = x;
+  for (const p of r.some(W.tag, r.int(2, 3))) {
+    const pw = textW(p, 7.5, F_MONO, 400, 0.5) + 16;
+    if (cx + pw > x + w) break;
+    s.push(`<rect x="${cx.toFixed(1)}" y="${y.toFixed(1)}" width="${pw.toFixed(1)}" height="15" rx="7.5" fill="none" stroke="${t.ink}" stroke-width="0.9"/>`);
+    s.push(T(cx + pw / 2, y + 10.5, p, { size: 7.5, fill: t.ink, track: 0.5, anchor: 'middle' }));
+    cx += pw + 6;
+    if (cx + 8 < x + w) { s.push(T(cx - 3.5, y + 10.5, '/', { size: 7.5, fill: t.ink, anchor: 'middle' })); cx += 4; }
+  }
+  return { svg: s.join(''), h: 21 };
+}
+
+/* Brand stamp — a wide logotype sized to the column, so it stays legible
+   instead of being crushed into an icon slot. */
+function modMark(r, x, y, w, t) {
+  const marks = activeMarks();
+  if (!marks.length) return { svg: '', h: 0 };
+  const m = r.pick(marks);
+  const mw = w * (0.66 + r() * 0.29);
+  const mh = m.vbox.h * (mw / m.vbox.w);
+  const mx = r.chance(0.34) ? x + w - mw : x;
+  return { svg: symSvgW(m, mx, y, mw, t, 1.1), h: mh + 8 };
+}
+
+/* Detail-dense square (QR, radial dial) — needs real size to read, so it
+   gets its own slot rather than the 11px header glyph. */
+function modBlock(r, x, y, w, t) {
+  const blocks = activeRole('block');
+  if (!blocks.length) return { svg: '', h: 0 };
+  const b = r.pick(blocks);
+  const size = r.int(52, 74);
+  const bx = r.chance(0.72) ? x + w - size : x;
+  return { svg: symSvg(b, bx, y, size, t, 1.0), h: size + 8 };
+}
+
+/* Wide, detailed art (charts, HUD strips, barcode panels). Rendered at the
+   full column width — at a wordmark's 34-60% the fine detail turns to mush. */
+function modPanel(r, x, y, w, t) {
+  const ps = activeRole('panel');
+  if (!ps.length) return { svg: '', h: 0 };
+  const p = r.pick(ps);
+  const ph = p.vbox.h * (w / p.vbox.w);
+  return { svg: symSvgW(p, x, y, w, t, 0.9), h: ph + 10 };
+}
+
+/* Colour readout: swatch over hex + decimal triplets, straight out of the
+   reference posters ("8B DB 07 / 139 219 007"). */
+function modReadout(r, x, y, w, t) {
+  const cols = r.int(2, 3), gap = 62, s = [];
+  const useAccent = r.chance(0.5);
+  for (let i = 0; i < cols; i++) {
+    const cx = x + i * gap;
+    const rgb = [r.int(0, 255), r.int(0, 255), r.int(0, 255)];
+    s.push(`<rect x="${cx}" y="${y}" width="12" height="4" fill="${useAccent && i === 0 ? t.accent : t.ink}"/>`);
+    s.push(T(cx, y + 14, rgb.map(v => v.toString(16).toUpperCase().padStart(2, '0')).join(' '), { size: 6.5, fill: t.ink, track: 0.6 }));
+    s.push(T(cx, y + 23, rgb.map(v => pad(v, 3)).join(' '), { size: 6.5, fill: t.ink, track: 0.6 }));
+  }
+  return { svg: s.join(''), h: 30 };
+}
+
+/* Status meters — LABEL  ▓▓▓▓▓░░░  73%. Straight from the Cyber Brutalism /
+   HUD references: a segmented bar with the last few cells empty, value at the
+   right, the fill in the accent. */
+function modMeter(r, x, y, w, t) {
+  const s = [], rh = 15, rows = r.int(2, 4);
+  const cells = 14, gap = 2, barX = x + w * 0.34, barW = w * 0.5;
+  const cw = (barW - gap * (cells - 1)) / cells;
+  for (let i = 0; i < rows; i++) {
+    const ry = y + i * rh, pct = r.int(18, 99), on = Math.round(cells * pct / 100);
+    s.push(T(x, ry + 8, r.pick(W.key), { size: 7, fill: t.ink, track: 0.4 }));
+    for (let c = 0; c < cells; c++) {
+      const on2 = c < on;
+      s.push(`<rect x="${(barX + c * (cw + gap)).toFixed(1)}" y="${ry + 2}" width="${cw.toFixed(1)}" height="7" ` +
+        (on2 ? `fill="${t.accent}"/>` : `fill="none" stroke="${t.ink}" stroke-width="0.6" opacity="0.55"/>`));
+    }
+    s.push(T(x + w, ry + 8, pct + '%', { size: 7, fill: t.ink, anchor: 'end', track: 0.4 }));
+  }
+  return { svg: s.join(''), h: rows * rh + 4 };
+}
+
+/* Bracketed section marker — // SECTOR_07, /02 CORE, the reference posters'
+   navigation cue. Hairline rule to the right edge. */
+function modSection(r, x, y, w, t) {
+  const label = r.chance(0.5) ? `// ${r.pick(W.title).replace(/\s+/g, '_')}`
+                              : `/${pad(r.int(1, 9), 2)}  ${r.pick(W.title)}`;
+  const size = fitType(label, 8, 6, w * .72, F_MONO, 400, .6);
+  const lw = textW(label, size, F_MONO, 400, 0.6) + 12;
+  return {
+    svg: T(x, y + 8, label, { size, fill: t.accent, track: 0.6, capW:w*.72 }) +
+      `<path d="${rline(r, x + lw, y + 5, x + w, y + 5, 0.3)}" fill="none" stroke="${t.ink}" stroke-width="0.6" opacity="0.5"/>`,
+    h: 15,
+  };
+}
+
+/* Coordinate readout — X / Y / Z with signed floats, in a hairline box, as on
+   the Cyber Brutalism head. Right-aligned in the card so it reads as telemetry. */
+function modCoords(r, x, y, w, t) {
+  const axes = r.pick([['X', 'Y', 'Z'], ['LAT', 'LON', 'ALT'], ['RA', 'DEC', 'PLX']]);
+  const bw = Math.min(w, 128), bx = x + w - bw, rh = 13, bh = 3 * rh + 8;
+  const s = [`<path d="${rrect(r, bx, y, bw, bh, 0.4)}" fill="none" stroke="${t.ink}" stroke-width="0.8"/>`];
+  for (let i = 0; i < 3; i++) {
+    const ry = y + 6 + i * rh;
+    s.push(T(bx + 8, ry + 8, axes[i], { size: 7.5, fill: t.accent, track: 0.4 }));
+    s.push(T(bx + bw - 8, ry + 8, (r() * 180 - 90).toFixed(4), { size: 7.5, fill: t.ink, anchor: 'end', track: 0.3 }));
+  }
+  return { svg: s.join(''), h: bh + 4 };
+}
+
+/* Terminal line — > ACCESS GRANTED_ with a blinking-cursor block, the
+   Cyber Brutalism footer cue. */
+function modTerminal(r, x, y, w, t) {
+  const str = `> ${r.pick(['ACCESS GRANTED', 'SYNC COMPLETE', 'TRACE ACTIVE', 'UPLINK STABLE', 'SIGNAL ACQUIRED', 'BOOT OK', 'HANDSHAKE OK'])}`;
+  const size = fitType(str, 8.5, 6.5, w - 12, F_MONO, 400, .5);
+  const tw = textW(str, size, F_MONO, 400, 0.5);
+  return {
+    svg: T(x, y + 8, str, { size, fill: t.accent, track: 0.5, capW:w-12 }) +
+      `<rect x="${(x + tw + 4).toFixed(1)}" y="${y + 1}" width="6" height="10" fill="${t.accent}"/>`,
+    h: 14,
+  };
+}
+
+function modSubs(r, x, y, w, t, n) {
+  const s = [];
+  for (let i = 0; i < n; i++) s.push(T(x, y + i * 11.5, subLine(r), { size: 8, fill: t.ink }));
+  return { svg: s.join(''), h: n * 11.5 + 2 };
+}
+
+function modTable(r, x, y, w, t, rows) {
+  const s = [];
+  const rh = 13, cw = w * 0.5;
+  s.push(`<path d="${rrect(r, x, y, w, rows * rh, 0.4)}" fill="none" stroke="${t.ink}" stroke-width="0.9"/>`);
+  s.push(`<path d="${rline(r, x + cw, y, x + cw, y + rows * rh, 0.4)}" fill="none" stroke="${t.ink}" stroke-width="0.9"/>`);
+  for (let i = 0; i < rows; i++) {
+    const ry = y + i * rh;
+    if (i) s.push(`<path d="${rline(r, x, ry, x + w, ry, 0.35)}" fill="none" stroke="${t.ink}" stroke-width="0.7"/>`);
+    s.push(T(x + 5, ry + 9, r.pick(W.key), { size: 7, fill: t.ink }));
+    s.push(T(x + cw + 5, ry + 9, r.pick(W.val), { size: 7, fill: t.ink }));
+  }
+  return { svg: s.join(''), h: rows * rh + 6 };
+}
+
+function modBarcode(r, x, y, w, t) {
+  const s = [];
+  let cx = x;
+  while (cx < x + w - 2) {
+    const bw = r.chance(0.25) ? 2.6 : (r.chance(0.5) ? 1.5 : 0.9);
+    if (r.chance(0.62)) s.push(`<rect x="${cx.toFixed(1)}" y="${y.toFixed(1)}" width="${bw}" height="34" fill="${t.ink}"/>`);
+    cx += bw + r.pick([0.9, 1.4, 2.1]);
+  }
+  s.push(T(x, y + 45, `${r.int(1000,9999)} ${r.int(10000,99999)}`, { size: 8, fill: t.ink, track: 1 }));
+  return { svg: s.join(''), h: 52 };
+}
+
+function modSpark(r, x, y, w, t) {
+  const s = [];
+  const h = 56, n = r.int(9, 16);
+  s.push(`<path d="M${x} ${y+h*0.5}H${x+w}" stroke="${t.ink}" stroke-width="0.6" stroke-dasharray="2 3" opacity="0.5"/>`);
+  const pts = Array.from({ length: n }, (_, i) => [x + (w / (n - 1)) * i, y + h * (0.18 + r() * 0.64)]);
+  s.push(`<path d="M${pts.map(p => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('L')}" fill="none" stroke="${t.ink}" stroke-width="1.1"/>`);
+  const p2 = Array.from({ length: n }, (_, i) => [x + (w / (n - 1)) * i, y + h * (0.18 + r() * 0.64)]);
+  s.push(`<path d="M${p2.map(p => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('L')}" fill="none" stroke="${t.ink}" stroke-width="0.7" stroke-dasharray="3 2" opacity="0.65"/>`);
+  pts.forEach(p => s.push(`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.1" fill="${t.ink}"/>`));
+  return { svg: s.join(''), h: h + 8 };
+}
+
+function modHexDump(r, x, y, w, t, rows = 7) {
+  const s = [];
+  const chars = '0123456789ABCDEF';
+  for (let i = 0; i < rows; i++) {
+    const addr = `0X${rh(r, 4)}`;
+    const bytes = Array.from({ length: r.int(5, 8) }, () => rh(r, 2)).join(' ');
+    const flag = r.pick(['ACK', 'RST', 'SYN', 'ICE', 'MEM', 'IO']);
+    s.push(T(x, y + i * 12, `${addr}  ${bytes}`, { size: 8, fill: t.ink, track: 0.25 }));
+    s.push(T(x + w, y + i * 12, `${flag}_${chars[r.int(0, 15)]}`, { size: 8, fill: i % 3 === 0 ? t.accent : t.ink, anchor: 'end', track: 0.4 }));
+  }
+  return { svg: s.join(''), h: rows * 12 + 4 };
+}
+
+function modMatrix(r, x, y, w, t) {
+  const s = [];
+  const cols = r.int(5, 7), rows = r.int(4, 6), gap = 4;
+  const cell = Math.min(24, (w - gap * (cols - 1)) / cols);
+  const bw = cols * cell + gap * (cols - 1), ox = x + (w - bw) / 2;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const cx = ox + col * (cell + gap), cy = y + row * (cell + gap);
+      const on = r.chance(0.58);
+      s.push(`<rect x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" width="${cell.toFixed(1)}" height="${cell.toFixed(1)}" fill="${on ? t.accent : 'none'}" stroke="${t.ink}" stroke-width="0.75" opacity="${on ? 1 : 0.5}"/>`);
+      if (r.chance(0.34)) s.push(`<path d="M${cx+4} ${cy+cell/2}H${cx+cell-4}M${cx+cell/2} ${cy+4}V${cy+cell-4}" stroke="${on ? t.bg : t.ink}" stroke-width="0.7" opacity="0.7"/>`);
+    }
+  }
+  return { svg: s.join(''), h: rows * cell + gap * (rows - 1) + 10 };
+}
+
+function modCircuit(r, x, y, w, t) {
+  const s = [];
+  const h = 92, lanes = r.int(5, 7);
+  s.push(`<path d="${rrect(r, x, y, w, h, 0.35)}" fill="none" stroke="${t.ink}" stroke-width="0.75" opacity="0.75"/>`);
+  for (let i = 0; i < lanes; i++) {
+    const yy = y + 12 + i * ((h - 24) / Math.max(1, lanes - 1));
+    const mid = x + r.int(Math.round(w * 0.25), Math.round(w * 0.72));
+    const end = x + w - r.int(8, 34);
+    s.push(`<path d="M${x+8} ${yy.toFixed(1)}H${mid.toFixed(1)}V${(yy + r.pick([-14, -8, 8, 14])).toFixed(1)}H${end.toFixed(1)}" fill="none" stroke="${i % 2 ? t.ink : t.accent}" stroke-width="1"/>`);
+    s.push(`<circle cx="${mid.toFixed(1)}" cy="${yy.toFixed(1)}" r="2.2" fill="${t.ink}"/>`);
+    if (r.chance(0.48)) s.push(`<rect x="${(end - 5).toFixed(1)}" y="${(yy - 5).toFixed(1)}" width="10" height="10" fill="none" stroke="${t.ink}" stroke-width="0.8"/>`);
+  }
+  return { svg: s.join(''), h: h + 10 };
+}
+
+/* ============================================================
+   CARD — compose modules by archetype, height driven by content
+   ============================================================ */
+function buildCard(r, cw, t, archetype) {
+  const P = 18, x = P, w = cw - P * 2;
+  let y = P + 22;
+  const s = [], add = m => { s.push(m.svg); y += m.h; };
+  /* One graphic voice per card. The sheet-level owner logo is separate and
+     still appears only once on the full composition. */
+  const symbolMode = ['barcode','circuit'].includes(archetype) ? 'mark'
+    : ['hud','matrix'].includes(archetype) ? 'hero'
+    : r.pick(['header','header','header','mark','hero','none']);
+  add(modHeader(r,x,y,w,t,symbolMode === 'header')); y += 8;
+
+  switch (archetype) {
+    case 'brief':
+      add(modKicker(r,x,y,w,t)); add(modTitle(r,x,y,w,t)); add(modDeck(r,x,y,w,t)); add(modFieldCopy(r,x,y,w,t));
+      break;
+    case 'spec':
+      add(modKicker(r,x,y,w,t)); add(modTitle(r,x,y,w,t)); add(modDeck(r,x,y,w,t)); add(modTable(r,x,y,w,t,3));
+      break;
+    case 'code':
+      add(modKicker(r,x,y,w,t)); add(modTitle(r,x,y,w,t)); add(modDeck(r,x,y,w,t)); add(modFieldCopy(r,x,y,w,t));
+      break;
+    case 'barcode':
+      add(modTitle(r,x,y,w,t)); add(modDeck(r,x,y,w,t)); if(symbolMode==='mark') add(modMark(r,x,y,w,t)); add(modFieldCopy(r,x,y,w,t));
+      break;
+    case 'chart':
+      add(modKicker(r,x,y,w,t)); add(modTitle(r,x,y,w,t)); add(modDeck(r,x,y,w,t)); add(modFieldCopy(r,x,y,w,t));
+      break;
+    case 'hud':
+      if(symbolMode==='hero') add(modHeroEmblem(r,x,y,w,t)); add(modTitle(r,x,y,w,t)); add(modDeck(r,x,y,w,t));
+      break;
+    case 'terminal':
+      add(modKicker(r,x,y,w,t)); add(modBigCode(r,x,y,w,t)); add(modTitle(r,x,y,w,t)); add(modFieldCopy(r,x,y,w,t));
+      break;
+    case 'matrix':
+      add(modKicker(r,x,y,w,t)); add(modTitle(r,x,y,w,t)); add(modDeck(r,x,y,w,t)); if(symbolMode==='hero') add(modHeroEmblem(r,x,y,w,t));
+      break;
+    case 'circuit':
+      add(modTitle(r,x,y,w,t)); add(modDeck(r,x,y,w,t)); if(symbolMode==='mark') add(modMark(r,x,y,w,t)); add(modFieldCopy(r,x,y,w,t));
+      break;
+    case 'diagnostic':
+      add(modKicker(r,x,y,w,t)); add(modTitle(r,x,y,w,t)); add(modDeck(r,x,y,w,t)); add(modTable(r,x,y,w,t,3));
+      break;
+  }
+
+  if (!['hud','matrix','barcode','circuit'].includes(archetype) && symbolMode === 'hero') { y += 10; add(modHeroEmblem(r,x,y,w,t)); }
+  if (!['hud','matrix','barcode','circuit'].includes(archetype) && symbolMode === 'mark') { y += 8; add(modMark(r,x,y,w,t)); }
+  const ch = y + P;
+  return {svg:s.join(''),w:cw,h:ch};
+}
+
+/* ---------- formats ----------
+   `poster` is ISO 216 A-series, 1:√2 — the ratio an actual printed poster
+   uses (A2/A3 etc), and the ratio the reference posters are set in. At 1000
+   wide it scales cleanly to any A size; PNG @2x gives 2000×2828. */
+const A_LONG = Math.round(1000 * Math.SQRT2);   // 1414
+const FORMATS = {
+  poster: { W: 1000,   H: A_LONG, cardW: 875 },   // A-series portrait
+  a_land: { W: A_LONG, H: 1000,   cardW: 1260 },  // A-series landscape
+  onesheet:{ W: 1000,  H: 1481,   cardW: 875 },   // US one-sheet 27×40
+  square: { W: 1080,   H: 1080,   cardW: 960 },   // social tile
+  wide:   { W: 1600,   H: 900,    cardW: 1420 },  // 16:9
+  tight:  { W: 0,      H: 0,      cardW: 900 },   // card only
+  sheet:  { W: 1400,   H: 1750,   cardW: 300, cols: 4, rows: 5, gap: 26, pad: 40 },   // contact sheet
+  sheet_square_5:  { W: 1600, H: 1600, cardW: 300, cols: 5, rows: 5, gap: 20, pad: 42, squareCells: true },
+  sheet_square_10: { W: 2400, H: 2400, cardW: 240, cols: 10, rows: 10, gap: 12, pad: 48, squareCells: true },
+};
+const ARCHES = ['brief', 'spec', 'code', 'barcode', 'chart', 'hud', 'terminal', 'matrix', 'circuit', 'diagnostic'];
+
+function renderAsset(seedStr, opts) {
+  const r = makeRng(hashSeed(seedStr));
+  const pickTheme = () => opts.theme === 'random' ? r.pick(THEMES) : THEMES.find(t => t.id === opts.theme);
+  const pickArch  = () => opts.arch === 'random' ? r.pick(ARCHES) : opts.arch;
+  const f = FORMATS[opts.format];
+
+  if (f.cols && f.rows) {
+    const t = pickTheme();
+    const { cols, rows, gap, pad } = f;
+    const cw = (f.W - pad * 2 - gap * (cols - 1)) / cols;
+    const cellH = f.squareCells ? (f.H - pad * 2 - gap * (rows - 1)) / rows : 0;
+    const cells = [];
+    let maxH = 0;
+    for (let i = 0; i < cols * rows; i++) {
+      const rr = makeRng(hashSeed(seedStr + '#' + i));
+      const c = buildCard(rr, f.cardW || cw, t, opts.arch === 'random' ? rr.pick(ARCHES) : opts.arch);
+      cells.push(c); maxH = Math.max(maxH, c.h);
+    }
+    const H = f.squareCells ? f.H : pad * 2 + rows * maxH + gap * (rows - 1);
+    const liveClips = cells.map((c, i) => {
+      const baseX = pad + (i % cols) * (cw + gap);
+      const baseY = pad + Math.floor(i / cols) * ((f.squareCells ? cellH : maxH) + gap);
+      const liveH = f.squareCells ? cellH : maxH;
+      return `<clipPath id="cell-live-${i}" clipPathUnits="userSpaceOnUse"><rect x="${(baseX+2).toFixed(1)}" y="${(baseY+2).toFixed(1)}" width="${(cw-4).toFixed(1)}" height="${(liveH-4).toFixed(1)}"/></clipPath>`;
+    }).join('');
+    const body = `<defs>${liveClips}</defs>` + cells.map((c, i) => {
+      const baseX = pad + (i % cols) * (cw + gap);
+      const baseY = pad + Math.floor(i / cols) * ((f.squareCells ? cellH : maxH) + gap);
+      // A second, layout-level safe area protects against small differences
+      // between canvas font metrics and the browser's final SVG rendering.
+      const inset = Math.max(8, Math.min(14, cw * .04));
+      const availW = cw - inset * 2;
+      const availH = f.squareCells ? cellH - inset * 2 : maxH;
+      const scale = Math.min(availW / c.w, availH / c.h, 1);
+      const cx = baseX + (cw - c.w * scale) / 2;
+      const cy = f.squareCells ? baseY + (cellH - c.h * scale) / 2 : baseY;
+      return `<g clip-path="url(#cell-live-${i})"><g transform="translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${scale.toFixed(5)})">${c.svg}</g></g>`;
+    }).join('');
+    const border = `<path d="${rrect(r, 20, 20, f.W - 40, H - 40, 0.7)}" fill="none" stroke="${t.ink}" stroke-width="1.2"/>`;
+    const owner = logoAt(f.W-88,H-88,52);
+    return { svg: wrap(f.W, H, t, border + body + owner), W: f.W, H, theme: t, arch: `${cols}x${rows} sheet` };
+  }
+
+  const t = pickTheme(), arch = pickArch();
+  const card = buildCard(r, f.cardW, t, arch);
+  if (opts.format === 'tight') {
+    const m = 18, ls = 48, W = card.w + m * 2, H = card.h + m * 2 + ls + 8;
+    const owner = logoAt(m,card.h+m+6,ls);
+    return { svg: wrap(W, H, t, `<g transform="translate(${m} ${m})">${card.svg}</g>${owner}`),
+             W, H, theme: t, arch };
+  }
+  const ox = r.chance(0.68)
+    ? (r.chance(0.78) ? Math.max(42, f.W * 0.065) : f.W - card.w - Math.max(42, f.W * 0.065))
+    : (f.W - card.w) / 2;
+  // optical centring: on a tall sheet, a mathematically centred block reads
+  // as sagging, so sit it slightly high — standard poster practice.
+  const bottomLock = ['barcode','circuit'].includes(arch);
+  const oy = bottomLock
+    ? Math.max(42,f.H-card.h-Math.round(f.H*.06))
+    : (f.H > f.W ? f.H*.055 : f.H*.07);
+  let body = '';
+
+  /* A single oversized faction mark gives the empty illustration field a
+     strong graphic anchor without pretending to be character artwork. */
+  if (activeIcons().length && r.chance(.72)) {
+    const wm = r.pick(activeIcons()), ws = Math.round(Math.min(f.W,f.H) * r.pick([.24,.3,.36]));
+    const wx = f.W - ws - Math.round(f.W*.055), wy = f.H - ws - Math.round(f.H*.11);
+    const wt = {...t,ink:r.chance(.55)?t.ink:t.accent};
+    body += `<g opacity="${r.pick([.07,.1,.14])}">${symSvg(wm,wx,wy,ws,wt,1)}</g>`;
+  }
+
+  /* Caution-tape bands — accent field with ink diagonal slashes, top and
+     bottom, as in the Cyber Brutalism footer. At the extreme edges (behind
+     everything), so they clear the corner crosshairs and the margin ticker. */
+  if (r.chance(0.08)) {
+    const bh = 11, band = (yy) => {
+      let sv = `<rect x="0" y="${yy}" width="${f.W}" height="${bh}" fill="${t.accent}"/>`;
+      for (let sx = -bh; sx < f.W; sx += 15)
+        sv += `<path d="M${sx.toFixed(1)} ${yy + bh} L${(sx + bh).toFixed(1)} ${yy} L${(sx + bh + 7).toFixed(1)} ${yy} L${(sx + 7).toFixed(1)} ${yy + bh} Z" fill="${t.ink}"/>`;
+      return `<g>${sv}</g>`;
+    };
+    body += band(0) + band(f.H - bh);
+  }
+
+  /* Registration crosshairs — the small + marks pinned around the canvas in the
+     Marathon / Cyber Brutalism references. Drawn UNDER the card so the artwork
+     always sits on top, at four margin corners plus a light seeded scatter. */
+  if (r.chance(0.12)) {
+    const m = 34, plus = (px, py, s2, op = 1) =>
+      `<path d="M${(px - s2).toFixed(1)} ${py.toFixed(1)}H${(px + s2).toFixed(1)}M${px.toFixed(1)} ${(py - s2).toFixed(1)}V${(py + s2).toFixed(1)}" stroke="${t.ink}" stroke-width="1" opacity="${op}"/>`;
+    body += plus(m, m, 7) + plus(f.W - m, m, 7) + plus(m, f.H - m, 7) + plus(f.W - m, f.H - m, 7);
+    for (let i = 0, n = r.int(3, 7); i < n; i++) {
+      const px = r.int(20, f.W - 20), py = r.int(20, f.H - 20);
+      // keep the scatter out of the card's footprint
+      if (px > ox - 12 && px < ox + card.w + 12 && py > oy - 12 && py < oy + card.h + 12) continue;
+      body += plus(px, py, r.pick([3, 4, 5]), 0.5);
+    }
+  }
+
+  body += `<g transform="translate(${ox.toFixed(1)} ${oy.toFixed(1)})">${card.svg}</g>`;
+
+  /* Owner's insignia sits in the print margin like a publisher / unit stamp,
+     leaving the central negative space free for artwork to be added later. */
+  if (LOGO_INNER) {
+    const ls = Math.round(Math.min(f.W, f.H) * 0.064);
+    const lx = r.chance(0.72) ? 42 : f.W - 42 - ls;
+    body += logoAt(lx,f.H-42-ls,ls);
+  }
+
+  /* Side margins are shared by the repeated ticker label and the vertical
+     kanji strip. Track which sides are taken so nothing stacks on the same
+     one — that was the second overlap source in the crops. */
+  const sideUsed = { left: false, right: false };
+
+  /* Repeated label running down a margin, as in the reference posters. */
+  if (r.chance(0.4)) {
+    const onRight = r.chance(0.6);
+    const label = `[ ${rh(r, 4)} / ${r.pick(W.title)} ]`;
+    const step = 108, n = Math.ceil(f.H / step) + 1;
+    let strip = '';
+    for (let i = 0; i < n; i++) strip += T(i * step, 0, label, { size: 8, fill: t.accent, track: 1 });
+    const lx = onRight ? f.W - 20 : 20;
+    body += `<g transform="translate(${lx} 26) rotate(90)">${strip}</g>`;
+    sideUsed[onRight ? 'right' : 'left'] = true;
+  }
+
+  /* Vertical kanji strip, sized by HEIGHT, on a free side. */
+  const verts = activeRole('vert');
+  if (verts.length && r.chance(0.5)) {
+    const v = r.pick(verts);
+    const vh = f.H * (0.3 + r() * 0.16);
+    const k = vh / v.vbox.h, vw = v.vbox.w * k, gap = 34;
+    // prefer a side the ticker didn't take
+    const right = sideUsed.left && !sideUsed.right ? true
+                : sideUsed.right && !sideUsed.left ? false
+                : r.chance(0.5);
+    const vx = right ? ox + card.w + gap : ox - gap - vw;
+    if (!sideUsed[right ? 'right' : 'left'] && vx > 8 && vx + vw < f.W - 8) {
+      body += symWrap(v, vx, (f.H - vh) / 2, k, t, 1.0);
+      sideUsed[right ? 'right' : 'left'] = true;
+    }
+  }
+
+  /* Ladder/instrument strips run HORIZONTALLY in the top or bottom margin
+     (rotated -90 from their tall source). Sized by thickness so a wide ladder
+     doesn't become a giant band. Confined to the margin so it can't hit the card. */
+  const hbars = activeRole('hbar');
+  if (hbars.length && r.chance(0.5)) {
+    const hb = r.pick(hbars);
+    const th = r.int(24, 38), k = th / hb.vbox.w, len = hb.vbox.h * k;
+    if (len < f.W * 0.85) {
+      const topMargin = oy > 90, bottom = topMargin ? r.chance(0.5) : true;
+      const bandY = bottom ? oy + card.h + (f.H - (oy + card.h)) * 0.5 : oy * 0.5;
+      const px = ox + r.pick([0, card.w - len, (card.w - len) / 2]);
+      const gx = Math.max(20, Math.min(px, f.W - len - 20));
+      // rotate -90: source height -> +x (length), source width -> -y (thickness up)
+      body += `<g transform="translate(${gx.toFixed(1)} ${(bandY + th / 2).toFixed(1)}) rotate(-90) scale(${k.toFixed(4)}) translate(${-hb.vbox.x} ${-hb.vbox.y})">${symPaths(hb, t.ink, t.bg, 1.0, k)}</g>`;
+    }
+  }
+
+  return { svg: wrap(f.W, f.H, t, body), W: f.W, H: f.H, theme: t, arch };
+}
+
+/* Grain as a real SVG filter, not a raster overlay: it stays vector, scales to
+   any print size, and rasterises into the PNG. Applied once at canvas level so
+   the grain is the same size on a 1000px poster and a 1400px contact sheet.
+
+   Tuning is measured, not guessed:
+   - numOctaves 1, not 4. Summing octaves averages toward mid-grey and washes
+     the contrast out (neighbour delta 1.2/255 — invisible).
+   - The linear transfer expands the noise around mid-grey; with it the delta
+     reaches ~8/255, roughly 7x the untuned version.
+   - `overlay` because it is the only blend that survives both ends of the
+     palette range: on cream it measures 8.2 and on near-black 7.8. `multiply`
+     scores 47 on cream but dies at 4 on dark; `screen` is the exact inverse. */
+const GRAIN_BOOST = 5;
+const grain = (W, H, g) => {
+  if (g <= 0) return '';
+  const k = GRAIN_BOOST, b = -(k - 1) / 2;
+  const fn = c => `<feFunc${c} type="linear" slope="${k}" intercept="${b}"/>`;
+  /* The marker lets PNG export remove only this optional effect when an older
+     Safari SVG decoder refuses to load filter/blend combinations. */
+  return `<g data-export-effect="grain"><defs><filter id="grain" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">` +
+    `<feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="1" stitchTiles="stitch" result="n"/>` +
+    `<feColorMatrix in="n" type="saturate" values="0"/>` +
+    `<feComponentTransfer>${fn('R')}${fn('G')}${fn('B')}</feComponentTransfer>` +
+    `</filter></defs>` +
+    `<rect width="${W}" height="${H}" filter="url(#grain)" opacity="${g.toFixed(3)}" style="mix-blend-mode:overlay"/></g>`;
+};
+
+const wrap = (W, H, t, body) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">` +
+  `<title>FIELD/TYPE generated military typography sheet</title>` +
+  (state.transparent ? '' : `<rect width="${W}" height="${H}" fill="${t.bg}"/>`) + body +
+  grain(W, H, state.transparent ? 0 : state.grain) + `</svg>`;
+
+/* ============================================================
+   UI
+   ============================================================ */
+const $ = id => document.getElementById(id);
+let current = null, locked = false, formatLocked = false;
+const state = { theme: 'random', grain: 0.18, font: 'auto', transparent: false };
+
+const LSC = 'fieldtype.canvas.v1';
+function applyCanvasMode(mode, rerender = true) {
+  state.transparent = mode === 'transparent';
+  $('canvasbg').value = state.transparent ? 'transparent' : 'opaque';
+  $('grain').disabled = state.transparent;
+  $('canvashint').textContent = state.transparent
+    ? 'Alpha channel active. Paper wear is disabled for clean artwork overlays.'
+    : 'Printed background includes the selected paper color.';
+  localStorage.setItem(LSC,state.transparent ? 'transparent' : 'opaque');
+  if (rerender && current) generate(false);
+}
+function loadCanvasMode() {
+  applyCanvasMode(localStorage.getItem(LSC) || 'opaque',false);
+}
+
+const LSF = 'fieldtype.font.v1';
+function fontAvailable(name) {
+  const c = document.createElement('canvas').getContext('2d'), sample = 'MMMMMMMMMMWWWW';
+  c.font = '72px monospace'; const baseMono = c.measureText(sample).width;
+  c.font = '72px serif'; const baseSerif = c.measureText(sample).width;
+  c.font = `72px "${name}", monospace`; const mono = c.measureText(sample).width;
+  c.font = `72px "${name}", serif`; const serif = c.measureText(sample).width;
+  return mono !== baseMono || serif !== baseSerif;
+}
+function applyFontSet(id, rerender = true) {
+  state.font = FONT_SETS[id] ? id : 'auto';
+  const f = FONT_SETS[state.font];
+  F_DISP = f.display; F_WIDE = f.wide; F_SUPPORT = f.support;
+  const probes = state.font === 'auto' ? ['Gotham','Strelka Ultra','Strelka']
+    : state.font === 'strelka' ? ['Strelka Ultra','Strelka'] : [f.name];
+  const active = probes.filter(fontAvailable);
+  if ($('fonthint')) $('fonthint').textContent = active.length
+    ? `Creative Cloud active: ${active.join(', ')}.`
+    : `${f.name} fallback active — activate the family in Adobe Fonts, then reload.`;
+  localStorage.setItem(LSF,state.font);
+  if (rerender && current) generate(false);
+}
+function loadFontSet() {
+  const id = localStorage.getItem(LSF) || 'auto';
+  $('fontset').value = FONT_SETS[id] ? id : 'auto';
+  applyFontSet($('fontset').value,false);
+}
+
+function opts(){ return { format: $('format').value, theme: state.theme, arch: $('arch').value }; }
+
+/* ---------- recurring words ---------- */
+const LSW = 'fieldtype.words.v1';
+function loadWords() {
+  try { USER.words = (JSON.parse(localStorage.getItem(LSW) || '["DEAD WEATHER","NULL DIVISION","FIELD UNIT 09"]') || []).slice(0, MAX_WORDS); }
+  catch (e) { USER.words = []; }
+}
+const saveWords = () => localStorage.setItem(LSW, JSON.stringify(USER.words));
+
+function renderWords() {
+  $('wordlist').innerHTML = USER.words
+    .map((w, i) => `<span class="word"><b>${esc(w)}</b><button data-wi="${i}" title="Remove">&times;</button></span>`).join('');
+  const full = USER.words.length >= MAX_WORDS;
+  $('wordadd').style.display = full ? 'none' : 'flex';       // one field only, until it's full
+  $('wordhint').textContent = full
+    ? `${MAX_WORDS} of ${MAX_WORDS} — remove one to add another.`
+    : USER.words.length
+      ? `${USER.words.length} of ${MAX_WORDS}. Add another, or leave it here.`
+      : `Your words become the headline on most assets. Up to ${MAX_WORDS}.`;
+}
+function addWord() {
+  const v = $('wordinput').value.trim().toUpperCase();       // headline bank is all caps
+  if (!v) return;
+  if (USER.words.length >= MAX_WORDS) return;
+  if (USER.words.includes(v)) { $('wordinput').value = ''; return; }
+  USER.words.push(v);
+  $('wordinput').value = '';
+  saveWords(); renderWords(); generate(false);
+}
+$('wordbtn').onclick = addWord;
+$('wordinput').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addWord(); } };
+$('wordlist').onclick = e => {
+  const b = e.target.closest('[data-wi]');
+  if (!b) return;
+  USER.words.splice(+b.dataset.wi, 1);
+  saveWords(); renderWords(); generate(false);
+};
+
+/* ---------- palette wheel ---------- */
+const hex2rgb = h => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+/* True chroma (max-min), not HSL saturation: HSL calls #1A1B0A "47% saturated"
+   when it is essentially black, which would fling near-blacks to the rim. */
+const chromaOf = h => { const [r, g, b] = hex2rgb(h); return (Math.max(r, g, b) - Math.min(r, g, b)) / 255; };
+const hueOf = h => {
+  const [r, g, b] = hex2rgb(h).map(v => v / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (!d) return 0;
+  const x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (x * 60 + 360) % 360;
+};
+/* A palette's identity is its most chromatic colour — Ember's and Acid's is the
+   background, Signal's is the accent. Placing everything by `accent` would
+   put Ember (orange bg, off-white accent) in the whites. */
+const identityOf = t => [t.bg, t.ink, t.accent].reduce((a, c) => chromaOf(c) > chromaOf(a) ? c : a);
+
+/* Ordered by hue so the list reads as a spectrum — you still find "the green
+   one" by looking, without spending 200px on a wheel to do it. */
+const PAL_ORDER = () => {
+  const rows = THEMES.map(t => {
+    const c = identityOf(t), ch = chromaOf(c);
+    return { t, color: c, neutral: ch < 0.12, hue: hueOf(c) };
+  });
+  return [
+    ...rows.filter(r => r.neutral),
+    ...rows.filter(r => !r.neutral).sort((a, b) => a.hue - b.hue),
+  ];
+};
+const swatch = (t, cls = '') => t
+  ? `<span class="sw ${cls}"><i style="background:${t.bg}"></i><i style="background:${t.ink}"></i><i style="background:${t.accent}"></i></span>`
+  : `<span class="sw rnd"><i></i></span>`;
+
+let PAL_ROWS = [];
+function renderPalettes() {
+  const sel = state.theme;
+  const t = THEMES.find(v => v.id === sel);
+  $('palsw').outerHTML = swatch(t).replace('class="sw', 'id="palsw" class="sw');
+  $('palname').textContent = t ? t.name : 'Random';
+
+  let firstChromatic = true;
+  $('pallist').innerHTML = [
+    `<button class="pick-row" role="option" data-id="random" data-sel="${sel === 'random' ? 1 : 0}">
+       ${swatch(null)}<span>Random — a new palette each roll</span></button>`,
+    `<div class="pick-sep">Neutral</div>`,
+    ...PAL_ROWS.map(r => {
+      let sep = '';
+      if (!r.neutral && firstChromatic) { sep = `<div class="pick-sep">By hue</div>`; firstChromatic = false; }
+      return sep + `<button class="pick-row" role="option" data-id="${r.t.id}" data-sel="${sel === r.t.id ? 1 : 0}">
+        ${swatch(r.t)}<span>${r.t.name}</span></button>`;
+    }),
+  ].join('');
+}
+const palOpen = o => {
+  $('palpick').classList.toggle('open', o);
+  $('palbtn').setAttribute('aria-expanded', o ? 'true' : 'false');
+};
+document.addEventListener('click', e => {
+  if (e.target.closest('#palbtn')) { palOpen(!$('palpick').classList.contains('open')); return; }
+  const row = e.target.closest('#pallist .pick-row');
+  if (row) {
+    state.theme = row.dataset.id;
+    palOpen(false); renderPalettes(); generate(false);
+    return;
+  }
+  if (!e.target.closest('#palpick')) palOpen(false);   // click-away closes
+});
+
+function generate(newSeed = true) {
+  if (newSeed && !locked) $('seed').value = String(Math.floor(Math.random() * 1e6)).padStart(4, '0');
+  current = renderAsset($('seed').value || '0', opts());
+  $('out').classList.toggle('transparent',state.transparent);
+  $('out').innerHTML = current.svg;
+  $('meta').innerHTML = `<b>seed</b> ${$('seed').value} &nbsp;·&nbsp; <b>palette</b> ${current.theme.name} &nbsp;·&nbsp; <b>canvas</b> ${state.transparent?'transparent':'printed'} &nbsp;·&nbsp; <b>type</b> ${FONT_SETS[state.font].name} &nbsp;·&nbsp; <b>layout</b> ${current.arch} &nbsp;·&nbsp; <b>${current.W}×${current.H}</b>`;
+}
+
+function download(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const fname = ext => `fieldtype_${$('seed').value}_${current.theme.id}_${current.arch}${state.transparent?'_transparent':''}.${ext}`;
+
+$('dlsvg').onclick = () => download(new Blob([current.svg], { type: 'image/svg+xml;charset=utf-8' }), fname('svg'));
+
+const blobDataUrl=blob=>new Promise((res,rej)=>{
+  const reader=new FileReader();
+  reader.onload=()=>res(reader.result);
+  reader.onerror=()=>rej(new Error('Safari could not prepare the SVG for PNG conversion.'));
+  reader.readAsDataURL(blob);
+});
+const withoutExportGrain=svg=>svg.replace(/<g data-export-effect="grain">[\s\S]*?<\/g>/g,'');
+const strictSvgXml=svg=>{
+  const doc=new DOMParser().parseFromString(svg,'image/svg+xml');
+  const bad=doc.querySelector('parsererror');
+  if(bad)throw new Error('Generated SVG is not valid XML: '+(bad.textContent||'parse error').replace(/\s+/g,' ').slice(0,160));
+  const root=doc.documentElement;
+  root.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  return `<?xml version="1.0" encoding="UTF-8"?>`+new XMLSerializer().serializeToString(root);
+};
+const loadSvgImage=async(svg,useBlobUrl=false)=>{
+  const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
+  const src=useBlobUrl?URL.createObjectURL(blob):await blobDataUrl(blob);
+  const img=new Image();img.decoding='sync';
+  try {
+    await new Promise((res,rej)=>{
+      img.onload=res;
+      img.onerror=()=>rej(new Error('SVG image decode failed'));
+      img.src=src;
+    });
+    if(useBlobUrl)img._exportObjectUrl=src;
+    return img;
+  } catch(err) {
+    img.onload=img.onerror=null;img.src='';
+    if(useBlobUrl)URL.revokeObjectURL(src);
+    throw err;
+  }
+};
+/* Final Safari fallback: paint the SVG vocabulary used by FIELD/TYPE directly
+   to canvas. This avoids Image decoding altogether on file:// pages. */
+function paintSvgDirect(svg,canvas,outW,outH,sourceW,sourceH) {
+  const doc=new DOMParser().parseFromString(svg,'image/svg+xml');
+  if(doc.querySelector('parsererror'))throw new Error('Direct PNG renderer received invalid SVG XML.');
+  const ctx=canvas.getContext('2d');
+  if(!ctx)throw new Error('Canvas export is unavailable in this browser.');
+  const n=(el,key,d=0)=>{const v=parseFloat(el.getAttribute(key));return Number.isFinite(v)?v:d;};
+  const css=el=>{
+    const o={};(el.getAttribute('style')||'').split(';').forEach(p=>{const i=p.indexOf(':');if(i>0)o[p.slice(0,i).trim()]=p.slice(i+1).trim();});return o;
+  };
+  const transform=s=>{
+    if(!s)return;let m;
+    const re=/([a-zA-Z]+)\s*\(([^)]*)\)/g;
+    while((m=re.exec(s))) {
+      const a=m[2].trim().split(/[ ,]+/).filter(Boolean).map(Number),fn=m[1].toLowerCase();
+      if(fn==='translate')ctx.translate(a[0]||0,a.length>1?a[1]||0:0);
+      else if(fn==='scale')ctx.scale(a[0]===undefined?1:a[0],a.length>1?a[1]:a[0]);
+      else if(fn==='rotate') {const r=(a[0]||0)*Math.PI/180;if(a.length>2){ctx.translate(a[1],a[2]);ctx.rotate(r);ctx.translate(-a[1],-a[2]);}else ctx.rotate(r);}
+      else if(fn==='matrix'&&a.length>=6)ctx.transform(a[0],a[1],a[2],a[3],a[4],a[5]);
+      else if(fn==='skewx')ctx.transform(1,0,Math.tan((a[0]||0)*Math.PI/180),1,0,0);
+      else if(fn==='skewy')ctx.transform(1,Math.tan((a[0]||0)*Math.PI/180),0,1,0,0);
+    }
+  };
+  const clips={};
+  doc.querySelectorAll('clipPath[id]').forEach(cp=>{const r=cp.querySelector('rect');if(r)clips[cp.id]=r;});
+  const base={fill:'#000',stroke:'none',strokeWidth:1,lineCap:'butt',lineJoin:'miter',opacity:1};
+  const render=(el,parent=base)=>{
+    if(el.nodeType!==1)return;
+    const tag=el.localName,inline=css(el),get=k=>el.hasAttribute(k)?el.getAttribute(k):inline[k];
+    if(['defs','clipPath','filter','title','style','script'].includes(tag))return;
+    const st={...parent};
+    const fill=get('fill'),stroke=get('stroke'),sw=get('stroke-width'),lc=get('stroke-linecap'),lj=get('stroke-linejoin'),op=get('opacity');
+    if(fill!=null)st.fill=fill;if(stroke!=null)st.stroke=stroke;if(sw!=null)st.strokeWidth=parseFloat(sw)||1;
+    if(lc)st.lineCap=lc;if(lj)st.lineJoin=lj;if(op!=null)st.opacity=parent.opacity*(parseFloat(op)||0);
+    ctx.save();transform(el.getAttribute('transform'));
+    ctx.globalAlpha=Math.max(0,Math.min(1,st.opacity));ctx.lineWidth=st.strokeWidth;ctx.lineCap=st.lineCap;ctx.lineJoin=st.lineJoin;
+    if(st.fill&&st.fill!=='none')ctx.fillStyle=st.fill;if(st.stroke&&st.stroke!=='none')ctx.strokeStyle=st.stroke;
+    const clip=(el.getAttribute('clip-path')||'').match(/^url\(#(.+)\)$/);
+    if(clip&&clips[clip[1]]){const r=clips[clip[1]];ctx.beginPath();ctx.rect(n(r,'x'),n(r,'y'),n(r,'width'),n(r,'height'));ctx.clip();}
+    const paint=p=>{if(st.fill&&st.fill!=='none')ctx.fill(p,el.getAttribute('fill-rule')||'nonzero');if(st.stroke&&st.stroke!=='none')ctx.stroke(p);};
+    if(tag==='svg'||tag==='g')Array.from(el.children).forEach(ch=>render(ch,st));
+    else if(tag==='rect') {const x=n(el,'x'),y=n(el,'y'),w=n(el,'width'),h=n(el,'height'),rx=Math.max(0,n(el,'rx'));
+      ctx.beginPath();if(rx&&ctx.roundRect)ctx.roundRect(x,y,w,h,rx);else ctx.rect(x,y,w,h);if(st.fill!=='none')ctx.fill();if(st.stroke!=='none')ctx.stroke();}
+    else if(tag==='circle') {ctx.beginPath();ctx.arc(n(el,'cx'),n(el,'cy'),n(el,'r'),0,Math.PI*2);if(st.fill!=='none')ctx.fill();if(st.stroke!=='none')ctx.stroke();}
+    else if(tag==='ellipse') {ctx.beginPath();ctx.ellipse(n(el,'cx'),n(el,'cy'),n(el,'rx'),n(el,'ry'),0,0,Math.PI*2);if(st.fill!=='none')ctx.fill();if(st.stroke!=='none')ctx.stroke();}
+    else if(tag==='line') {ctx.beginPath();ctx.moveTo(n(el,'x1'),n(el,'y1'));ctx.lineTo(n(el,'x2'),n(el,'y2'));if(st.stroke!=='none')ctx.stroke();}
+    else if(tag==='path') {const d=el.getAttribute('d');if(d)paint(new Path2D(d));}
+    else if(tag==='polygon'||tag==='polyline') {const pts=(el.getAttribute('points')||'').trim().split(/\s+/).map(v=>v.split(',').map(Number));ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));if(tag==='polygon')ctx.closePath();if(st.fill!=='none')ctx.fill();if(st.stroke!=='none')ctx.stroke();}
+    else if(tag==='text') {
+      const text=el.textContent||'',size=n(el,'font-size',9),weight=el.getAttribute('font-weight')||'400',family=el.getAttribute('font-family')||'sans-serif';
+      const track=n(el,'letter-spacing'),word=n(el,'word-spacing'),anchor=el.getAttribute('text-anchor')||'start';
+      ctx.font=`${weight} ${size}px ${family}`;ctx.textBaseline='alphabetic';
+      const widths=Array.from(text).map(ch=>ctx.measureText(ch).width+track+(ch===' '?word:0));
+      const natural=Math.max(0,widths.reduce((a,b)=>a+b,0)-(text.length?track:0)),target=n(el,'textLength',natural)||natural;
+      let start=0;if(anchor==='middle')start=-natural/2;else if(anchor==='end')start=-natural;
+      ctx.save();ctx.translate(n(el,'x'),n(el,'y'));if(natural&&target!==natural)ctx.scale(target/natural,1);
+      let x=start;Array.from(text).forEach((ch,i)=>{if(st.fill!=='none')ctx.fillText(ch,x,0);if(st.stroke!=='none')ctx.strokeText(ch,x,0);x+=widths[i];});ctx.restore();
+    }
+    ctx.restore();
+  };
+  ctx.save();ctx.setTransform(outW/sourceW,0,0,outH/sourceH,0,0);render(doc.documentElement);ctx.restore();
+  return ctx;
+}
+async function rasterizeAsset(asset, requestedScale = 2) {
+  try {
+    const MAX_DIM = 4096, MAX_PIXELS = 16000000;
+    const scale = Math.min(requestedScale, MAX_DIM/asset.W, MAX_DIM/asset.H,
+      Math.sqrt(MAX_PIXELS/(asset.W*asset.H)));
+    const outW = Math.max(1,Math.floor(asset.W*scale));
+    const outH = Math.max(1,Math.floor(asset.H*scale));
+    let img=null,compat=false;
+    const strict=strictSvgXml(asset.svg),simplified=withoutExportGrain(strict);
+    /* Data URLs are most reliable for file:// pages, but some Safari builds
+       prefer a blob URL. Retry both, then remove only the optional SVG grain. */
+    const safari=/Safari/i.test(navigator.userAgent)&&!/Chrome|Chromium|CriOS|Edg|OPR|FxiOS/i.test(navigator.userAgent);
+    const attempts=safari ? [
+      /* Safari's SVG image decoder is the reason for this path. Avoid asking
+         it to decode the known-problematic grain/blend filter first. */
+      [simplified,false,true],
+      [simplified,true,true],
+      [strict,false,false],
+      [strict,true,false],
+    ] : [
+      [strict,false,false],
+      [strict,true,false],
+      [simplified,false,true],
+      [simplified,true,true],
+    ];
+    for(const [svg,useBlobUrl,isCompat] of attempts) {
+      try {img=await loadSvgImage(svg,useBlobUrl);compat=isCompat;break;} catch(err) {}
+    }
+    const c=document.createElement('canvas'); c.width=outW; c.height=outH;
+    const g=c.getContext('2d');
+    if(!g) throw new Error('Canvas export is unavailable in this browser.');
+    let direct=false;
+    if(img)g.drawImage(img,0,0,outW,outH);
+    else {paintSvgDirect(simplified,c,outW,outH,asset.W,asset.H);compat=true;direct=true;}
+    const blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('PNG canvas exceeded the browser limit.')),'image/png'));
+    if(img&&img._exportObjectUrl)URL.revokeObjectURL(img._exportObjectUrl);
+    g.clearRect(0,0,outW,outH);c.width=1;c.height=1;
+    if(img){img.onload=img.onerror=null;img.src='';}
+    return {blob,w:outW,h:outH,compat,direct};
+  } finally {}
+}
+
+$('dlpng').onclick = async () => {
+  const btn=$('dlpng'), oldLabel=btn.textContent;
+  btn.disabled=true; btn.textContent='Rendering…';
+  try {
+    const png=await rasterizeAsset(current,2);
+    download(png.blob,fname('png'));
+    btn.textContent=`Saved ${png.w}×${png.h}`;
+    $('exporthint').textContent=png.direct
+      ? 'PNG saved with the direct Safari canvas renderer.'
+      : `PNG saved at ${png.w}×${png.h}.`;
+  } catch(err) {
+    console.error(err); btn.textContent='PNG failed'; btn.title=err.message||'PNG export failed';
+    $('exporthint').textContent=`PNG failed: ${err.message||'unknown Safari export error'}`;
+  } finally {
+    setTimeout(()=>{btn.disabled=false;btn.textContent=oldLabel;},1800);
+  }
+};
+
+/* PNGs are already compressed, so a store-only ZIP avoids an external
+   dependency and works when the generator is opened directly from disk. */
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=bytes=>{let c=0xFFFFFFFF;for(const b of bytes)c=CRC_TABLE[(c^b)&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0;};
+const u16=(v,n,o)=>{v[o]=n&255;v[o+1]=(n>>>8)&255;};
+const u32=(v,n,o)=>{v[o]=n&255;v[o+1]=(n>>>8)&255;v[o+2]=(n>>>16)&255;v[o+3]=(n>>>24)&255;};
+async function blobBytes(blob) {
+  if(typeof blob.arrayBuffer==='function') {
+    try{return new Uint8Array(await blob.arrayBuffer());}catch(e){}
+  }
+  return new Promise((res,rej)=>{
+    const reader=new FileReader();
+    reader.onload=()=>res(new Uint8Array(reader.result));
+    reader.onerror=()=>rej(new Error('Safari could not read a rendered PNG for ZIP packaging.'));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+async function makeZip(files) {
+  const enc=new TextEncoder(), locals=[], centrals=[];
+  let offset=0, centralSize=0;
+  const now=new Date(), dt=((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1))&0xffff;
+  const dd=((((now.getFullYear()-1980)&127)<<9)|((now.getMonth()+1)<<5)|now.getDate())&0xffff;
+  for(const file of files) {
+    const name=enc.encode(file.name), data=await blobBytes(file.blob), crc=crc32(data);
+    const local=new Uint8Array(30+name.length);
+    u32(local,0x04034b50,0);u16(local,20,4);u16(local,0x0800,6);u16(local,0,8);u16(local,dt,10);u16(local,dd,12);
+    u32(local,crc,14);u32(local,data.length,18);u32(local,data.length,22);u16(local,name.length,26);u16(local,0,28);local.set(name,30);
+    locals.push(local,file.blob);
+    const central=new Uint8Array(46+name.length);
+    u32(central,0x02014b50,0);u16(central,20,4);u16(central,20,6);u16(central,0x0800,8);u16(central,0,10);
+    u16(central,dt,12);u16(central,dd,14);u32(central,crc,16);u32(central,data.length,20);u32(central,data.length,24);
+    u16(central,name.length,28);u16(central,0,30);u16(central,0,32);u16(central,0,34);u16(central,0,36);u32(central,0,38);u32(central,offset,42);central.set(name,46);
+    centrals.push(central);centralSize+=central.length;offset+=local.length+data.length;
+  }
+  const end=new Uint8Array(22);
+  u32(end,0x06054b50,0);u16(end,0,4);u16(end,0,6);u16(end,files.length,8);u16(end,files.length,10);
+  u32(end,centralSize,12);u32(end,offset,16);u16(end,0,20);
+  return new Blob([...locals,...centrals,end],{type:'application/zip'});
+}
+
+/* TAR needs no CRC pass and never duplicates PNG bytes in memory. Archive
+   Utility and Finder open it natively on macOS, making it the reliable
+   batch container for Safari. */
+function makeTar(files) {
+  const enc=new TextEncoder(), parts=[];
+  const put=(h,o,n,s)=>h.set(enc.encode(String(s)).slice(0,n),o);
+  const oct=(h,o,n,v)=>put(h,o,n,Math.max(0,v).toString(8).padStart(n-1,'0')+'\0');
+  for(const file of files) {
+    const h=new Uint8Array(512), name=file.name.length>99?file.name.slice(-99):file.name;
+    put(h,0,100,name);put(h,100,8,'0000644\0');put(h,108,8,'0000000\0');put(h,116,8,'0000000\0');
+    oct(h,124,12,file.blob.size);oct(h,136,12,Math.floor(Date.now()/1000));
+    h.fill(32,148,156);h[156]=48;put(h,257,6,'ustar\0');put(h,263,2,'00');put(h,265,32,'fieldtype');put(h,297,32,'fieldtype');
+    let sum=0;for(const b of h)sum+=b;
+    put(h,148,8,sum.toString(8).padStart(6,'0')+'\0 ');
+    parts.push(h,file.blob);
+    const pad=(512-(file.blob.size%512))%512;if(pad)parts.push(new Uint8Array(pad));
+  }
+  parts.push(new Uint8Array(1024));
+  return new Blob(parts,{type:'application/x-tar'});
+}
+
+let batchReady=null;
+const BATCH_LABEL='↓ 10 PNG ARCHIVE';
+$('dlbatch').onclick = async () => {
+  const btn=$('dlbatch');
+  /* Safari expires the initiating click while ten canvases render. The
+     second click happens after the ZIP exists, so the download is immediate
+     and remains inside a fresh user gesture. */
+  if(batchReady) {
+    const ready=batchReady; batchReady=null;
+    download(ready.blob,ready.name);
+    btn.classList.remove('primary');btn.textContent='Saved 10 PNGs';btn.title='';
+    $('exporthint').textContent='Batch archive downloaded.';
+    setTimeout(()=>{btn.textContent=BATCH_LABEL;$('exporthint').textContent='SVG preserves editable text. PNG uses a Safari-safe canvas export. Batch prepares a TAR, then asks you to click Download Archive.';},1800);
+    return;
+  }
+  const batchOpts={format:$('format').value,theme:'random',arch:'random'}, base=$('seed').value||'0', files=[];
+  let compatCount=0;
+  btn.disabled=true;$('exporthint').textContent='Preparing ten PNGs. Keep this tab open…';
+  try {
+    for(let i=0;i<10;i++) {
+      btn.textContent=`Rendering ${i+1}/10…`;
+      const serial=`${base}-${String(i+1).padStart(2,'0')}-${Math.floor(Math.random()*1e6).toString().padStart(6,'0')}`;
+      const asset=renderAsset(serial,batchOpts);
+      const batchScale=Math.min(1,1600/Math.max(asset.W,asset.H));
+      const png=await rasterizeAsset(asset,batchScale);
+      if(png.compat)compatCount++;
+      const clean=s=>String(s).replace(/[^a-z0-9_-]+/gi,'_').replace(/^_+|_+$/g,'');
+      files.push({name:`fieldtype_${String(i+1).padStart(2,'0')}_${clean(serial)}_${clean(asset.theme.id)}_${clean(asset.arch)}.png`,blob:png.blob});
+      await new Promise(requestAnimationFrame);
+    }
+    btn.textContent='Packing archive…';
+    batchReady={
+      blob:makeTar(files),
+      name:`fieldtype_batch10_${base}_${batchOpts.format}${state.transparent?'_transparent':''}.tar`,
+    };
+    btn.disabled=false;btn.classList.add('primary');btn.textContent='↓ Download archive';
+    btn.title='Batch ready — click once to save it';
+    $('exporthint').textContent=compatCount
+      ? 'Archive ready. Safari compatibility mode kept the paper color and omitted only PNG grain. Click Download archive.'
+      : 'Archive ready. Click Download archive to save all ten PNGs.';
+  } catch(err) {
+    console.error(err);btn.textContent='Batch failed';btn.title=err.message||'Batch export failed';
+    $('exporthint').textContent=`Batch failed: ${err.message||'unknown Safari export error'}`;
+    setTimeout(()=>{btn.disabled=false;btn.textContent=BATCH_LABEL;btn.title='';},2200);
+  }
+};
+
+/* ---------- symbol panel ---------- */
+/* Grouped by role, so it's visible which slot each symbol actually feeds. */
+const ROLE_INFO = [
+  ['icon',  'Icons',     'header + corner glyphs'],
+  ['block', 'Blocks',    'QR codes, dials — given their own ~60px slot'],
+  ['mark',  'Wordmarks', 'wide logotypes, sized to a third of the column'],
+  ['panel', 'Panels',    'wide detailed art — charts, HUD strips, full column width'],
+  ['vert',  'Strips',    'tall marks (kanji), set down the poster margin'],
+  ['hbar',  'Bars',      'instrument strips, laid horizontally along a margin'],
+];
+const symCell = s => {
+  const { x, y, w, h } = s.vbox;
+  const k = 24 / Math.max(w, h);                // keep preview line weight consistent
+  return `<div class="sym" data-id="${s.id}" data-on="${s.on ? 1 : 0}" title="${s.name}">
+     <svg viewBox="${x} ${y} ${w} ${h}" preserveAspectRatio="xMidYMid meet">${symPaths(s, '#e6ebf2', '#0e1116', 1.5, k)}</svg>
+   </div>`;
+};
+function renderSymbols() {
+  $('symbody').innerHTML = ROLE_INFO.map(([role, label, blurb]) => {
+    const items = SYMBOLS.filter(s => s.role === role);
+    if (!items.length) return '';
+    const on = items.filter(s => s.on).length;
+    return `<div class="symrole">${label} <em>${blurb} · ${on}/${items.length}</em></div>
+            <div class="symgrid">${items.map(symCell).join('')}</div>`;
+  }).join('');
+  const on = SYMBOLS.filter(s => s.on).length;
+  $('symcount').textContent = `${on} / ${SYMBOLS.length} on`;
+}
+$('symbody').onclick = e => {
+  const cell = e.target.closest('.sym'); if (!cell) return;
+  const s = SYMBOLS.find(v => v.id === cell.dataset.id);
+  s.on = !s.on;
+  saveSymbols(); renderSymbols(); generate(false);
+};
+
+const symModal = (open) => {
+  $('symmodal').classList.toggle('open', open);
+  $('symmodal').hidden = !open;
+  if (open) $('symclose').focus();
+};
+$('symopen').onclick  = () => symModal(true);
+$('symclose').onclick = () => symModal(false);
+$('symdone').onclick  = () => symModal(false);
+$('symmodal').onclick = e => { if (e.target === $('symmodal')) symModal(false); };  // backdrop only
+$('symall').onclick = () => { SYMBOLS.forEach(s => s.on = true); saveSymbols(); renderSymbols(); generate(false); };
+
+/* ---------- boot ---------- */
+/* Dice: for when you don't know what you want. Generate only rerolls the
+   seed; this commits to concrete format/palette/layout choices so you can
+   see what it landed on and iterate. Honours a locked seed. */
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+
+/* The die is drawn, not typed — pips on a 3×3 grid, so it can land on a
+   real face each roll instead of being a static glyph. */
+const PIPS = {
+  1: [[12,12]],
+  2: [[8.4,8.4],[15.6,15.6]],
+  3: [[8.4,8.4],[12,12],[15.6,15.6]],
+  4: [[8.4,8.4],[15.6,8.4],[8.4,15.6],[15.6,15.6]],
+  5: [[8.4,8.4],[15.6,8.4],[12,12],[8.4,15.6],[15.6,15.6]],
+  6: [[8.4,8],[8.4,12],[8.4,16],[15.6,8],[15.6,12],[15.6,16]],
+};
+const setDiceFace = n => {
+  $('pips').innerHTML = PIPS[n].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.35"/>`).join('');
+};
+const renderLock = () => {
+  $('lock').dataset.locked = locked ? '1' : '0';
+  $('lock').title = locked ? 'Seed locked — the dice will keep it' : 'Lock the seed';
+  // closed shackle returns to the body; open one stays lifted
+  $('shackle').setAttribute('d', locked ? 'M8 10.75V7a4 4 0 0 1 8 0v3.75' : 'M8 10.75V7a4 4 0 0 1 8 0');
+};
+
+const LSFMT = 'fieldtype.format.v1';
+const LSFMTLOCK = 'fieldtype.formatlock.v1';
+const renderFormatLock = () => {
+  $('formatlock').dataset.locked = formatLocked ? '1' : '0';
+  $('formatlock').title = formatLocked ? 'Format locked — the dice will keep this size' : 'Lock format while rolling';
+  $('formatlock').setAttribute('aria-label',formatLocked ? 'Unlock format' : 'Lock format');
+  $('formatshackle').setAttribute('d',formatLocked ? 'M8 10.75V7a4 4 0 0 1 8 0v3.75' : 'M8 10.75V7a4 4 0 0 1 8 0');
+  $('formathint').textContent = formatLocked
+    ? 'Locked — roll new versions while preserving this size.'
+    : 'Unlocked — the dice may change the format.';
+};
+function saveFormat() {
+  localStorage.setItem(LSFMT,$('format').value);
+  localStorage.setItem(LSFMTLOCK,formatLocked ? '1' : '0');
+}
+function loadFormat() {
+  const saved = localStorage.getItem(LSFMT);
+  if (saved && FORMATS[saved]) $('format').value = saved;
+  formatLocked = localStorage.getItem(LSFMTLOCK) === '1';
+  renderFormatLock();
+}
+
+function roll() {
+  if (!formatLocked) $('format').value = rnd(['poster', 'poster', 'a_land', 'onesheet', 'square', 'wide', 'tight', 'sheet', 'sheet_square_5', 'sheet_square_10']);
+  $('arch').value   = rnd(ARCHES);
+  state.theme       = rnd(THEMES).id;
+  saveFormat();
+  renderPalettes();
+  setDiceFace(1 + Math.floor(Math.random() * 6));
+  const d = $('dice');
+  d.classList.remove('rolling'); void d.offsetWidth; d.classList.add('rolling');
+  generate(true);
+}
+$('dice').onclick = roll;
+$('gen').onclick = () => generate(true);
+$('format').onchange = () => { saveFormat(); generate(false); };
+$('arch').onchange = () => generate(false);
+$('formatlock').onclick = () => { formatLocked=!formatLocked; saveFormat(); renderFormatLock(); };
+$('fontset').onchange = () => applyFontSet($('fontset').value,true);
+$('canvasbg').onchange = () => applyCanvasMode($('canvasbg').value,true);
+
+/* Grain is a finish you dial in once, not a variant to explore — so the dice
+   deliberately leaves it alone. It persists instead. */
+const LSG = 'fieldtype.grain.v1';
+$('grain').oninput = () => {
+  state.grain = +$('grain').value / 100;
+  $('grainval').textContent = $('grain').value + '%';
+  localStorage.setItem(LSG, $('grain').value);
+  generate(false);
+};
+function loadGrain() {
+  const v = +(localStorage.getItem(LSG) || 18);
+  $('grain').value = v; state.grain = v / 100; $('grainval').textContent = v + '%';
+}
+$('seed').oninput = () => generate(false);
+$('lock').onclick = () => { locked = !locked; renderLock(); };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('symmodal').classList.contains('open')) { symModal(false); return; }
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if ($('symmodal').classList.contains('open')) return;   // shortcuts don't fire behind the modal
+  if (e.code === 'Space') { e.preventDefault(); generate(true); }
+  if (e.code === 'KeyR')  { e.preventDefault(); roll(); }
+});
+
+(async function boot() {
+  setDiceFace(5); renderLock(); loadFormat(); loadGrain(); loadCanvasMode(); loadFontSet(); PAL_ROWS = PAL_ORDER(); renderPalettes(); loadWords(); renderWords();
+  try {
+    if (!window.FIELD_LOGO_SVG || !window.FIELD_LIBRARY) throw new Error('Embedded support files are missing.');
+    prepareLogo(window.FIELD_LOGO_SVG);
+    LIBRARY = window.FIELD_LIBRARY;
+  } catch (e) {
+    $('out').innerHTML =
+      `<div style="padding:28px;max-width:440px;border:1px solid var(--line);border-radius:4px;line-height:1.7">
+         <b style="color:var(--accent)">The field-mark library didn't load.</b><br>
+         <span style="color:var(--dim)">${esc(e.message)}</span><br><br>
+         <span style="color:var(--faint)">Keep field-manual.html, field-manual-logo.js, and field-marks-bold.js
+         together in the same folder, then reload the page.</span>
+       </div>`;
+    return;
+  }
+  loadSymbols(); renderSymbols(); generate(false);
+})();
+</script>
+</body>
+</html>
