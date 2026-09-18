@@ -198,6 +198,7 @@
   .iface-card.anim-4 { animation: fade-up 0.7s 1.55s ease forwards; }
   .iface-card.anim-5 { animation: fade-up 0.7s 1.7s ease forwards; }
   .iface-card.anim-6 { animation: fade-up 0.7s 1.85s ease forwards; }
+  .iface-card.anim-7 { animation: fade-up 0.7s 2.0s ease forwards; }
 
   .card-preview {
     position: relative; width: 100%; aspect-ratio: 16/9;
@@ -324,7 +325,7 @@
 <div class="content">
   <div class="section-header">
     <span class="section-label">Generators</span>
-    <span class="section-count">6 / ∞</span>
+    <span class="section-count">7 / ∞</span>
   </div>
 
   <div class="cards">
@@ -669,6 +670,36 @@
       </div>
     </a>
 
+    <!-- MOTION//FIELD -->
+    <a href="motion-field.html" class="iface-card anim-7" style="--c:#b8ff32;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(184,255,50,0.65),transparent 70%);"></div>
+      <div class="card-preview" style="background:#050705;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs><filter id="mfglow"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <rect width="400" height="225" fill="#050705"/>
+            <g fill="none" stroke="#b8ff32" filter="url(#mfglow)">
+              <path d="M-10 88 C45 8 84 184 142 92 S238 36 294 111 S376 177 420 69" opacity=".85"/>
+              <path d="M-18 101 C42 24 84 196 145 106 S238 51 297 123 S373 190 418 84" opacity=".5"/>
+              <path d="M-20 116 C38 42 88 211 151 121 S246 68 304 140 S380 202 425 100" opacity=".28"/>
+              <path d="M-8 72 C51 -4 87 168 138 77 S229 20 290 94 S372 161 416 54" opacity=".3"/>
+            </g>
+            <g fill="#dfff9e" opacity=".65"><circle cx="52" cy="67" r="1.8"/><circle cx="109" cy="131" r="1.4"/><circle cx="175" cy="62" r="1.8"/><circle cx="242" cy="90" r="1.2"/><circle cx="326" cy="141" r="1.7"/></g>
+            <g stroke="#b8ff32" stroke-opacity=".25"><path d="M18 26H88M18 26V62"/><path d="M382 199H312M382 199V163"/></g>
+            <text x="20" y="204" font-family="'Space Mono',monospace" font-size="8" letter-spacing="1.6" fill="#b8ff32" opacity=".65">AUDIO / VIDEO / FIELD 01</text>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(184,255,50,0.08) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta"><span class="card-type">Generative / Motion Studio</span><span class="card-status live"><span class="sd"></span>ACTIVE</span></div>
+        <h2 class="card-title">MOTION<em style="color:rgba(184,255,50,0.92)">/&#47;FIELD</em></h2>
+        <p class="card-desc">An abstract motion compositor for connected point clouds, source-driven blob tracking, flow lines, rings, cells and signal fields — with still and 60-second motion capture.</p>
+        <div class="card-tags"><span class="tag">POINT CLOUD</span><span class="tag">BLOB TRACKING</span><span class="tag">AUDIO REACTIVE</span><span class="tag">60 SEC</span><span class="tag">LOCAL</span></div>
+      </div>
+    </a>
+
   </div>
 </div>
 
@@ -704,7 +735,7 @@
 
   // Glitch the eyebrow text
   const eyebrow = document.getElementById('hero-eyebrow-data');
-  const targets = ['GENERATIVE DESIGN TOOLS / ASSET FORGES','SUB//FORGE // SUBSTRATE PLATES','TYPO//FORGE // TYPOGRAPHIC POSTERS','RET//FORGE // TARGETING RETICLES','READ//OUT // READOUTS & NODE FIELDS','TOPO//FORGE // TOPOGRAPHIC NOISE & CONTOURS','CITY//EMIT // CITY LIGHT EMISSION MAPS'];
+  const targets = ['GENERATIVE DESIGN TOOLS / ASSET FORGES','SUB//FORGE // SUBSTRATE PLATES','TYPO//FORGE // TYPOGRAPHIC POSTERS','RET//FORGE // TARGETING RETICLES','READ//OUT // READOUTS & NODE FIELDS','TOPO//FORGE // TOPOGRAPHIC NOISE & CONTOURS','CITY//EMIT // CITY LIGHT EMISSION MAPS','MOTION//FIELD // ABSTRACT SIGNAL COMPOSITOR'];
   const glitch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/\\|<>[]{}!@#$%^&*';
   let ei=0;
   function cycleEyebrow(){

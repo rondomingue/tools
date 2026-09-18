@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOOLKIT — Ron Domingue</title>
+<meta name="description" content="Browser-based generative design tools — FUI substrate plates, typographic posters, targeting reticles and technical readouts. Single-file, procedural, PNG + SVG export.">
+<link rel="stylesheet" href="https://use.typekit.net/xhf1nbc.css">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0f11;
+    --surface: #131417;
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.18);
+    --accent: #c8289a;
+    --accent-alt: #2888c8;
+    --text: #eeeef0;
+    --text-dim: #8a8a98;
+    --text-faint: #3a3a46;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 300;
+    min-height: 100%;
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slow-drift {
+    0%   { transform: scale(1.035) translate(0,0) rotate(0deg); }
+    33%  { transform: scale(1.035) translate(8px,-6px) rotate(0.3deg); }
+    66%  { transform: scale(1.035) translate(-4px,8px) rotate(-0.2deg); }
+    100% { transform: scale(1.035) translate(0,0) rotate(0deg); }
+  }
+  @keyframes scan-line {
+    0%   { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+  @keyframes blink {
+    0%,100%{ opacity:1; } 50%{ opacity:0; }
+  }
+  @keyframes grid-fade-in {
+    from{ opacity:0; } to{ opacity:1; }
+  }
+
+  /* ===== TOP BAR ===== */
+  .top-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 22px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(14,15,17,0.95) 0%, transparent 100%);
+  }
+  .top-logo {
+    font-family: 'din-2014', sans-serif;
+    font-weight: 300; font-size: 12px; letter-spacing: 0.18em;
+    color: rgba(238,238,240,0.65); text-decoration: none; text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .top-logo:hover { color: var(--accent); }
+
+  .top-right { display: flex; align-items: center; gap: 28px; }
+  .top-url {
+    font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.14em;
+    color: rgba(238,238,240,0.3); text-decoration: none; text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .top-url:hover { color: var(--accent); }
+  .top-status {
+    font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.12em;
+    color: var(--text-faint);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .top-status strong { color: rgba(238,238,240,0.58); font-weight: 400; }
+  .top-divider { width: 1px; height: 10px; background: rgba(238,238,240,0.16); margin: 0 4px; }
+  .status-dot {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+    animation: blink 3s ease-in-out infinite;
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    position: relative;
+    width: 100%; min-height: 280px;
+    padding-top: 80px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    overflow: hidden;
+  }
+  .hero-grid {
+    position: absolute; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 16px 16px;
+    animation: grid-fade-in 2s ease forwards;
+    opacity: 0;
+  }
+  .hero-grid::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(200,40,154,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200,40,154,0.04) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  .hero-scan {
+    position: absolute; left: 0; right: 0; height: 1px; z-index: 1;
+    background: linear-gradient(to right, transparent 0%, rgba(200,40,154,0.3) 30%, rgba(200,40,154,0.15) 70%, transparent 100%);
+    animation: scan-line 8s linear infinite;
+    pointer-events: none;
+  }
+  .hero-overlay {
+    position: absolute; inset: 0; z-index: 2;
+    background:
+      radial-gradient(ellipse at 70% 30%, rgba(200,40,154,0.04) 0%, transparent 55%),
+      radial-gradient(ellipse at 20% 70%, rgba(40,136,200,0.04) 0%, transparent 55%),
+      linear-gradient(to bottom, rgba(14,15,17,0.4) 0%, transparent 35%, rgba(14,15,17,0.6) 70%, var(--bg) 100%);
+  }
+  .hero-content {
+    position: relative; z-index: 10;
+    padding: 0 48px 72px;
+    max-width: 860px;
+  }
+  .hero-eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 20px;
+    opacity: 0; animation: fade-up 0.7s 0.4s ease forwards;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .eyebrow-line { display: inline-block; width: 32px; height: 1px; background: var(--accent); opacity: 0.5; }
+  .hero-title {
+    font-family: 'din-2014', sans-serif;
+    font-weight: 200;
+    font-size: clamp(52px, 8vw, 112px);
+    letter-spacing: 0.04em; line-height: 0.93;
+    color: var(--text);
+    margin-bottom: 24px;
+    opacity: 0; animation: fade-up 0.8s 0.55s ease forwards;
+  }
+  .hero-title em { font-style: normal; color: var(--accent); }
+  .hero-desc {
+    font-family: 'Barlow', sans-serif; font-weight: 300;
+    font-size: 15px; color: rgba(238,238,240,0.5);
+    line-height: 1.65; max-width: 480px; margin-bottom: 0;
+    opacity: 0; animation: fade-up 0.8s 0.75s ease forwards;
+  }
+  .hero-system-meta {
+    display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 28px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 0.16em; line-height: 1.7; text-transform: uppercase;
+    color: rgba(238,238,240,0.34);
+    opacity: 0; animation: fade-up 0.8s 0.9s ease forwards;
+  }
+  .hero-system-meta b { color: rgba(238,238,240,0.64); font-weight: 400; }
+
+  /* ===== CONTENT ===== */
+  .content { position: relative; z-index: 10; padding: 0 48px 120px; }
+  .section-header {
+    display: flex; align-items: baseline; gap: 20px; margin-bottom: 36px;
+    padding-top: 6px; border-top: 1px solid var(--border);
+    opacity: 0; animation: fade-up 0.7s 1.0s ease forwards;
+  }
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-faint);
+  }
+  .section-count {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 0.1em; color: var(--accent); opacity: 0.7;
+  }
+
+  /* ===== CARDS ===== */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+    gap: 2px;
+  }
+  .iface-card {
+    position: relative; display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--border);
+    overflow: hidden; cursor: pointer; transition: border-color 0.3s ease; opacity: 0;
+  }
+  .iface-card:hover { border-color: var(--border-hover); }
+  .iface-card:hover .card-preview-overlay { opacity: 1; }
+  .iface-card:hover .card-launch { opacity: 1; transform: translateY(0); }
+  .iface-card:hover .preview-drift { animation: slow-drift 12s ease-in-out infinite; }
+  .iface-card.anim-1 { animation: fade-up 0.7s 1.1s ease forwards; }
+  .iface-card.anim-2 { animation: fade-up 0.7s 1.25s ease forwards; }
+  .iface-card.anim-3 { animation: fade-up 0.7s 1.4s ease forwards; }
+  .iface-card.anim-4 { animation: fade-up 0.7s 1.55s ease forwards; }
+  .iface-card.anim-5 { animation: fade-up 0.7s 1.7s ease forwards; }
+  .iface-card.anim-6 { animation: fade-up 0.7s 1.85s ease forwards; }
+  .iface-card.anim-7 { animation: fade-up 0.7s 2.0s ease forwards; }
+
+  .card-preview {
+    position: relative; width: 100%; aspect-ratio: 16/9;
+    background: #08090d; overflow: hidden;
+  }
+  .preview-drift { will-change: transform; transform: scale(1.035); transform-origin: center; width:100%; height:100%; }
+  .preview-drift svg { width: 100%; height: 100%; display: block; }
+  .card-preview-overlay {
+    position: absolute; inset: 0; z-index: 2;
+    opacity: 0; transition: opacity 0.4s ease;
+    background: linear-gradient(135deg, rgba(200,40,154,0.06) 0%, transparent 60%);
+  }
+  .card-launch {
+    position: absolute; bottom: 16px; right: 16px; z-index: 4;
+    font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--text); background: rgba(14,15,17,0.85);
+    border: 1px solid rgba(255,255,255,0.18); padding: 7px 14px;
+    opacity: 0; transform: translateY(4px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .launch-arrow { color: var(--accent); }
+
+  .card-body { padding: 24px 28px 28px; }
+  .card-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .card-type {
+    font-family: 'Space Mono', monospace; font-size: 8.5px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--text-faint);
+  }
+  .card-status {
+    font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 0.14em;
+    text-transform: uppercase; padding: 2px 8px; border: 1px solid; border-radius: 2px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .card-status.live { color: #3aaa70; border-color: rgba(58,170,112,0.3); }
+  .card-status.wip  { color: #c8289a; border-color: rgba(200,40,154,0.3); }
+  .card-status .sd  { width: 4px; height: 4px; border-radius: 50%; background: currentColor; animation: blink 2.5s ease-in-out infinite; }
+
+  .card-title {
+    font-family: 'din-2014', sans-serif;
+    font-weight: 300; font-size: clamp(28px, 3vw, 38px); letter-spacing: 0.04em;
+    color: var(--text); margin-bottom: 10px; line-height: 1;
+  }
+  .card-title em { font-style: normal; }
+  .card-desc {
+    font-family: 'Barlow', sans-serif; font-weight: 300;
+    font-size: 13px; color: rgba(238,238,240,0.45); line-height: 1.6;
+    margin-bottom: 20px; max-width: 380px;
+  }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-faint);
+    border: 1px solid var(--text-faint); padding: 2px 8px; opacity: 0.55;
+  }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    padding: 32px 48px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .footer-left {
+    font-family: 'din-2014', sans-serif; font-weight: 300;
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint);
+  }
+  .footer-right { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.1em; color: var(--text-faint); }
+  .footer-link { color: var(--text-faint); text-decoration: none; transition: color 0.2s; }
+  .footer-link:hover { color: var(--accent); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 860px) {
+    .top-bar { padding: 18px 24px; }
+    .hero-content { padding: 0 24px 60px; }
+    .content { padding: 0 24px 80px; }
+    .cards { grid-template-columns: 1fr; }
+    .footer { padding: 24px; flex-direction: column; gap: 10px; text-align: center; }
+  }
+  @media (max-width: 540px) {
+    .hero-title { font-size: 48px; }
+    .top-status { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <a href="https://rondomingue.com" class="top-logo">Ron Domingue</a>
+  <div class="top-right">
+    <div class="top-status">
+      <span class="status-dot"></span>
+      <span><strong id="live-count">5</strong> GENERATORS</span>
+      <span class="top-divider"></span>
+      <span>VERSION <strong>01.00.00</strong></span>
+      <span class="top-divider"></span>
+      <time datetime="2026-07-21">UPDATED <strong>JULY 21, 2026</strong></time>
+    </div>
+    <a href="https://rondomingue.com" class="top-url">rondomingue.com</a>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-scan"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">
+      <span class="eyebrow-line"></span>
+      <span id="hero-eyebrow-data">GENERATIVE DESIGN TOOLS / ASSET FORGES</span>
+    </div>
+    <h1 class="hero-title">TOOL<em>KIT</em></h1>
+    <p class="hero-desc">
+      A set of browser-based generators for building FUI, HUD and editorial design assets — seeded and procedural, rendering live in the browser, exporting clean PNG and vector SVG from a single file.
+    </p>
+    <div class="hero-system-meta" aria-label="Index metadata">
+      <span>Version <b>01.00.00</b></span>
+      <span>Last updated <b>August 14, 2026</b></span>
+      <span><b>6</b> generators</span>
+    </div>
+  </div>
+</section>
+
+<!-- CARDS -->
+<div class="content">
+  <div class="section-header">
+    <span class="section-label">Generators</span>
+    <span class="section-count">7 / ∞</span>
+  </div>
+
+  <div class="cards">
+
+    <!-- SUBSTRATE -->
+    <a href="substrate.html" class="iface-card anim-1" style="--c:#5ec8f5;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(94,200,245,0.55),transparent 70%);"></div>
+      <div class="card-preview" style="background:#05090c;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs><pattern id="gs" width="18" height="18" patternUnits="userSpaceOnUse"><path d="M18 0V18M0 18H18" stroke="#7fdcea" stroke-opacity="0.05" stroke-width="1"/></pattern></defs>
+            <rect width="400" height="225" fill="#05090c"/>
+            <rect width="400" height="225" fill="url(#gs)"/>
+            <rect x="196" y="26" width="180" height="60" fill="#7fdcea" fill-opacity="0.05"/>
+            <rect x="24" y="118" width="92" height="82" fill="#7fdcea" fill-opacity="0.045"/>
+            <g fill="none" stroke="#7fdcea" stroke-opacity="0.42" stroke-width="1">
+              <rect x="24" y="26" width="150" height="80"/>
+              <rect x="24" y="118" width="92" height="82"/>
+              <rect x="128" y="118" width="122" height="52"/>
+              <rect x="196" y="26" width="180" height="60"/>
+              <rect x="270" y="100" width="106" height="100"/>
+            </g>
+            <g stroke="#5ec8f5" stroke-opacity="0.3" stroke-width="1">
+              <line x1="276" y1="200" x2="376" y2="100"/><line x1="292" y1="200" x2="376" y2="116"/>
+              <line x1="308" y1="200" x2="376" y2="132"/><line x1="324" y1="200" x2="376" y2="148"/>
+              <line x1="340" y1="200" x2="376" y2="164"/>
+            </g>
+            <rect x="24" y="26" width="150" height="9" fill="#5ec8f5" fill-opacity="0.6"/>
+            <g fill="#cfe9f5" fill-opacity="0.4">
+              <rect x="34" y="50" width="86" height="4"/><rect x="34" y="60" width="60" height="4"/>
+              <rect x="34" y="70" width="98" height="4"/><rect x="34" y="80" width="48" height="4"/>
+              <rect x="206" y="44" width="120" height="4"/><rect x="206" y="54" width="86" height="4"/>
+              <rect x="206" y="66" width="150" height="4"/>
+            </g>
+            <g stroke="#9fc4d6" stroke-opacity="0.5" stroke-width="1">
+              <line x1="128" y1="182" x2="240" y2="182"/>
+              <line x1="128" y1="178" x2="128" y2="186"/><line x1="156" y1="179" x2="156" y2="185"/>
+              <line x1="184" y1="179" x2="184" y2="185"/><line x1="212" y1="179" x2="212" y2="185"/><line x1="240" y1="178" x2="240" y2="186"/>
+            </g>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(94,200,245,0.06) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="card-type">Generative / Substrate Plates</span>
+          <span class="card-status live"><span class="sd"></span>ACTIVE</span>
+        </div>
+        <h2 class="card-title">SUB<em style="color:rgba(94,200,245,0.9)">STRATE</em></h2>
+        <p class="card-desc">
+          SUB//FORGE — technical substrate plate generator. Recursive panel subdivision, hatch, ticks and instrument labels across eleven presets, symmetry modes, grid &amp; dot overlays — the base layer under a HUD.
+        </p>
+        <div class="card-tags">
+          <span class="tag">SVG</span>
+          <span class="tag">procedural</span>
+          <span class="tag">11 presets</span>
+          <span class="tag">symmetry</span>
+          <span class="tag">FUI</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- TYPO -->
+    <a href="typo.html" class="iface-card anim-2" style="--c:#f050a0;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(240,80,160,0.6),transparent 70%);"></div>
+      <div class="card-preview" style="background:#0e1116;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs><pattern id="gt" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0V20M0 20H20" stroke="#ffffff" stroke-opacity="0.03" stroke-width="1"/></pattern></defs>
+            <rect width="400" height="225" fill="#0e1116"/>
+            <rect width="400" height="225" fill="url(#gt)"/>
+            <g stroke="#f050a0" stroke-opacity="0.5" stroke-width="1">
+              <line x1="30" y1="26" x2="370" y2="26"/>
+              <line x1="30" y1="22" x2="30" y2="30"/><line x1="98" y1="23" x2="98" y2="29"/>
+              <line x1="166" y1="23" x2="166" y2="29"/><line x1="234" y1="23" x2="234" y2="29"/>
+              <line x1="302" y1="23" x2="302" y2="29"/><line x1="370" y1="22" x2="370" y2="30"/>
+            </g>
+            <text x="46" y="182" font-family="'din-2014',sans-serif" font-weight="700" font-size="185" fill="#eeeef0" fill-opacity="0.9">R</text>
+            <text x="150" y="182" font-family="'din-2014',sans-serif" font-weight="200" font-size="185" fill="none" stroke="#f050a0" stroke-width="1.4" stroke-opacity="0.85">a</text>
+            <text x="252" y="182" font-family="'din-2014',sans-serif" font-weight="400" font-size="185" fill="#eeeef0" fill-opacity="0.28">g</text>
+            <g font-family="'Space Mono',monospace" font-size="9" letter-spacing="2" fill="#f050a0" fill-opacity="0.8">
+              <text x="30" y="208">TYPE // SPECIMEN</text>
+            </g>
+            <text x="300" y="208" font-family="'Space Mono',monospace" font-size="9" letter-spacing="2" fill="#eeeef0" fill-opacity="0.4">72 / 10 mm</text>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(240,80,160,0.06) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="card-type">Generative / Typography</span>
+          <span class="card-status live"><span class="sd"></span>ACTIVE</span>
+        </div>
+        <h2 class="card-title">TYPO<em style="color:rgba(240,80,160,0.92)">/&#47;FORGE</em></h2>
+        <p class="card-desc">
+          Typographic poster generator — stacked, woven, gridded and shattered lettering with a specimen vocabulary, live typefaces, and raster effects (glitch, smear, halftone, chrome) over clean vector type.
+        </p>
+        <div class="card-tags">
+          <span class="tag">SVG</span>
+          <span class="tag">type specimen</span>
+          <span class="tag">posters</span>
+          <span class="tag">effects</span>
+          <span class="tag">7 presets</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- RET//FORGE (hud) -->
+    <a href="hud.html" class="iface-card anim-3" style="--c:#ff2d2d;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(255,45,45,0.6),transparent 70%);"></div>
+      <div class="card-preview" style="background:#0b0304;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="400" height="225" fill="#0b0304"/>
+            <g fill="none" stroke="#ff6a6a" stroke-opacity="0.5" stroke-width="1">
+              <circle cx="200" cy="112" r="74"/>
+              <circle cx="200" cy="112" r="46" stroke="#ff2d2d" stroke-opacity="0.8"/>
+              <circle cx="200" cy="112" r="18"/>
+            </g>
+            <g stroke="#ff6a6a" stroke-opacity="0.6" stroke-width="1.2">
+              <line x1="200" y1="30" x2="200" y2="44"/><line x1="200" y1="180" x2="200" y2="194"/>
+              <line x1="118" y1="112" x2="132" y2="112"/><line x1="268" y1="112" x2="282" y2="112"/>
+              <line x1="146" y1="58" x2="156" y2="68"/><line x1="254" y1="58" x2="244" y2="68"/>
+              <line x1="146" y1="166" x2="156" y2="156"/><line x1="254" y1="166" x2="244" y2="156"/>
+            </g>
+            <g stroke="#ffd9d9" stroke-opacity="0.85" stroke-width="1.3">
+              <line x1="108" y1="112" x2="176" y2="112"/><line x1="224" y1="112" x2="292" y2="112"/>
+              <line x1="200" y1="26" x2="200" y2="90"/><line x1="200" y1="134" x2="200" y2="198"/>
+            </g>
+            <g fill="none" stroke="#ff2d2d" stroke-opacity="0.75" stroke-width="1.4">
+              <path d="M30 40V26H44"/><path d="M370 40V26H356"/>
+              <path d="M30 184V198H44"/><path d="M370 184V198H356"/>
+            </g>
+            <circle cx="200" cy="112" r="3" fill="#ff2d2d"/>
+            <g font-family="'Space Mono',monospace" font-size="9" letter-spacing="1.5" fill="#ffd9d9" fill-opacity="0.6">
+              <text x="30" y="60">RNG 04.02</text><text x="322" y="172">LOCK</text>
+            </g>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(255,45,45,0.07) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="card-type">Generative / Reticles</span>
+          <span class="card-status live"><span class="sd"></span>ACTIVE</span>
+        </div>
+        <h2 class="card-title">RET<em style="color:rgba(255,45,45,0.9)">/&#47;FORGE</em></h2>
+        <p class="card-desc">
+          Targeting reticle generator — sniper optics, multi-target tracking, single-target acquisition, radar sweeps and dense optic arrays, with range readouts and drafting-sheet plates.
+        </p>
+        <div class="card-tags">
+          <span class="tag">SVG</span>
+          <span class="tag">reticles</span>
+          <span class="tag">radar</span>
+          <span class="tag">targeting</span>
+          <span class="tag">6 presets</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- READOUTS -->
+    <a href="readouts.html" class="iface-card anim-4" style="--c:#5dff8f;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(93,255,143,0.55),transparent 70%);"></div>
+      <div class="card-preview" style="background:#08090b;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="400" height="225" fill="#08090b"/>
+            <rect x="24" y="58" width="128" height="11" fill="#5dff8f" fill-opacity="0.11"/>
+            <g fill="#c8ffd4" fill-opacity="0.55">
+              <rect x="28" y="40" width="96" height="5"/><rect x="28" y="52" width="120" height="5"/>
+              <rect x="28" y="60" width="72" height="5"/><rect x="28" y="72" width="108" height="5"/>
+              <rect x="28" y="84" width="60" height="5"/><rect x="28" y="96" width="90" height="5"/>
+              <rect x="28" y="108" width="118" height="5"/><rect x="28" y="120" width="54" height="5"/>
+            </g>
+            <g fill="none" stroke="#5dff8f" stroke-opacity="0.4" stroke-width="1">
+              <path d="M150 62 H196 V78 H244"/>
+              <path d="M150 110 H180 V150 H244"/>
+              <path d="M320 78 H352 V150 H320"/>
+            </g>
+            <g>
+              <rect x="244" y="68" width="76" height="22" fill="none" stroke="#7fce93" stroke-opacity="0.65"/>
+              <rect x="247" y="71" width="26" height="16" fill="#7fce93" fill-opacity="0.5"/>
+              <rect x="244" y="140" width="76" height="22" fill="none" stroke="#7fce93" stroke-opacity="0.65"/>
+              <rect x="247" y="143" width="40" height="16" fill="#7fce93" fill-opacity="0.5"/>
+            </g>
+            <g stroke="#7fce93" stroke-opacity="0.7" stroke-width="1.1">
+              <line x1="150" y1="150" x2="150" y2="150"/>
+              <line x1="176" y1="188" x2="188" y2="188"/><line x1="182" y1="182" x2="182" y2="194"/>
+            </g>
+            <g fill="#c8ffd4" fill-opacity="0.5">
+              <rect x="252" y="180" width="2" height="20"/><rect x="256" y="180" width="4" height="20"/>
+              <rect x="262" y="180" width="2" height="20"/><rect x="266" y="180" width="5" height="20"/>
+              <rect x="273" y="180" width="2" height="20"/><rect x="277" y="180" width="3" height="20"/>
+              <rect x="282" y="180" width="5" height="20"/><rect x="289" y="180" width="2" height="20"/>
+              <rect x="293" y="180" width="4" height="20"/><rect x="299" y="180" width="2" height="20"/>
+            </g>
+            <g fill="#5dff8f" fill-opacity="0.85" font-family="'Space Mono',monospace" font-size="8" letter-spacing="1">
+              <text x="326" y="80">SLOT_03</text><text x="326" y="152">SLOT_07</text>
+            </g>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(93,255,143,0.06) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="card-type">Generative / Readouts</span>
+          <span class="card-status live"><span class="sd"></span>ACTIVE</span>
+        </div>
+        <h2 class="card-title">READ<em style="color:rgba(93,255,143,0.9)">/&#47;OUT</em></h2>
+        <p class="card-desc">
+          Technical readout &amp; node-field generator — clustered code rows, wired node graphs, HUD panels and portrait ID / wanted-card placeholders across eleven layouts, with transparent-field export.
+        </p>
+        <div class="card-tags">
+          <span class="tag">SVG</span>
+          <span class="tag">node fields</span>
+          <span class="tag">11 layouts</span>
+          <span class="tag">ID cards</span>
+          <span class="tag">FUI</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- TOPO -->
+    <a href="topo.html" class="iface-card anim-5" style="--c:#d9a441;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(217,164,65,0.55),transparent 70%);"></div>
+      <div class="card-preview" style="background:#06090a;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <pattern id="gtopo" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0V22M0 22H22" stroke="#d9a441" stroke-opacity="0.045" stroke-width="1"/></pattern>
+              <path id="topolp" d="M0,-40 C16,-42 30,-30 32,-14 C34,0 42,8 36,22 C28,36 14,42 0,40 C-16,42 -30,34 -34,18 C-38,2 -34,-16 -22,-28 C-14,-38 -12,-40 0,-40 Z" fill="none" stroke-width="1.4" vector-effect="non-scaling-stroke"/>
+            </defs>
+            <rect width="400" height="225" fill="#06090a"/>
+            <rect width="400" height="225" fill="url(#gtopo)"/>
+            <!-- main peak -->
+            <g stroke="#d9a441" transform="translate(178 120)">
+              <use href="#topolp" transform="scale(2.35) rotate(4)" stroke-opacity="0.6"/>
+              <use href="#topolp" transform="scale(1.95) rotate(-3)" stroke-opacity="0.32"/>
+              <use href="#topolp" transform="scale(1.55) rotate(5)" stroke-opacity="0.32"/>
+              <use href="#topolp" transform="scale(1.15) rotate(-6)" stroke-opacity="0.32"/>
+              <use href="#topolp" transform="scale(0.78) rotate(8)" stroke-opacity="0.55"/>
+              <use href="#topolp" transform="scale(0.42) rotate(-10)" stroke-opacity="0.32"/>
+            </g>
+            <!-- secondary peak -->
+            <g stroke="#d9a441" transform="translate(312 74)">
+              <use href="#topolp" transform="scale(1.15) rotate(12)" stroke-opacity="0.5"/>
+              <use href="#topolp" transform="scale(0.72) rotate(-8)" stroke-opacity="0.3"/>
+              <use href="#topolp" transform="scale(0.34) rotate(4)" stroke-opacity="0.5"/>
+            </g>
+            <circle cx="178" cy="120" r="2" fill="#d9a441" fill-opacity="0.8"/>
+            <circle cx="312" cy="74" r="1.6" fill="#d9a441" fill-opacity="0.7"/>
+            <g font-family="'Space Mono',monospace" font-size="8" letter-spacing="1.5" fill="#d9a441" fill-opacity="0.65">
+              <text x="30" y="200">ELEV 0—1 · 14 LVL</text>
+            </g>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(217,164,65,0.07) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="card-type">Generative / Topography</span>
+          <span class="card-status live"><span class="sd"></span>ACTIVE</span>
+        </div>
+        <h2 class="card-title">TOPO<em style="color:rgba(217,164,65,0.92)">/&#47;FORGE</em></h2>
+        <p class="card-desc">
+          Topographic noise &amp; contour generator — fractal relief fields with domain-warped marbling, hillshade, ridged filaments, and marching-squares contour lines that export as live vector SVG.
+        </p>
+        <div class="card-tags">
+          <span class="tag">SVG</span>
+          <span class="tag">fBm noise</span>
+          <span class="tag">contours</span>
+          <span class="tag">hillshade</span>
+          <span class="tag">FUI</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- CITY//EMIT -->
+    <a href="city-lights.html" class="iface-card anim-6" style="--c:#f2a33a;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(242,163,58,0.55),transparent 70%);"></div>
+      <div class="card-preview" style="background:#020203;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <filter id="cityglow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2.3" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <linearGradient id="citywarm" x1="0" x2="1">
+                <stop offset="0" stop-color="#ff8b1f"/>
+                <stop offset="0.55" stop-color="#fff0b8"/>
+                <stop offset="1" stop-color="#72ddff"/>
+              </linearGradient>
+            </defs>
+            <rect width="400" height="225" fill="#020203"/>
+            <g opacity="0.35" stroke="#27313a" stroke-width="1">
+              <path d="M0 48H400M0 92H400M0 151H400M74 0V225M181 0V225M302 0V225"/>
+            </g>
+            <g filter="url(#cityglow)">
+              <path d="M8 48H118M154 49H278M308 47H396M0 154H74M116 153H236M278 154H400" stroke="#ff9b22" stroke-width="2.4" stroke-opacity="0.65"/>
+              <path d="M42 88H94M101 88H132M201 90H258M307 91H374" stroke="#fff3c4" stroke-width="3" stroke-opacity="0.8"/>
+              <path d="M28 118H52M67 118H91M214 122H232M247 122H280M335 120H366" stroke="#77d8ff" stroke-width="2.5" stroke-opacity="0.74"/>
+              <g fill="url(#citywarm)" opacity="0.9">
+                <rect x="28" y="28" width="8" height="3"/><rect x="42" y="28" width="16" height="3"/><rect x="68" y="28" width="6" height="3"/>
+                <rect x="190" y="26" width="18" height="3"/><rect x="214" y="26" width="8" height="3"/><rect x="230" y="26" width="30" height="3"/>
+                <rect x="315" y="30" width="10" height="3"/><rect x="332" y="30" width="26" height="3"/><rect x="366" y="30" width="12" height="3"/>
+                <rect x="142" y="74" width="28" height="4"/><rect x="178" y="74" width="9" height="4"/><rect x="278" y="73" width="18" height="4"/>
+                <rect x="24" y="176" width="20" height="4"/><rect x="52" y="176" width="34" height="4"/><rect x="103" y="177" width="12" height="4"/>
+                <rect x="210" y="179" width="18" height="4"/><rect x="236" y="179" width="40" height="4"/><rect x="314" y="176" width="32" height="4"/>
+              </g>
+              <g fill="#fff8d6" opacity="0.85">
+                <circle cx="92" cy="52" r="1.4"/><circle cx="231" cy="49" r="1.2"/><circle cx="258" cy="94" r="1.5"/><circle cx="330" cy="153" r="1.6"/>
+                <circle cx="166" cy="151" r="1.2"/><circle cx="58" cy="119" r="1.1"/><circle cx="370" cy="118" r="1.2"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(242,163,58,0.08) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="card-type">Generative / Emission Textures</span>
+          <span class="card-status live"><span class="sd"></span>ACTIVE</span>
+        </div>
+        <h2 class="card-title">CITY<em style="color:rgba(242,163,58,0.92)">/&#47;EMIT</em></h2>
+        <p class="card-desc">
+          City light emission generator for distant 3D geometry — facade windows, horizontal strips, aerial grids and fragmented light islands with controllable size, spacing, color, shape, glow and masks.
+        </p>
+        <div class="card-tags">
+          <span class="tag">Emission</span>
+          <span class="tag">PNG</span>
+          <span class="tag">Masks</span>
+          <span class="tag">Windows</span>
+          <span class="tag">3D</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- MOTION//FIELD -->
+    <a href="motion-field.html" class="iface-card anim-7" style="--c:#b8ff32;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(184,255,50,0.65),transparent 70%);"></div>
+      <div class="card-preview" style="background:#050705;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs><filter id="mfglow"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <rect width="400" height="225" fill="#050705"/>
+            <g fill="none" stroke="#b8ff32" filter="url(#mfglow)">
+              <path d="M-10 88 C45 8 84 184 142 92 S238 36 294 111 S376 177 420 69" opacity=".85"/>
+              <path d="M-18 101 C42 24 84 196 145 106 S238 51 297 123 S373 190 418 84" opacity=".5"/>
+              <path d="M-20 116 C38 42 88 211 151 121 S246 68 304 140 S380 202 425 100" opacity=".28"/>
+              <path d="M-8 72 C51 -4 87 168 138 77 S229 20 290 94 S372 161 416 54" opacity=".3"/>
+            </g>
+            <g fill="#dfff9e" opacity=".65"><circle cx="52" cy="67" r="1.8"/><circle cx="109" cy="131" r="1.4"/><circle cx="175" cy="62" r="1.8"/><circle cx="242" cy="90" r="1.2"/><circle cx="326" cy="141" r="1.7"/></g>
+            <g stroke="#b8ff32" stroke-opacity=".25"><path d="M18 26H88M18 26V62"/><path d="M382 199H312M382 199V163"/></g>
+            <text x="20" y="204" font-family="'Space Mono',monospace" font-size="8" letter-spacing="1.6" fill="#b8ff32" opacity=".65">AUDIO / VIDEO / FIELD 01</text>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(184,255,50,0.08) 0%,transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta"><span class="card-type">Generative / Motion Studio</span><span class="card-status live"><span class="sd"></span>ACTIVE</span></div>
+        <h2 class="card-title">MOTION<em style="color:rgba(184,255,50,0.92)">/&#47;FIELD</em></h2>
+        <p class="card-desc">An abstract motion compositor for connected point clouds, source-driven blob tracking, flow lines, rings, cells and signal fields — with still and 60-second motion capture.</p>
+        <div class="card-tags"><span class="tag">POINT CLOUD</span><span class="tag">BLOB TRACKING</span><span class="tag">AUDIO REACTIVE</span><span class="tag">60 SEC</span><span class="tag">LOCAL</span></div>
+      </div>
+    </a>
+
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-left">Toolkit — Ron Domingue</div>
+  <div class="footer-right">
+    <a href="https://rondomingue.com" class="footer-link">rondomingue.com</a>
+  </div>
+</footer>
+
+<script>
+  // Subtle audio on card hover
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let actx = null;
+  document.addEventListener('mousedown', ()=>{ if(!actx) actx=new AudioCtx(); }, {once:true});
+  document.addEventListener('touchstart', ()=>{ if(!actx) actx=new AudioCtx(); }, {once:true});
+
+  function playHover(){
+    try{
+      if(!actx) return;
+      const t=actx.currentTime;
+      const buf=actx.createBuffer(1,Math.floor(actx.sampleRate*.025),actx.sampleRate);
+      const d=buf.getChannelData(0);
+      for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,6);
+      const src=actx.createBufferSource(); src.buffer=buf;
+      const f=actx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=2800; f.Q.value=1.4;
+      const g=actx.createGain(); g.gain.setValueAtTime(.018,t); g.gain.exponentialRampToValueAtTime(.001,t+.025);
+      src.connect(f); f.connect(g); g.connect(actx.destination);
+      src.start(t);
+    }catch(e){}
+  }
+
+  // Glitch the eyebrow text
+  const eyebrow = document.getElementById('hero-eyebrow-data');
+  const targets = ['GENERATIVE DESIGN TOOLS / ASSET FORGES','SUB//FORGE // SUBSTRATE PLATES','TYPO//FORGE // TYPOGRAPHIC POSTERS','RET//FORGE // TARGETING RETICLES','READ//OUT // READOUTS & NODE FIELDS','TOPO//FORGE // TOPOGRAPHIC NOISE & CONTOURS','CITY//EMIT // CITY LIGHT EMISSION MAPS','MOTION//FIELD // ABSTRACT SIGNAL COMPOSITOR'];
+  const glitch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/\\|<>[]{}!@#$%^&*';
+  let ei=0;
+  function cycleEyebrow(){
+    ei=(ei+1)%targets.length;
+    const target=targets[ei];
+    let resolved=0;
+    const interval=setInterval(()=>{
+      let out='';
+      for(let i=0;i<target.length;i++){
+        if(i<resolved) out+=Math.random()<.04?glitch[Math.floor(Math.random()*glitch.length)]:target[i];
+        else out+=glitch[Math.floor(Math.random()*glitch.length)];
+      }
+      eyebrow.textContent=out;
+      if(Math.random()<.5&&resolved<target.length) resolved++;
+      if(resolved>=target.length){ eyebrow.textContent=target; clearInterval(interval); }
+    },45);
+  }
+  setInterval(cycleEyebrow, 4000);
+</script>
+</body>
+</html>

@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUB//FORGE — substrate plate generator</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#151a21; --line:#242c37; --line-soft:#1c232c;
+    --ink:#e6ebf2; --dim:#8b97a8; --faint:#5a6675;
+    --accent:#5ec8f5; --accent-b:#4ee0c1;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:12px;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
+
+  /* ---------- control rail ---------- */
+  .rail{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow-y:auto;max-height:100vh}
+  .brand{font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:2px}
+  .brand span{color:var(--accent-b)}
+  .tag{font-size:9.5px;color:var(--faint);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:20px}
+  .grp{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line-soft)}
+  .grp:last-child{border:0}
+  .lbl{font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:block}
+  select,input[type=text]{
+    width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+    border-radius:3px;padding:7px 8px;font-family:var(--mono);font-size:11px;
+  }
+  select:focus,input:focus{outline:none;border-color:var(--accent)}
+  select.color-select{
+    --swatch:var(--bg);color:var(--ink);padding-left:24px;
+    background-color:var(--bg);
+    background-image:radial-gradient(circle,var(--swatch) 0 5px,transparent 5.5px);
+    background-repeat:no-repeat;background-position:10px 50%;
+  }
+  select.color-select:focus{color:var(--ink);background-color:var(--bg);border-color:var(--accent)}
+  select.color-select option{color:var(--ink);background:var(--bg)}
+  .row{display:flex;gap:6px;align-items:center}
+  .row>*{flex:1}
+  button{
+    background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;
+    padding:8px 10px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.06em;cursor:pointer;
+    text-transform:uppercase;transition:border-color .15s,background .15s,color .15s;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button:disabled{cursor:not-allowed;opacity:.45}
+  button:disabled:hover{border-color:var(--line);color:var(--ink)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#07222e;font-weight:700}
+  button.primary:hover{background:var(--accent-b);border-color:var(--accent-b);color:#04231c}
+  .hint{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:8px}
+
+  /* ---------- range ---------- */
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;margin-top:-5px;
+    width:13px;height:13px;border-radius:50%;background:var(--accent);border:0;
+  }
+  input[type=range]:disabled::-webkit-slider-thumb{background:var(--faint)}
+  input[type=range]:focus{outline:none}
+  .lbl b{float:right;font-weight:400;color:var(--dim);letter-spacing:0;text-transform:none}
+
+  /* ---------- vector control icons ---------- */
+  #dice,#lock{flex:0 0 42px;display:grid;place-items:center;padding:6px 0}
+  #dice svg,#lock svg{width:17px;height:17px;display:block}
+  .ico-stroke{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .ico-fill{fill:currentColor}
+  #lock[data-locked="1"]{border-color:var(--accent);color:var(--accent)}
+  #dice.rolling{animation:roll .45s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes roll{0%{transform:rotate(0) scale(1)}55%{transform:rotate(200deg) scale(1.18)}100%{transform:rotate(360deg) scale(1)}}
+  @media (prefers-reduced-motion: reduce){#dice.rolling{animation:none}}
+
+  /* ---------- preset chips ---------- */
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .chip{
+    text-align:left;text-transform:none;letter-spacing:0;padding:7px 8px;line-height:1.35;
+    font-size:10.5px;color:var(--dim);
+  }
+  .chip em{display:block;font-style:normal;font-size:8.5px;color:var(--faint);letter-spacing:.04em}
+  .chip[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0b1a22}
+  .chip[data-on="1"] em{color:var(--dim)}
+
+  /* ---------- overlay toggles ---------- */
+  .tgl[data-on="1"]{border-color:var(--accent);color:var(--accent);background:#0b1a22}
+  .sub{margin-top:12px;padding-left:10px;border-left:1px solid var(--line-soft)}
+  .sub[hidden]{display:none}
+
+  /* ---------- palette picker ---------- */
+  .pick{position:relative}
+  .pick-btn{width:100%;display:flex;align-items:center;gap:8px;text-align:left;text-transform:none;letter-spacing:0;padding:6px 8px}
+  .sw{display:flex;gap:2px;flex:0 0 auto}
+  .sw i{width:8px;height:15px;border-radius:1.5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+  .pick-name{flex:1;font-size:11px;color:var(--ink)}
+  .pick-caret{color:var(--faint);font-size:8px;transition:transform .15s}
+  .pick.open .pick-caret{transform:rotate(180deg)}
+  .pick-list{
+    position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;display:none;
+    max-height:264px;overflow-y:auto;padding:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;
+    box-shadow:0 18px 46px rgba(0,0,0,.65);
+  }
+  .pick.open .pick-list{display:block}
+  .pick-row{
+    display:flex;align-items:center;gap:8px;width:100%;padding:5px 6px;border:0;border-radius:3px;
+    background:transparent;cursor:pointer;font-family:var(--mono);font-size:11px;
+    text-transform:none;letter-spacing:0;color:var(--dim);
+  }
+  .pick-row:hover{background:var(--bg);color:var(--ink)}
+  .pick-row[data-sel="1"]{color:var(--accent)}
+
+  /* ---------- swatch input ---------- */
+  .cwrap{position:relative;flex:0 0 34px;height:31px}
+  input[type=color]{
+    position:absolute;inset:0;width:100%;height:100%;padding:0;
+    border:1px solid var(--line);border-radius:3px;background:var(--bg);cursor:pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:2px}
+
+  /* ---------- stage ---------- */
+  .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:14px;overflow:auto}
+  .frame{
+    max-width:100%;max-height:74vh;overflow:auto;line-height:0;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);border:1px solid var(--line);
+  }
+  #out{display:block;background:#000}
+  #out.alpha{
+    background-color:#171c23;
+    background-image:
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%),
+      linear-gradient(45deg,#232a33 25%,transparent 25%,transparent 75%,#232a33 75%);
+    background-size:18px 18px;background-position:0 0,9px 9px;
+  }
+  .frame[data-zoom="fit"] #out{max-width:100%;max-height:calc(74vh - 2px);width:auto;height:auto}
+  .meta{font-size:10px;color:var(--faint);letter-spacing:0.08em}
+  .meta b{color:var(--dim);font-weight:400}
+
+  @media (max-width: 720px){
+    .app{grid-template-columns:1fr}
+    .rail{max-height:none;overflow-y:visible;border-right:0;border-bottom:1px solid var(--line)}
+    .stage{padding:18px;min-height:70vh}
+    .frame{max-height:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">SUB<span>//</span>FORGE</div>
+    <div class="tag">substrate plate generator</div>
+
+    <div class="grp">
+      <label class="lbl" for="seed">Seed</label>
+      <div class="row">
+        <input type="text" id="seed" value="0079">
+        <button id="lock" data-locked="0" title="Lock the seed" aria-label="Lock seed">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="5" y="11" width="14" height="9" rx="1.5"/>
+            <path class="ico-stroke" id="shackle" d=""/>
+          </svg>
+        </button>
+        <button id="dice" title="Roll preset, palette, seed (R)" aria-label="Roll everything">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect class="ico-stroke" x="4" y="4" width="16" height="16" rx="3"/>
+            <g class="ico-fill" id="pips"></g>
+          </svg>
+        </button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="primary" id="gen" style="flex:1">⟳ Generate</button>
+        <button id="undo" title="Undo last change (Cmd/Ctrl+Z)" aria-label="Undo last change" disabled>↶ Undo</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Preset</label>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="format">Format</label>
+      <select id="format">
+        <option value="1:1">Square — 1:1</option>
+        <option value="16:9" selected>Widescreen — 16:9</option>
+        <option value="21:9">Ultrawide — 21:9</option>
+        <option value="32:9">Panoramic — 32:9</option>
+        <option value="2:1">Cineplate — 2:1</option>
+        <option value="4:3">Monitor — 4:3</option>
+        <option value="3:2">Frame — 3:2</option>
+        <option value="5:4">Plate — 5:4</option>
+        <option value="4:5">Tall plate — 4:5</option>
+        <option value="2:3">Tall frame — 2:3</option>
+        <option value="9:16">Portrait — 9:16</option>
+        <option value="1:2">Vertical cine — 1:2</option>
+      </select>
+
+      <label class="lbl" style="margin-top:12px" for="sym">Symmetry</label>
+      <select id="sym">
+        <option value="quad" selected>Quad mirror</option>
+        <option value="mirrorx">Mirror — vertical axis</option>
+        <option value="mirrory">Mirror — horizontal axis</option>
+        <option value="none">None — free field</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Palette</label>
+      <div class="pick" id="palpick">
+        <button class="pick-btn" id="palbtn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" id="palsw"></span>
+          <span class="pick-name" id="palname"></span>
+          <span class="pick-caret">▼</span>
+        </button>
+        <div class="pick-list" id="pallist" role="listbox"></div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Density <b id="densval">100%</b></label>
+      <input type="range" id="dens" min="20" max="200" step="5" value="100" aria-label="Density">
+
+      <label class="lbl" style="margin-top:10px" for="surface">Surface style</label>
+      <select id="surface">
+        <option value="none" selected>Current</option>
+        <option value="tech1">Tech I Glass</option>
+        <option value="tech2">Tech II Dense</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px">Surface <b id="surfaceval">85%</b></label>
+      <input type="range" id="surfacestr" min="0" max="150" step="5" value="85" aria-label="Reference surface strength">
+
+      <label class="lbl" style="margin-top:10px">Depth <b id="depthval">5</b></label>
+      <input type="range" id="depth" min="2" max="8" step="1" value="5" aria-label="Subdivision depth">
+
+      <div class="row" style="margin-top:10px">
+        <button class="tgl" id="tsnap" data-on="0" aria-pressed="false" style="flex:1">Snap to grid</button>
+      </div>
+      <label class="lbl" style="margin-top:8px">Snap size <b id="snapval">10 px</b></label>
+      <input type="range" id="snap" min="2" max="40" step="1" value="10" aria-label="Construction snap grid size">
+
+      <label class="lbl" style="margin-top:10px">Detail <b id="detailval">60%</b></label>
+      <input type="range" id="detail" min="0" max="200" step="5" value="60" aria-label="Micro-detail">
+
+      <label class="lbl" style="margin-top:10px">Text <b id="labelsval">45%</b></label>
+      <input type="range" id="labels" min="0" max="200" step="5" value="45" aria-label="Label text density">
+
+      <label class="lbl" style="margin-top:10px">Exposure <b id="expval">100%</b></label>
+      <input type="range" id="exp" min="10" max="220" step="5" value="100" aria-label="Exposure">
+
+      <label class="lbl" style="margin-top:10px">Accent <b id="accval">18%</b></label>
+      <input type="range" id="acc" min="0" max="100" step="1" value="18" aria-label="Accent frequency">
+
+      <label class="lbl" style="margin-top:10px">Vignette <b id="vigval">35%</b></label>
+      <input type="range" id="vig" min="0" max="100" step="1" value="35" aria-label="Vignette">
+
+      <label class="lbl" style="margin-top:10px">Grain <b id="grainval">0%</b></label>
+      <input type="range" id="grain" min="0" max="100" step="1" value="0" aria-label="Grain strength">
+    </div>
+
+    <div class="grp">
+      <label class="lbl" for="words">Lexicon <b id="wordcount">0 / 10</b></label>
+      <input type="text" id="words" placeholder="ORION, VEC-9, HALDEN…" aria-label="Recurring words">
+
+      <label class="lbl" style="margin-top:10px">Mix <b id="wordmixval">40%</b></label>
+      <input type="range" id="wordmix" min="0" max="100" step="5" value="40" disabled aria-label="Lexicon mix">
+      <div class="hint">Comma-separated, first ten used, set in caps to match the plate. Mix is how often a label pulls from your list instead of the stock instrument vocabulary — the layout holds either way, so words swap in without moving the art.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Overlays</label>
+      <div class="row">
+        <button class="tgl" id="tgrid" data-on="1" aria-pressed="true">Grid</button>
+        <button class="tgl" id="tdots" data-on="0" aria-pressed="false">Dots</button>
+        <button class="tgl" id="tweb" data-on="0" aria-pressed="false">Trace</button>
+      </div>
+
+      <div class="sub" id="gridsub">
+        <label class="lbl">Grid <b id="gridval">5 px</b></label>
+        <input type="range" id="gridsize" min="2" max="24" step="1" value="5" aria-label="Grid cell size">
+
+        <label class="lbl" style="margin-top:10px">Grid opacity <b id="gridopval">14%</b></label>
+        <div class="row">
+          <select class="color-select" id="gridcolor" aria-label="Grid color">
+            <option value="ink" selected>Ink</option>
+            <option value="mid">Mid ink</option>
+            <option value="accent">Accent</option>
+            <option value="accent2">Accent 2</option>
+            <option value="complement">Complement</option>
+          </select>
+          <input type="range" id="gridop" min="0" max="60" step="1" value="14" aria-label="Grid opacity">
+        </div>
+
+        <label class="lbl" style="margin-top:10px">Major every <b id="majorval">10</b></label>
+        <input type="range" id="major" min="0" max="20" step="1" value="10" aria-label="Major line interval">
+        <div class="hint">Major lines ride at 2.2× the grid opacity. Set to 0 for a flat mesh.</div>
+      </div>
+
+      <div class="sub" id="dotsub" hidden>
+        <label class="lbl">Dot pitch <b id="dotstepval">10 px</b></label>
+        <input type="range" id="dotstep" min="2" max="48" step="1" value="10" aria-label="Dot spacing">
+
+        <label class="lbl" style="margin-top:10px">Dot size <b id="dotsizeval">1 px</b></label>
+        <input type="range" id="dotsize" min="1" max="6" step="1" value="1" aria-label="Dot size">
+
+        <label class="lbl" style="margin-top:10px">Dot opacity <b id="dotopval">22%</b></label>
+        <div class="row">
+          <select class="color-select" id="dotcolor" aria-label="Dot color">
+            <option value="ink" selected>Ink</option>
+            <option value="mid">Mid ink</option>
+            <option value="accent">Accent</option>
+            <option value="accent2">Accent 2</option>
+            <option value="complement">Complement</option>
+          </select>
+          <input type="range" id="dotop" min="0" max="80" step="1" value="22" aria-label="Dot opacity">
+        </div>
+        <div class="hint">Dots draw on their own pitch. Match it to the grid for pinned intersections, or offset it for moiré.</div>
+      </div>
+
+      <div class="sub" id="websub" hidden>
+        <label class="lbl" for="webstyle">Trace pattern</label>
+        <select id="webstyle">
+          <option value="network" selected>Network mesh</option>
+          <option value="golden">Golden-angle web</option>
+          <option value="hex">Hexagonal grid</option>
+          <option value="radial">Radial web</option>
+          <option value="diagonal">Diagonal weave</option>
+          <option value="orbit">Orbit mesh</option>
+        </select>
+
+        <label class="lbl" style="margin-top:10px" for="webcolor">Trace color</label>
+        <select class="color-select" id="webcolor" aria-label="Trace color">
+          <option value="ink" selected>Ink</option>
+          <option value="mid">Mid ink</option>
+          <option value="accent">Accent</option>
+          <option value="accent2">Accent 2</option>
+          <option value="complement">Complement</option>
+        </select>
+
+        <label class="lbl" style="margin-top:10px">Trace density <b id="webval">65%</b></label>
+        <input type="range" id="webdensity" min="0" max="150" step="5" value="65" aria-label="Trace field density">
+
+        <label class="lbl" style="margin-top:10px">Trace opacity <b id="webopval">24%</b></label>
+        <input type="range" id="webop" min="0" max="80" step="1" value="24" aria-label="Trace field opacity">
+      </div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Export</label>
+      <div class="row">
+        <button id="dl1">↓ PNG 1×</button>
+        <button id="dl2">↓ PNG 2×</button>
+        <button id="dl3">↓ PNG 3×</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="dlsvg" style="flex:1">↓ SVG — vector</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="dldisp">↓ Displace</button>
+        <button id="dlnorm">↓ Normal</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="tgl" id="talpha" data-on="0" aria-pressed="false" style="flex:1">Transparent background</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <select id="zoom">
+          <option value="fit" selected>View: fit</option>
+          <option value="100">View: 100%</option>
+        </select>
+      </div>
+      <div class="hint">Plate renders at 1920 on the long edge — 3× lands at 5760. SVG writes the same plate as live vector: the mirror is one reusable tile, grid and dots become patterns, grain becomes a turbulence filter. Displace and Normal export 1× texture maps from the current plate luminance. Overlays are baked into every export — switch both off to hand a clean substrate to the HUD layer.</div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="frame" id="frame" data-zoom="fit"><canvas id="out"></canvas></div>
+    <div class="meta" id="meta"></div>
+  </main>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* ============================================================ rng */
+function hash(str){
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let R = mulberry(1);
+const rnd  = ()      => R();
+const rint = (a, b)  => a + Math.floor(R() * (b - a + 1));
+const pick = arr     => arr[Math.floor(R() * arr.length)];
+const chance = p     => R() < p;
+const TAU = Math.PI * 2;
+
+/* ============================================================ palettes
+   `ink` are the structural greys/tints — the panel body. `accents` are the
+   rare saturated slabs. Every plate is mostly ink; accents are punctuation. */
+const PALETTES = [
+  { id:'void',   name:'Void',          bg:'#000000', ink:['#ffffff','#c9d2dc','#8e9aa6','#5b646d'], accents:['#ffffff'] },
+  { id:'cyan',   name:'Cyan Deep',     bg:'#040a0c', ink:['#7fdcea','#3f9fb2','#2a6e7d','#17434d'], accents:['#9df6ff','#39c6b0'] },
+  { id:'signal', name:'Navy Signal',   bg:'#01060f', ink:['#8fc6de','#3f7fa8','#27536f','#173447'], accents:['#e2761b','#7b2ff7','#1fa87a','#e0c341'] },
+  { id:'amber',  name:'Amber CRT',     bg:'#0a0703', ink:['#ffcb6b','#c9902f','#8a5f18','#4d340b'], accents:['#fff1c0','#ff6a2b'] },
+  { id:'bone',   name:'Bone',          bg:'#0b0b0c', ink:['#efe9df','#bdb4a6','#867e72','#514c45'], accents:['#e2c58a','#8fa3a8'] },
+  { id:'toxic',  name:'Toxic',         bg:'#030805', ink:['#8fff9f','#3fbb5c','#227a39','#124423'], accents:['#d9ff5c','#00e0c0'] },
+  { id:'violet', name:'Violet Static', bg:'#07030c', ink:['#cbb0ff','#8c6bd6','#5b3f96','#33245a'], accents:['#ff5ea8','#3fe0ff'] },
+  { id:'rust',   name:'Rust Deck',     bg:'#0a0503', ink:['#e8a184','#b1634a','#7a3d2c','#472018'], accents:['#ffd18a','#4fb8c9'] },
+  { id:'ice',    name:'Ice',           bg:'#04070b', ink:['#dbeaff','#96b2d1','#5f7794','#38485c'], accents:['#66f0ff','#ff8a5c'] },
+  { id:'mono',   name:'Mono Black',     bg:'#000000', ink:['#f2f2f2','#b8b8b8','#747474','#303030'], accents:['#ffffff','#8a8a8a'] },
+  { id:'graph',  name:'Graphite Mono',  bg:'#020202', ink:['#d6d8d8','#9a9d9d','#5f6262','#262828'], accents:['#f4f6f6','#737777'] },
+  { id:'warmmono', name:'Warm Mono',    bg:'#050403', ink:['#e9e0d2','#afa699','#746d64','#332f2b'], accents:['#fff3dc','#8f877b'] },
+  { id:'coolmono', name:'Cool Mono',    bg:'#020406', ink:['#dfe8ee','#a3adb5','#68737c','#2a3036'], accents:['#f6fbff','#7d8994'] },
+  { id:'greenmono', name:'Phosphor Mono', bg:'#010503', ink:['#d7ffe1','#86bd92','#4f7658','#1e3324'], accents:['#edfff0','#6fae7d'] }
+];
+let PAL = PALETTES[1];
+
+/* ============================================================ presets
+   Each preset is a weighting over the module vocabulary plus a couple of
+   structural switches. Everything else comes off the sliders. */
+const PRESETS = [
+  { id:'strata',  name:'Strata',   note:'banded rules',
+    split:'h', bands:true, weights:{ panel:3, hatch:2, ticks:3, text:2, bars:1, dots:1, frame:1, slab:1, nest:1, notch:1, dash:2, stack:1, conn:1 } },
+  { id:'sprawl',  name:'Sprawl',   note:'dense readout',
+    split:'mix', bands:false, weights:{ panel:2, hatch:1, ticks:3, text:5, bars:3, dots:2, frame:2, slab:1, nest:2, notch:2, dash:2, stack:3, conn:2 } },
+  { id:'monolith',name:'Monolith', note:'heavy columns',
+    split:'v', bands:true, weights:{ panel:5, hatch:2, ticks:1, text:1, bars:1, dots:1, frame:1, slab:3, nest:1, notch:2, dash:1, stack:1, conn:1 } },
+  { id:'circuit', name:'Circuit',  note:'traces + pads',
+    split:'mix', bands:false, weights:{ panel:1, hatch:1, ticks:2, text:1, bars:2, dots:5, frame:3, slab:1, nest:1, notch:1, dash:1, stack:2, conn:5 }, traces:true },
+  { id:'schema',  name:'Schema',   note:'drafting frames',
+    split:'mix', bands:false, weights:{ panel:1, hatch:1, ticks:4, text:3, bars:1, dots:1, frame:6, slab:0, nest:3, notch:3, dash:3, stack:1, conn:2 }, corners:true },
+  { id:'ghost',   name:'Ghost',    note:'soft + sparse',
+    split:'mix', bands:true, weights:{ panel:4, hatch:3, ticks:1, text:2, bars:1, dots:2, frame:1, slab:1, nest:1, notch:1, dash:1, stack:1, conn:1 }, soft:true },
+
+  /* Circuit's trace network put under Schema's discipline — runs and pads,
+     but every one of them boxed and cornered. */
+  { id:'lattice', name:'Lattice',  note:'traced frames',
+    split:'mix', bands:false, weights:{ panel:1, hatch:1, ticks:3, text:2, bars:1, dots:4, frame:5, slab:0, nest:3, notch:2, dash:2, stack:2, conn:5 }, traces:true, corners:true },
+
+  /* Sprawl with the readout turned all the way up and the panels stripped
+     out — almost nothing but data rows, bars and channel strips. */
+  { id:'telemetry', name:'Telemetry', note:'wall of readout',
+    split:'mix', bands:false, weights:{ panel:1, hatch:1, ticks:4, text:7, bars:5, dots:2, frame:1, slab:0, nest:1, notch:1, dash:3, stack:5, conn:2 } },
+
+  /* A drafting index sheet: banded rows of captions inside ruled frames. */
+  { id:'manifest', name:'Manifest', note:'index sheet',
+    split:'h', bands:true, weights:{ panel:2, hatch:1, ticks:5, text:5, bars:2, dots:1, frame:5, slab:1, nest:2, notch:2, dash:3, stack:2, conn:1 }, corners:true },
+
+  /* High-frequency etch — hatch, rules and nested boxes, no big flat slabs.
+     Reads as surface treatment rather than instrumentation. */
+  /* Line vocabulary only. panel/notch/slab/bars are all filled masses — leave
+     any of them in and they clump into a centre blob that reads as structure
+     rather than surface. Bands off for the same reason. */
+  { id:'foundry', name:'Foundry',  note:'etched texture',
+    split:'mix', bands:false, weights:{ panel:0, hatch:6, ticks:6, text:2, bars:0, dots:3, frame:1, slab:0, nest:4, notch:0, dash:5, stack:1, conn:1 } },
+
+  /* Broad mirrored architecture with quiet blocks and long exterior runs. */
+  { id:'bastion', name:'Bastion', note:'macro structure',
+    split:'mix', bands:true, weights:{ panel:5, hatch:1, ticks:1, text:1, bars:2, dots:1, frame:4, slab:4, nest:2, notch:4, dash:1, stack:1, conn:1 }, corners:true },
+
+  /* Circular terminal fields, pin grids and trace pads, kept sparse enough
+     that the dot matrices remain readable after export. */
+  { id:'matrix', name:'Matrix', note:'dot fields',
+    split:'mix', bands:false, weights:{ panel:1, hatch:1, ticks:1, text:2, bars:1, dots:8, frame:2, slab:0, nest:2, notch:1, dash:2, stack:2, conn:4 }, traces:true },
+
+  /* Dense caption strips and ruler marks for technical callout plates. */
+  { id:'terminal', name:'Terminal', note:'caption strips',
+    split:'h', bands:true, weights:{ panel:1, hatch:1, ticks:6, text:8, bars:4, dots:2, frame:3, slab:0, nest:1, notch:2, dash:4, stack:6, conn:1 } },
+
+  /* Fine blueprint scaffolding: nested boxes and frames with little mass. */
+  { id:'blueprint', name:'Blueprint', note:'nested wire',
+    split:'mix', bands:false, weights:{ panel:0, hatch:2, ticks:3, text:3, bars:0, dots:2, frame:7, slab:0, nest:7, notch:4, dash:3, stack:1, conn:2 }, corners:true }
+];
+let PRESET = PRESETS[1];
+
+/* ============================================================ helpers */
+function withAlpha(hex, a){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+}
+function hexRgb(hex){
+  const n = parseInt(hex.slice(1), 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+function rgbHex(r, g, b){
+  return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+}
+function mixHex(a, b, t){
+  const A = hexRgb(a), B = hexRgb(b);
+  return rgbHex(A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t);
+}
+function complementHex(hex){
+  const [r, g, b] = hexRgb(hex);
+  return rgbHex(255 - r, 255 - g, 255 - b);
+}
+function toneColor(tone){
+  const base = PAL.accents[0] || PAL.ink[0];
+  tone = tone || 'ink';
+  if (tone === 'accent2') return PAL.accents[1] || PAL.accents[0] || PAL.ink[0];
+  if (tone === 'complement') return mixHex(complementHex(base), PAL.ink[0], 0.22);
+  if (tone === 'mid') return PAL.ink[1] || PAL.ink[0];
+  if (tone === 'accent') return base;
+  return PAL.ink[0];
+}
+function weightedPick(weights){
+  const keys = Object.keys(weights).filter(k => weights[k] > 0);
+  let total = 0; for (const k of keys) total += weights[k];
+  let r = R() * total;
+  for (const k of keys){ r -= weights[k]; if (r <= 0) return k; }
+  return keys[keys.length - 1];
+}
+let SNAP_ON = false, SNAP_STEP = 10;
+const snapN = n => SNAP_ON ? Math.round(n / SNAP_STEP) * SNAP_STEP : n;
+const snapPoint = (x, y) => [snapN(x), snapN(y)];
+function snapRectArgs(x, y, w, h){
+  if (!SNAP_ON) return [x, y, w, h];
+  const x0 = snapN(x), y0 = snapN(y);
+  const x1 = snapN(x + w), y1 = snapN(y + h);
+  return [x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)];
+}
+function snappedCtx(g){
+  if (!SNAP_ON) return g;
+  return new Proxy(g, {
+    get(target, prop){
+      if (prop === 'fillRect') return (x, y, w, h) => target.fillRect(...snapRectArgs(x, y, w, h));
+      if (prop === 'strokeRect') return (x, y, w, h) => target.strokeRect(...snapRectArgs(x, y, w, h));
+      if (prop === 'moveTo') return (x, y) => target.moveTo(...snapPoint(x, y));
+      if (prop === 'lineTo') return (x, y) => target.lineTo(...snapPoint(x, y));
+      if (prop === 'arc') return (x, y, r, a0, a1) => {
+        const [sx, sy] = snapPoint(x, y);
+        target.arc(sx, sy, r, a0, a1);
+      };
+      if (prop === 'fillText') return (t, x, y) => target.fillText(t, ...snapPoint(x, y));
+      if (prop === 'translate') return (x, y) => target.translate(...snapPoint(x, y));
+      const v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    },
+    set(target, prop, value){ target[prop] = value; return true; }
+  });
+}
+function fillCircle(g, x, y, r){
+  if (!(r > 0)) return;
+  g.beginPath();
+  g.arc(x, y, r, 0, TAU);
+  g.fill();
+}
+function PT(C, r, a){ return [C.x + r * Math.cos(a), C.y + r * Math.sin(a)]; }
+function drawLine(g, x0, y0, x1, y1, col, w){
+  g.strokeStyle = col;
+  g.lineWidth = w;
+  g.beginPath();
+  g.moveTo(x0, y0);
+  g.lineTo(x1, y1);
+  g.stroke();
+}
+function drawArc(g, C, r, a0, a1, col, w){
+  if (r <= 0.5) return;
+  g.strokeStyle = col;
+  g.lineWidth = w;
+  g.beginPath();
+  g.arc(C.x, C.y, r, a0, a1);
+  g.stroke();
+}
+
+/* ============================================================ modules
+   Every module draws inside a cell rect and pulls its colour from `ink`.
+   `s` is the render scale so a 2× export is geometrically identical. */
+function mPanel(g, c, ink, s){
+  g.fillStyle = withAlpha(pick(ink), 0.05 + R() * 0.13);
+  g.fillRect(c.x, c.y, c.w, c.h);
+  if (chance(0.55)){
+    g.strokeStyle = withAlpha(pick(ink), 0.14 + R() * 0.22);
+    g.lineWidth = s;
+    g.strokeRect(c.x + s * 0.5, c.y + s * 0.5, c.w - s, c.h - s);
+  }
+}
+function mHatch(g, c, ink, s){
+  const vert = chance(0.5);
+  const gap  = (4 + R() * 12) * s;
+  const col  = withAlpha(pick(ink), 0.07 + R() * 0.16);
+  g.fillStyle = col;
+  if (vert) for (let x = c.x; x < c.x + c.w; x += gap) g.fillRect(x, c.y, s, c.h);
+  else      for (let y = c.y; y < c.y + c.h; y += gap) g.fillRect(c.x, y, c.w, s);
+}
+function mTicks(g, c, ink, s){
+  const gap = (3 + R() * 6) * s;
+  const len = (3 + R() * 7) * s;
+  const col = withAlpha(pick(ink), 0.2 + R() * 0.35);
+  const top = chance(0.5);
+  g.fillStyle = col;
+  let i = 0;
+  for (let x = c.x + gap; x < c.x + c.w - gap; x += gap, i++){
+    const l = (i % 5 === 0) ? len * 1.8 : len;
+    g.fillRect(x, top ? c.y : c.y + c.h - l, s, l);
+  }
+  g.fillStyle = withAlpha(col, 0.5);
+  g.fillRect(c.x, top ? c.y : c.y + c.h - s, c.w, s);
+}
+function mText(g, c, ink, s){
+  /* Rows of variable-length dashes: reads as data at plate scale, costs
+     nothing, and never turns into legible nonsense when zoomed. */
+  const lh   = (3 + R() * 4) * s;
+  const th   = Math.max(s, lh * 0.42);
+  const col  = pick(ink);
+  const padX = 3 * s, padY = 3 * s;
+  for (let y = c.y + padY; y < c.y + c.h - padY; y += lh){
+    let x = c.x + padX;
+    const max = c.x + c.w - padX;
+    while (x < max){
+      const w = (4 + R() * 26) * s;
+      if (chance(0.72)){
+        g.fillStyle = withAlpha(col, 0.16 + R() * 0.5);
+        g.fillRect(x, y, Math.min(w, max - x), th);
+      }
+      x += w + (2 + R() * 5) * s;
+    }
+  }
+}
+function mBars(g, c, ink, s){
+  const n  = rint(2, 6);
+  const bh = c.h / (n * 1.8);
+  for (let i = 0; i < n; i++){
+    const y = c.y + (i * c.h) / n + bh * 0.3;
+    const w = c.w * (0.25 + R() * 0.72);
+    g.fillStyle = withAlpha(pick(ink), 0.14 + R() * 0.42);
+    g.fillRect(c.x, y, w, bh);
+  }
+}
+function mDots(g, c, ink, s){
+  const gap = (4 + R() * 7) * s;
+  const r   = Math.max(s * 0.5, gap * 0.11);
+  g.fillStyle = withAlpha(pick(ink), 0.14 + R() * 0.3);
+  for (let y = c.y + gap; y < c.y + c.h - gap; y += gap)
+    for (let x = c.x + gap; x < c.x + c.w - gap; x += gap)
+      if (chance(0.85)) fillCircle(g, x + r, y + r, r);
+}
+function mFrame(g, c, ink, s){
+  const col = pick(ink);
+  const pad = (2 + R() * 6) * s;
+  g.strokeStyle = withAlpha(col, 0.18 + R() * 0.3);
+  g.lineWidth = s;
+  g.strokeRect(c.x + pad, c.y + pad, c.w - pad * 2, c.h - pad * 2);
+  if (chance(0.5)){
+    /* corner brackets */
+    const L = Math.min(c.w, c.h) * 0.18;
+    g.strokeStyle = withAlpha(col, 0.5);
+    g.lineWidth = s * 1.5;
+    const x0 = c.x + pad, y0 = c.y + pad, x1 = c.x + c.w - pad, y1 = c.y + c.h - pad;
+    g.beginPath();
+    g.moveTo(x0, y0 + L); g.lineTo(x0, y0); g.lineTo(x0 + L, y0);
+    g.moveTo(x1 - L, y1); g.lineTo(x1, y1); g.lineTo(x1, y1 - L);
+    g.stroke();
+  }
+}
+function mSlab(g, c, ink, s, accentCol){
+  const col = accentCol || pick(ink);
+  const vert = c.h > c.w;
+  const t = (vert ? c.w : c.h) * (0.12 + R() * 0.3);
+  const a = accentCol ? 0.55 + R() * 0.4 : 0.1 + R() * 0.25;
+  g.fillStyle = withAlpha(col, a);
+  if (vert) g.fillRect(c.x + (c.w - t) * R(), c.y, t, c.h);
+  else      g.fillRect(c.x, c.y + (c.h - t) * R(), c.w, t);
+}
+
+/* ============================================================ label vocabulary
+   Short, plausible instrument strings. Kept to a handful of grammars so the
+   plate reads as one system rather than a bag of random characters. */
+const L_ALPHA = 'ABCDEFGHJKLMNPRSTVXZ';
+const L_TAGS  = ['SEC','SEQ','REV','CH','SYS','NAV','REF','IDX','PWR','SIG','VEC','SRC',
+                 'BUS','TRK','LVL','MOD','GRP','CAL','TMP','FLW','LAT','ALT','AUX','DAT'];
+const L_WORDS = ['NOMINAL','STANDBY','LOCKED','ACTIVE','IDLE','SYNC','ARMED','HOLD',
+                 'READY','TRIM','OFFSET','RANGE','BIAS','GAIN','PHASE','LINK'];
+function generatedLabel(){
+  const A = () => L_ALPHA[Math.floor(R() * L_ALPHA.length)];
+  const d = n => String(Math.floor(R() * Math.pow(10, n))).padStart(n, '0');
+  switch (rint(0, 9)){
+    case 0: return A() + rint(1, 9);                        // A1
+    case 1: return pick(L_TAGS) + ' ' + d(3);               // SEQ 018
+    case 2: return A() + '-' + d(2);                        // B-76
+    case 3: return d(2) + '.' + d(2);                       // 04.19
+    case 4: return pick(L_TAGS) + '-' + A() + d(2);         // NAV-K07
+    case 5: return pick(L_WORDS);                           // NOMINAL
+    case 6: return d(4);                                    // 2291
+    case 7: return A() + A() + ' ' + d(2);                  // KR 08
+    case 8: return pick(L_TAGS) + ' ' + pick(L_WORDS);      // PWR HOLD
+    default:return '[' + d(2) + ']';                        // [37]
+  }
+}
+/* Up to ten of the operator's own words, folded into the same vocabulary. */
+let WORDS = [], WORDMIX = 0;
+function labelText(){
+  /* Both draws happen and the stock label is always generated, whatever the
+     lexicon holds, so the RNG advances by the same amount either way. Typing
+     a word re-skins the plate in place instead of reshuffling the layout. */
+  const roll = R();
+  const wi = Math.floor(R() * Math.max(1, WORDS.length));
+  const gen = generatedLabel();
+  return (WORDS.length && roll < WORDMIX) ? WORDS[wi] : gen;
+}
+function setFont(g, px){
+  g.font = `${px}px ui-monospace, Menlo, Consolas, monospace`;
+  try { g.letterSpacing = (px * 0.12).toFixed(2) + 'px'; } catch (e) { /* older engines */ }
+}
+/* Labels are queued in tile space and drawn after the mirror blits, so the
+   glyphs stay upright on every copy while their positions still mirror. */
+let LABELS = [];
+function queueLabel(x, y, px, fill, rot, tick){
+  LABELS.push({ x, y, px, fill, rot, tick, text: labelText() });
+}
+function mLabel(g, c, ink, s, opts){
+  /* Type is sized off the plate, not the cell, so it stays small no matter
+     how the subdivision falls. 6–10px on a 1920 plate. */
+  const px = (5 + R() * 5) * s;
+  if (c.w < px * 4 || c.h < px * 1.6) return;
+  const useAcc = chance(opts.acc * 0.5);
+  const col = useAcc ? pick(PAL.accents) : pick(ink);
+  const rows = Math.min(rint(1, 4), Math.floor(c.h / (px * 1.6)));
+  for (let i = 0; i < rows; i++){
+    queueLabel(c.x + 2 * s, c.y + 2 * s + i * px * 1.55, px,
+               withAlpha(col, useAcc ? 0.7 : 0.28 + R() * 0.5), 0, false);
+  }
+}
+function mNest(g, c, ink, s){
+  const col = pick(ink), n = rint(2, 5);
+  const step = Math.min(c.w, c.h) / (n * 2.4);
+  g.lineWidth = s;
+  for (let i = 0; i < n; i++){
+    const p = step * i;
+    if (c.w - p * 2 < 3 * s || c.h - p * 2 < 3 * s) break;
+    g.strokeStyle = withAlpha(col, 0.1 + R() * 0.28);
+    g.strokeRect(c.x + p + s * 0.5, c.y + p + s * 0.5, c.w - p * 2 - s, c.h - p * 2 - s);
+  }
+}
+function mNotch(g, c, ink, s){
+  /* Chamfered panel — the signature HUD frame corner. */
+  const col = pick(ink);
+  const k = Math.min(c.w, c.h) * (0.12 + R() * 0.2);
+  g.beginPath();
+  g.moveTo(c.x + k, c.y);
+  g.lineTo(c.x + c.w, c.y);
+  g.lineTo(c.x + c.w, c.y + c.h - k);
+  g.lineTo(c.x + c.w - k, c.y + c.h);
+  g.lineTo(c.x, c.y + c.h);
+  g.lineTo(c.x, c.y + k);
+  g.closePath();
+  if (chance(0.5)){ g.fillStyle = withAlpha(col, 0.04 + R() * 0.1); g.fill(); }
+  g.strokeStyle = withAlpha(col, 0.18 + R() * 0.32);
+  g.lineWidth = s;
+  g.stroke();
+}
+function mDash(g, c, ink, s){
+  const horiz = chance(0.72);
+  const col = withAlpha(pick(ink), 0.18 + R() * 0.4);
+  const dash = (2 + R() * 5) * s, gap = (2 + R() * 6) * s;
+  g.fillStyle = col;
+  const y = c.y + R() * c.h, x = c.x + R() * c.w;
+  if (horiz) for (let i = c.x; i < c.x + c.w; i += dash + gap) g.fillRect(i, y, dash, s);
+  else       for (let i = c.y; i < c.y + c.h; i += dash + gap) g.fillRect(x, i, s, dash);
+}
+function mStack(g, c, ink, s){
+  /* Row of small squares — reads as a channel strip or LED bank. */
+  const n = rint(3, 10);
+  const sz = Math.min(c.h * 0.5, c.w / (n * 1.6));
+  if (sz < s) return;
+  const y = c.y + (c.h - sz) * R();
+  const col = pick(ink);
+  for (let i = 0; i < n; i++){
+    const x = c.x + i * sz * 1.55 + s;
+    if (x + sz > c.x + c.w) break;
+    const lit = chance(0.4);
+    g.fillStyle = withAlpha(lit ? col : col, lit ? 0.45 + R() * 0.4 : 0.1);
+    g.fillRect(x, y, sz, sz);
+  }
+}
+function mConn(g, c, ink, s, accentCol){
+  /* Leader line ending in a pad — glues neighbouring panels together. */
+  const col = accentCol || pick(ink);
+  g.strokeStyle = withAlpha(col, 0.25 + R() * 0.45);
+  g.lineWidth = s;
+  const y = c.y + R() * c.h;
+  const x0 = c.x, x1 = c.x + c.w * (0.3 + R() * 0.65);
+  const drop = c.y + R() * c.h;
+  g.beginPath();
+  g.moveTo(x0, y); g.lineTo(x1, y); g.lineTo(x1, drop);
+  g.stroke();
+  g.fillStyle = withAlpha(col, 0.6);
+  g.fillRect(x1 - 1.5 * s, drop - 1.5 * s, 3 * s, 3 * s);
+}
+
+/* ============================================================ subdivision */
+function subdivide(x, y, w, h, depth, mode, out){
+  const min = 26;
+  if (depth <= 0 || (w < min * 2 && h < min * 2) || (depth < 3 && chance(0.22))){
+    out.push({ x, y, w, h });
+    return;
+  }
+  let vert;
+  if (mode === 'v') vert = chance(0.78);
+  else if (mode === 'h') vert = chance(0.22);
+  else vert = w > h ? chance(0.7) : chance(0.3);
+  if (vert && w < min * 2) vert = false;
+  if (!vert && h < min * 2) vert = true;
+
+  const t = 0.28 + R() * 0.44;
+  if (vert){
+    const cut = Math.round(w * t);
+    subdivide(x, y, cut, h, depth - 1, mode, out);
+    subdivide(x + cut, y, w - cut, h, depth - 1, mode, out);
+  } else {
+    const cut = Math.round(h * t);
+    subdivide(x, y, w, cut, depth - 1, mode, out);
+    subdivide(x, y + cut, w, h - cut, depth - 1, mode, out);
+  }
+}
+
+/* ============================================================ tile paint
+   Draws one unmirrored tile. Mirroring happens at composite time, which is
+   what gives the plate its symmetric spine. */
+function paintTile(g, W, H, opts, s){
+  SNAP_ON = opts.snapOn;
+  SNAP_STEP = Math.max(1, opts.snap * s);
+  g = snappedCtx(g);
+  const P = PRESET, ink = PAL.ink, acc = PAL.accents;
+  WORDS = opts.words; WORDMIX = opts.wordmix;
+  LABELS = [];
+  const cells = [];
+  subdivide(0, 0, W, H, opts.depth, P.split, cells);
+
+  const fill = Math.min(1, opts.dens);
+  for (const c of cells){
+    if (!chance(fill * 0.92)) continue;
+    const pad = chance(0.55) ? rint(0, 4) * s : 0;
+    const cc = { x: c.x + pad, y: c.y + pad, w: c.w - pad * 2, h: c.h - pad * 2 };
+    if (cc.w < 6 * s || cc.h < 6 * s) continue;
+
+    const n = 1 + (chance(0.45 * fill) ? 1 : 0) + (chance(0.2 * fill) ? 1 : 0);
+    for (let i = 0; i < n; i++){
+      const kind = weightedPick(P.weights);
+      if (kind === 'panel') mPanel(g, cc, ink, s);
+      else if (kind === 'hatch') mHatch(g, cc, ink, s);
+      else if (kind === 'ticks') mTicks(g, cc, ink, s);
+      else if (kind === 'text')  mText(g, cc, ink, s);
+      else if (kind === 'bars')  mBars(g, cc, ink, s);
+      else if (kind === 'dots')  mDots(g, cc, ink, s);
+      else if (kind === 'frame') mFrame(g, cc, ink, s);
+      else if (kind === 'slab')  mSlab(g, cc, ink, s, chance(opts.acc) ? pick(acc) : null);
+      else if (kind === 'nest')  mNest(g, cc, ink, s);
+      else if (kind === 'notch') mNotch(g, cc, ink, s);
+      else if (kind === 'dash')  mDash(g, cc, ink, s);
+      else if (kind === 'stack') mStack(g, cc, ink, s);
+      else if (kind === 'conn')  mConn(g, cc, ink, s, chance(opts.acc) ? pick(acc) : null);
+    }
+
+    /* per-cell caption — a label pinned to a panel rather than floating */
+    if (chance(opts.labels * 0.35)) mLabel(g, cc, ink, s, opts);
+  }
+
+  /* full-bleed bands — the long rules that tie the halves together */
+  if (P.bands){
+    const n = rint(2, 6);
+    for (let i = 0; i < n; i++){
+      const horiz = P.split === 'v' ? chance(0.3) : chance(0.75);
+      const t = (1 + R() * 9) * s;
+      const useAcc = chance(opts.acc * 0.5);
+      g.fillStyle = withAlpha(useAcc ? pick(acc) : pick(ink), useAcc ? 0.5 : 0.06 + R() * 0.2);
+      if (horiz) g.fillRect(0, R() * H, W, t);
+      else       g.fillRect(R() * W, 0, t, H);
+    }
+  }
+
+  /* circuit traces — orthogonal runs with a pad at the elbow */
+  if (P.traces){
+    const n = rint(4, 12);
+    g.lineCap = 'butt';
+    for (let i = 0; i < n; i++){
+      const col = chance(opts.acc) ? pick(acc) : pick(ink);
+      g.strokeStyle = withAlpha(col, 0.2 + R() * 0.45);
+      g.lineWidth = s * (1 + Math.floor(R() * 2));
+      let x = R() * W, y = R() * H;
+      g.beginPath(); g.moveTo(x, y);
+      for (let k = 0, steps = rint(2, 5); k < steps; k++){
+        if (k % 2 === 0) x += (R() - 0.5) * W * 0.6;
+        else             y += (R() - 0.5) * H * 0.6;
+        g.lineTo(x, y);
+      }
+      g.stroke();
+      g.fillStyle = withAlpha(col, 0.6);
+      g.fillRect(x - 2 * s, y - 2 * s, 4 * s, 4 * s);
+    }
+  }
+
+  /* micro-detail — the sub-pixel grit that survives downscaling and makes the
+     plate reward a zoom. Cheap marks, scattered independent of the cells. */
+  const micro = Math.round(opts.detail * 260);
+  for (let i = 0; i < micro; i++){
+    const x = R() * W, y = R() * H;
+    const col = chance(opts.acc * 0.25) ? pick(acc) : pick(ink);
+    const a = 0.15 + R() * 0.55;
+    g.fillStyle = withAlpha(col, a);
+    switch (rint(0, 5)){
+      case 0: g.fillRect(x, y, s, s); break;                                  // pixel
+      case 1: g.fillRect(x, y, (2 + R() * 14) * s, s); break;                 // rule
+      case 2: g.fillRect(x, y, s, (2 + R() * 14) * s); break;                 // stem
+      case 3: {                                                               // crosshair
+        const L = (2 + R() * 5) * s;
+        g.fillRect(x - L, y, L * 2, s); g.fillRect(x, y - L, s, L * 2); break;
+      }
+      case 4: {                                                               // register mark
+        const L = (3 + R() * 4) * s;
+        g.strokeStyle = withAlpha(col, a); g.lineWidth = s;
+        g.beginPath();
+        g.moveTo(x, y + L); g.lineTo(x, y); g.lineTo(x + L, y);
+        g.stroke(); break;
+      }
+      default: {                                                              // dot pair
+        g.fillRect(x, y, s * 1.5, s * 1.5);
+        g.fillRect(x + 4 * s, y, s * 1.5, s * 1.5); break;
+      }
+    }
+  }
+
+  /* floating labels — free of the panel grid, some with a leader tick, some
+     turned on their side the way edge callouts run in real instrument art */
+  const nLab = Math.round(opts.labels * 90);
+  for (let i = 0; i < nLab; i++){
+    const px = (4.5 + R() * 5.5) * s;
+    const useAcc = chance(opts.acc * 0.35);
+    const col = useAcc ? pick(acc) : pick(ink);
+    queueLabel(R() * W, R() * H, px,
+               withAlpha(col, useAcc ? 0.75 : 0.2 + R() * 0.55),
+               chance(0.16) ? (chance(0.5) ? 1 : -1) : 0,
+               chance(0.3));
+  }
+
+  /* drafting corners on the tile itself */
+  if (P.corners){
+    const L = Math.min(W, H) * 0.12, m = 8 * s;
+    g.strokeStyle = withAlpha(PAL.ink[0], 0.4);
+    g.lineWidth = s * 1.5;
+    g.beginPath();
+    g.moveTo(m, m + L); g.lineTo(m, m); g.lineTo(m + L, m);
+    g.moveTo(W - m - L, H - m); g.lineTo(W - m, H - m); g.lineTo(W - m, H - m - L);
+    g.stroke();
+  }
+}
+
+/* ============================================================ surface pre-pass
+   Reference-style macro panels: broad translucent architecture under the
+   existing fine substrate vocabulary. Kept on its own seed so changing this
+   layer does not reshuffle the plate details. */
+function surfaceInk(tone, a){
+  return withAlpha(toneColor(tone), a);
+}
+function surfaceDashRun(g, x, y, w, horizontal, col, s){
+  g.fillStyle = col;
+  const n = rint(5, 14);
+  for (let i = 0; i < n; i++){
+    const p = (i + R() * 0.35) / n;
+    const len = (3 + R() * 16) * s;
+    if (horizontal) g.fillRect(x + w * p, y, len, Math.max(s, 1));
+    else g.fillRect(x, y + w * p, Math.max(s, 1), len);
+  }
+}
+function surfaceDotMatrix(g, x, y, w, h, o, s, density = 1){
+  const k = o.surfacestr / 100;
+  const step = (5 + R() * 5) * s;
+  const r = Math.max(0.45 * s, step * 0.09);
+  g.fillStyle = surfaceInk(chance(0.15) ? 'accent' : 'ink', 0.11 * k);
+  for (let yy = y + step; yy < y + h - step; yy += step)
+    for (let xx = x + step; xx < x + w - step; xx += step)
+      if (chance(0.38 * density)) fillCircle(g, xx, yy, r);
+}
+function surfaceBracket(g, x, y, w, h, col, s){
+  const L = Math.min(w, h) * (0.12 + R() * 0.12);
+  g.strokeStyle = col;
+  g.lineWidth = Math.max(s, 1);
+  g.beginPath();
+  g.moveTo(x, y + L); g.lineTo(x, y); g.lineTo(x + L, y);
+  g.moveTo(x + w - L, y); g.lineTo(x + w, y); g.lineTo(x + w, y + L);
+  g.moveTo(x, y + h - L); g.lineTo(x, y + h); g.lineTo(x + L, y + h);
+  g.moveTo(x + w - L, y + h); g.lineTo(x + w, y + h); g.lineTo(x + w, y + h - L);
+  g.stroke();
+}
+function surfaceReadoutBlock(g, x, y, w, h, o, s){
+  const k = o.surfacestr / 100;
+  g.fillStyle = surfaceInk('accent', 0.035 * k + R() * 0.055 * k);
+  g.fillRect(x, y, w, h);
+  g.strokeStyle = surfaceInk('ink', 0.12 * k);
+  g.lineWidth = s;
+  g.strokeRect(x + s * 0.5, y + s * 0.5, w - s, h - s);
+  const rows = Math.max(2, Math.floor(h / (5 * s)));
+  for (let i = 0; i < rows; i++){
+    const yy = y + 2 * s + i * 4.4 * s;
+    surfaceDashRun(g, x + 3 * s, yy, w - 6 * s, true, surfaceInk('ink', 0.22 * k), s);
+  }
+}
+function surfacePanel(g, x, y, w, h, o, s, heavy){
+  const k = o.surfacestr / 100;
+  const glass = heavy ? 'mid' : 'ink';
+  g.fillStyle = surfaceInk(glass, (heavy ? 0.045 : 0.028) * k + R() * 0.035 * k);
+  g.fillRect(x, y, w, h);
+  if (chance(0.7)){
+    g.strokeStyle = surfaceInk('ink', (heavy ? 0.11 : 0.07) * k);
+    g.lineWidth = Math.max(s, (heavy ? 1.4 : 1) * s);
+    g.strokeRect(x + s * 0.5, y + s * 0.5, w - s, h - s);
+  }
+  if (!heavy && chance(0.78)){
+    const layers = rint(2, 4);
+    for (let i = 1; i <= layers; i++){
+      const p = Math.min(w, h) * (0.045 * i + R() * 0.015);
+      g.strokeStyle = surfaceInk(i % 2 ? 'mid' : 'ink', (0.05 + i * 0.018) * k);
+      g.lineWidth = s;
+      if (w - p * 2 > 8 * s && h - p * 2 > 8 * s)
+        g.strokeRect(x + p, y + p, w - p * 2, h - p * 2);
+    }
+  }
+  if (chance(0.65)){
+    const iw = w * (0.42 + R() * 0.25), ih = h * (0.42 + R() * 0.25);
+    const ix = x + (w - iw) * (0.18 + R() * 0.64);
+    const iy = y + (h - ih) * (0.18 + R() * 0.64);
+    g.fillStyle = withAlpha('#000000', (heavy ? 0.34 : 0.24) * k);
+    g.fillRect(ix, iy, iw, ih);
+    g.strokeStyle = surfaceInk('mid', 0.06 * k);
+    g.lineWidth = s;
+    g.strokeRect(ix + s * 0.5, iy + s * 0.5, iw - s, ih - s);
+    if (!heavy && chance(0.62)) surfaceDotMatrix(g, ix, iy, iw, ih, o, s, 0.75);
+  }
+  if (chance(0.48)){
+    const bx = x + w * (0.08 + R() * 0.74);
+    const by = y + h * (0.08 + R() * 0.74);
+    const bw = w * (0.16 + R() * 0.24), bh = h * (0.04 + R() * 0.1);
+    g.fillStyle = surfaceInk('accent', 0.06 * k + R() * 0.08 * k);
+    g.fillRect(bx, by, bw, bh);
+    surfaceDashRun(g, bx + 2 * s, by + bh * 0.45, bw - 4 * s, true, surfaceInk('ink', 0.22 * k), s);
+  }
+  if (!heavy && chance(0.58)){
+    const bw = w * (0.12 + R() * 0.18);
+    const bh = h * (0.08 + R() * 0.12);
+    surfaceReadoutBlock(g, x + w * (0.08 + R() * 0.7), y + h * (0.08 + R() * 0.7), bw, bh, o, s);
+  }
+  if (!heavy && chance(0.7)) surfaceBracket(g, x + 2 * s, y + 2 * s, w - 4 * s, h - 4 * s, surfaceInk('accent', 0.14 * k), s);
+}
+function surfaceRails(g, W, H, o, s, heavy){
+  const k = o.surfacestr / 100;
+  const count = heavy ? 6 : 6;
+  for (let i = 0; i < count; i++){
+    const x = W * ((heavy ? 0.12 : 0.08) + i * (heavy ? 0.17 : 0.145) + (R() - 0.5) * 0.035);
+    const w = (heavy ? 12 + R() * 26 : 10 + R() * 30) * s;
+    g.fillStyle = surfaceInk('mid', (heavy ? 0.045 : 0.046) * k);
+    g.fillRect(x, 0, w, H);
+    g.fillStyle = withAlpha('#000000', 0.18 * k);
+    g.fillRect(x + w * 0.35, 0, w * 0.28, H);
+    g.strokeStyle = surfaceInk('ink', 0.08 * k);
+    g.lineWidth = s;
+    drawLine(g, x, 0, x, H, g.strokeStyle, s);
+    drawLine(g, x + w, 0, x + w, H, g.strokeStyle, s);
+    if (chance(0.7)) surfaceDashRun(g, x + w * 0.5, H * 0.08, H * 0.84, false, surfaceInk('accent', 0.16 * k), s);
+    if (!heavy && chance(0.58)){
+      for (let y = H * 0.08; y < H * 0.92; y += (58 + R() * 70) * s)
+        surfaceReadoutBlock(g, x - w * 0.45, y, w * 1.9, (10 + R() * 18) * s, o, s);
+    }
+  }
+  for (let i = 0; i < count - 1; i++){
+    const y = H * ((heavy ? 0.16 : 0.1) + i * (heavy ? 0.22 : 0.17) + (R() - 0.5) * 0.035);
+    const h = (heavy ? 10 + R() * 24 : 10 + R() * 28) * s;
+    g.fillStyle = surfaceInk('mid', (heavy ? 0.04 : 0.041) * k);
+    g.fillRect(0, y, W, h);
+    g.strokeStyle = surfaceInk('ink', 0.065 * k);
+    g.lineWidth = s;
+    drawLine(g, 0, y, W, y, g.strokeStyle, s);
+    drawLine(g, 0, y + h, W, y + h, g.strokeStyle, s);
+    if (chance(0.55)) surfaceDashRun(g, W * 0.08, y + h * 0.5, W * 0.84, true, surfaceInk('accent', 0.13 * k), s);
+  }
+}
+function surfaceGlassCells(g, W, H, o, s){
+  const k = o.surfacestr / 100;
+  const cols = 4, rows = 4;
+  const cw = W / cols, ch = H / rows;
+  for (let y = 0; y < rows; y++){
+    for (let x = 0; x < cols; x++){
+      const gx = x * cw + cw * 0.07;
+      const gy = y * ch + ch * 0.07;
+      const gw = cw * 0.82, gh = ch * 0.82;
+      g.fillStyle = surfaceInk('mid', (0.018 + R() * 0.02) * k);
+      g.fillRect(gx, gy, gw, gh);
+      g.fillStyle = withAlpha('#000000', 0.16 * k);
+      g.fillRect(gx + gw * 0.3, gy + gh * 0.28, gw * 0.42, gh * 0.44);
+      g.strokeStyle = surfaceInk('ink', 0.055 * k);
+      g.lineWidth = s;
+      g.strokeRect(gx + s * 0.5, gy + s * 0.5, gw - s, gh - s);
+      if (chance(0.82)) surfaceDotMatrix(g, gx + gw * 0.08, gy + gh * 0.08, gw * 0.84, gh * 0.84, o, s, 0.55);
+      if (chance(0.55)) surfaceBracket(g, gx + gw * 0.08, gy + gh * 0.08, gw * 0.84, gh * 0.84, surfaceInk('accent', 0.1 * k), s);
+    }
+  }
+}
+function surfaceGlassCorridors(g, W, H, o, s){
+  const k = o.surfacestr / 100;
+  const lanes = [
+    [W * 0.18, 0, W * 0.065, H],
+    [W * 0.5 - W * 0.035, 0, W * 0.07, H],
+    [0, H * 0.18, W, H * 0.06],
+    [0, H * 0.5 - H * 0.035, W, H * 0.07]
+  ];
+  for (const [x, y, w, h] of lanes){
+    g.fillStyle = surfaceInk('accent', 0.028 * k);
+    g.fillRect(x, y, w, h);
+    g.fillStyle = surfaceInk('mid', 0.027 * k);
+    g.fillRect(x + w * 0.18, y + h * 0.18, w * 0.64, h * 0.64);
+    g.strokeStyle = surfaceInk('ink', 0.06 * k);
+    g.lineWidth = s;
+    g.strokeRect(x + s * 0.5, y + s * 0.5, w - s, h - s);
+  }
+}
+function paintSurfaceTile(g, W, H, o, s){
+  if (o.surface === 'none' || o.surfacestr <= 0) return;
+  SNAP_ON = o.snapOn;
+  SNAP_STEP = Math.max(1, o.snap * s);
+  g = snappedCtx(g);
+  const k = o.surfacestr / 100;
+  const heavy = o.surface === 'tech2';
+  const cols = heavy ? 4 : 3, rows = heavy ? 4 : 3;
+  const cw = W / cols, ch = H / rows;
+
+  g.save();
+  g.globalCompositeOperation = 'source-over';
+  if (!heavy){
+    surfaceGlassCells(g, W, H, o, s);
+    surfaceGlassCorridors(g, W, H, o, s);
+  }
+  surfaceRails(g, W, H, o, s, heavy);
+
+  for (let y = 0; y < rows; y++){
+    for (let x = 0; x < cols; x++){
+      if (!chance(heavy ? 0.82 : 0.68)) continue;
+      const pad = (heavy ? 5 + R() * 20 : 12 + R() * 34) * s;
+      const px = x * cw + pad * (0.3 + R() * 0.9);
+      const py = y * ch + pad * (0.3 + R() * 0.9);
+      const pw = cw * (0.58 + R() * 0.36);
+      const ph = ch * (0.55 + R() * 0.38);
+      surfacePanel(g, px, py, pw, ph, o, s, heavy);
+    }
+  }
+
+  const n = heavy ? 18 : 10;
+  for (let i = 0; i < n; i++){
+    const x = R() * W, y = R() * H;
+    const w = (heavy ? 14 + R() * 56 : 24 + R() * 90) * s;
+    const h = (heavy ? 6 + R() * 28 : 8 + R() * 42) * s;
+    g.fillStyle = surfaceInk(chance(0.18) ? 'accent' : 'mid', (0.025 + R() * 0.045) * k);
+    g.fillRect(x, y, w, h);
+    if (chance(0.5)) surfaceDashRun(g, x + 2 * s, y + h + 2 * s, w, true, surfaceInk('ink', 0.16 * k), s);
+  }
+
+  if (heavy){
+    for (let i = 0; i < 9; i++){
+      const x = R() * W, y = R() * H;
+      const w = (18 + R() * 70) * s, h = (18 + R() * 70) * s;
+      g.fillStyle = withAlpha('#000000', 0.25 * k);
+      g.fillRect(x, y, w, h);
+      g.strokeStyle = surfaceInk('ink', 0.07 * k);
+      g.lineWidth = s;
+      g.strokeRect(x + s * 0.5, y + s * 0.5, w - s, h - s);
+    }
+  }
+  g.restore();
+}
+
+/* ============================================================ label pass
+   Runs on the composed plate. Each queued label is drawn once per mirror copy
+   at the reflected anchor, but never itself reflected — so `A1` reads `A1` in
+   all four quadrants while still sitting in symmetric positions. Anchoring
+   flips with the reflection (right-aligned on a mirrored half, bottom-aligned
+   on a flipped one) so text grows away from the seam instead of across it. */
+function paintLabels(g, W, H, halfX, halfY, s){
+  if (!LABELS.length) return;
+  g = snappedCtx(g);
+  const copies = [[false, false]];
+  if (halfX) copies.push([true, false]);
+  if (halfY) copies.push([false, true]);
+  if (halfX && halfY) copies.push([true, true]);
+
+  for (const L of LABELS){
+    setFont(g, L.px);
+    g.fillStyle = L.fill;
+    const w = g.measureText(L.text).width;
+    for (const [fx, fy] of copies){
+      const ax = fx ? W - L.x : L.x;
+      const ay = fy ? H - L.y : L.y;
+      g.save();
+      g.translate(ax, ay);
+      if (L.rot) g.rotate(L.rot * Math.PI / 2);
+      g.textAlign = (fx && !L.rot) ? 'right' : 'left';
+      g.textBaseline = (fy && !L.rot) ? 'bottom' : 'top';
+      g.fillText(L.text, 0, 0);
+      if (L.tick){
+        const dir = g.textAlign === 'right' ? -1 : 1;
+        g.fillRect(dir > 0 ? -2 * s - w * 0.15 : 2 * s + w * 0.03,
+                   g.textBaseline === 'bottom' ? -L.px * 0.5 : L.px * 0.5,
+                   w * 0.12, s);
+      }
+      g.restore();
+    }
+  }
+  g.letterSpacing = '0px';
+  g.textAlign = 'left';
+  g.textBaseline = 'alphabetic';
+}
+
+/* ============================================================ overlays
+   Grid and dots are independent layers on their own pitches — either, both,
+   or neither. Dots draw last so they sit on top of the mesh. */
+function paintGrid(g, W, H, o, s){
+  if (!o.gridOn || o.gridop <= 0) return;
+  const step = o.gridsize * s;
+  if (step < 1.5) return;
+  const base = o.gridop, majorA = Math.min(1, base * 2.2);
+  const px = Math.max(1, Math.round(s * 0.6));
+
+  /* hairlines: minors first as one pass, majors on top */
+  g.fillStyle = withAlpha(o.gridcolor, base);
+  for (let x = 0, i = 0; x <= W; x += step, i++){
+    if (o.major > 0 && i % o.major === 0) continue;
+    g.fillRect(Math.round(x), 0, px, H);
+  }
+  for (let y = 0, j = 0; y <= H; y += step, j++){
+    if (o.major > 0 && j % o.major === 0) continue;
+    g.fillRect(0, Math.round(y), W, px);
+  }
+  if (o.major > 0){
+    g.fillStyle = withAlpha(o.gridcolor, majorA);
+    for (let x = 0, i = 0; x <= W; x += step, i++)
+      if (i % o.major === 0) g.fillRect(Math.round(x), 0, px, H);
+    for (let y = 0, j = 0; y <= H; y += step, j++)
+      if (j % o.major === 0) g.fillRect(0, Math.round(y), W, px);
+  }
+}
+function paintDots(g, W, H, o, s){
+  if (!o.dotsOn || o.dotop <= 0) return;
+  const step = o.dotstep * s;
+  if (step < 1.5) return;
+  const r = Math.max(0.5, o.dotsize * s * 0.5);
+  g.fillStyle = withAlpha(o.dotcolor, o.dotop);
+  for (let y = 0; y <= H; y += step)
+    for (let x = 0; x <= W; x += step)
+      fillCircle(g, Math.round(x) + r, Math.round(y) + r, r);
+}
+function paintTraceField(g, W, H, o, s){
+  if (!o.webOn || o.webop <= 0 || o.webdensity <= 0) return;
+  SNAP_ON = o.snapOn;
+  SNAP_STEP = Math.max(1, o.snap * s);
+  g = snappedCtx(g);
+  const Cx = W / 2, Cy = H / 2;
+  const density = o.webdensity / 100;
+  const base = o.webcolor;
+  const traceCol = (a = 0.18) => withAlpha(chance(0.08) ? pick(PAL.accents) : base, a);
+  const traceWeight = () => (0.25 + R() * 0.55) * s;
+  const mirrorPath = (points, col, weight) => {
+    for (const [sx, sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+      for (let j = 1; j < points.length; j++){
+        const p = points[j - 1], q = points[j];
+        drawLine(g, Cx + sx * p[0], Cy + sy * p[1], Cx + sx * q[0], Cy + sy * q[1], col, weight);
+      }
+    }
+  };
+
+  g.save();
+  g.globalAlpha = o.webop;
+
+  if (o.webstyle === 'radial'){
+    const C = {x: Cx, y: Cy};
+    const rays = 18 + Math.round(density * 24);
+    for (let i = 0; i < rays; i++){
+      const a = i * TAU / rays + (R() - 0.5) * 0.035;
+      const r0 = Math.min(W, H) * (0.08 + R() * 0.12);
+      const r1 = Math.max(W, H) * (0.5 + R() * 0.35);
+      const p0 = PT(C, r0, a), p1 = PT(C, r1, a);
+      drawLine(g, p0[0], p0[1], p1[0], p1[1], traceCol(0.16 + R() * 0.18), traceWeight());
+    }
+    for (let i = 0; i < 7 + Math.round(density * 8); i++){
+      const r = Math.min(W, H) * (0.16 + i * 0.055);
+      drawArc(g, C, r, R() * TAU, R() * TAU + Math.PI * (0.45 + R() * 0.9), traceCol(0.14 + R() * 0.2), traceWeight());
+    }
+    g.restore();
+    return;
+  }
+
+  if (o.webstyle === 'diagonal'){
+    const step = Math.max(22 * s, Math.min(W, H) / (10 + density * 12));
+    for (let i = -Math.ceil(H / step); i < Math.ceil(W / step); i++){
+      const off = i * step;
+      drawLine(g, Math.max(0, off), Math.max(0, -off), Math.min(W, W + off), Math.min(H, H - off), traceCol(0.12 + R() * 0.2), traceWeight());
+      if (i % 2 === 0) drawLine(g, Math.max(0, off), Math.min(H, H + off), Math.min(W, W + off), Math.max(0, -off), traceCol(0.1 + R() * 0.18), traceWeight());
+    }
+    g.restore();
+    return;
+  }
+
+  if (o.webstyle === 'orbit'){
+    const C = {x: Cx, y: Cy};
+    for (let i = 0; i < 8 + Math.round(density * 8); i++){
+      const rx = Math.min(W, H) * (0.14 + i * 0.06);
+      const ry = rx * (0.42 + (i % 3) * 0.11);
+      g.save();
+      g.translate(C.x, C.y);
+      g.rotate(R() * TAU);
+      g.scale(1, ry / rx);
+      drawArc(g, {x:0, y:0}, rx, 0.1 + R() * 0.8, 1.4 + R() * 0.8, traceCol(0.16 + R() * 0.2), traceWeight());
+      g.restore();
+    }
+    g.restore();
+    return;
+  }
+
+  if (o.webstyle === 'golden'){
+    const C = {x: Cx, y: Cy};
+    const ringCount = 8 + Math.round(density * 9);
+    const pointsPerRing = 14 + Math.round(density * 18);
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    const rings = [];
+    for (let r = 0; r < ringCount; r++){
+      const radius = Math.min(W, H) * (0.035 + (r + 1) / ringCount * 0.62);
+      const ring = [];
+      for (let i = 0; i < pointsPerRing; i++) ring.push(PT(C, radius, i * TAU / pointsPerRing + r * golden * 0.5));
+      rings.push(ring);
+    }
+    for (let r = 0; r < rings.length; r++){
+      const ring = rings[r];
+      for (let i = 0; i < ring.length; i++){
+        const p = ring[i], q = ring[(i + 1) % ring.length];
+        drawLine(g, p[0], p[1], q[0], q[1], traceCol(0.12 + R() * 0.18), traceWeight());
+        if (r < rings.length - 1 && (i % 2 === 0 || chance(0.38))){
+          const next = rings[r + 1][(i + (r % 3)) % pointsPerRing];
+          drawLine(g, p[0], p[1], next[0], next[1], traceCol(0.1 + R() * 0.16), traceWeight());
+        }
+      }
+    }
+    g.restore();
+    return;
+  }
+
+  if (o.webstyle === 'hex'){
+    const size = Math.min(W, H) / (12 + density * 16);
+    const dx = size * 1.5, dy = size * Math.sqrt(3);
+    const hex = (cx, cy) => {
+      const pts = [];
+      for (let i = 0; i < 6; i++){
+        const a = Math.PI / 3 * i;
+        pts.push([cx + Math.cos(a) * size, cy + Math.sin(a) * size]);
+      }
+      for (const [a, b] of [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]])
+        drawLine(g, pts[a][0], pts[a][1], pts[b][0], pts[b][1], traceCol(0.12 + R() * 0.18), traceWeight());
+    };
+    for (let row = -2; row < H / dy + 2; row++){
+      const y = row * dy;
+      const offset = row % 2 ? dx / 1.5 : 0;
+      for (let col = -2; col < W / dx + 2; col++) hex(col * dx + offset, y);
+    }
+    g.restore();
+    return;
+  }
+
+  const cols = 9 + Math.round(density * 10), rows = 9 + Math.round(density * 10);
+  const nodes = [];
+  for (let y = 0; y < rows; y++)
+    for (let x = 0; x < cols; x++)
+      nodes.push([(x + 0.5 + (R() - 0.5) * 0.18) * (W * 0.62 / cols),
+                  (y + 0.5 + (R() - 0.5) * 0.18) * (H * 0.62 / rows)]);
+  const node = (x, y) => nodes[y * cols + x];
+  const drawEdge = (a, b, major = false) => {
+    mirrorPath([a, b], traceCol(major ? 0.24 : 0.12 + R() * 0.16), (major ? 0.85 + R() * 0.5 : 0.25 + R() * 0.52) * s);
+  };
+  for (let y = 0; y < rows; y++){
+    for (let x = 0; x < cols; x++){
+      if (x < cols - 1) drawEdge(node(x, y), node(x + 1, y), x % 3 === 0);
+      if (y < rows - 1) drawEdge(node(x, y), node(x, y + 1), y % 3 === 0);
+      if (x < cols - 1 && y < rows - 1 && chance(0.9)) drawEdge(node(x, y), node(x + 1, y + 1));
+      if (x < cols - 1 && y > 0 && chance(0.72)) drawEdge(node(x, y), node(x + 1, y - 1));
+    }
+  }
+  g.restore();
+}
+
+/* ============================================================ grain */
+function paintGrain(g, W, H, strength){
+  if (strength <= 0) return;
+  const img = g.createImageData(W, H);
+  const d = img.data;
+  const amp = strength * 60;
+  for (let i = 0; i < d.length; i += 4){
+    const v = (Math.random() - 0.5) * amp;
+    d[i] = d[i+1] = d[i+2] = v > 0 ? 255 : 0;
+    d[i+3] = Math.abs(v);
+  }
+  const tmp = document.createElement('canvas');
+  tmp.width = W; tmp.height = H;
+  tmp.getContext('2d').putImageData(img, 0, 0);
+  g.save();
+  g.globalCompositeOperation = 'overlay';
+  g.drawImage(tmp, 0, 0);
+  g.restore();
+}
+
+/* ============================================================ render */
+const FORMATS = {
+  '1:1':[1,1],
+  '16:9':[16,9],
+  '21:9':[21,9],
+  '32:9':[32,9],
+  '2:1':[2,1],
+  '4:3':[4,3],
+  '3:2':[3,2],
+  '5:4':[5,4],
+  '4:5':[4,5],
+  '2:3':[2,3],
+  '9:16':[9,16],
+  '1:2':[1,2]
+};
+const LONG = 1920;
+
+function readOpts(){
+  return {
+    seed:     $('seed').value.trim() || '0',
+    format:   $('format').value,
+    sym:      $('sym').value,
+    dens:     +$('dens').value / 100,
+    surface:  $('surface').value,
+    surfacestr:+$('surfacestr').value,
+    depth:    +$('depth').value,
+    snapOn:   $('tsnap').dataset.on === '1',
+    snap:     +$('snap').value,
+    detail:   +$('detail').value / 100,
+    labels:   +$('labels').value / 100,
+    exposure: +$('exp').value / 100,
+    acc:      +$('acc').value / 100,
+    vig:      +$('vig').value / 100,
+    grain:    +$('grain').value / 100,
+    alpha:    $('talpha').dataset.on === '1',
+    words:    $('words').value.split(/[,\n]/)
+                .map(w => w.trim().toUpperCase().slice(0, 24)).filter(Boolean).slice(0, 10),
+    wordmix:  +$('wordmix').value / 100,
+    gridOn:   $('tgrid').dataset.on === '1',
+    gridsize: +$('gridsize').value,
+    gridcolor:toneColor($('gridcolor').value),
+    gridop:   +$('gridop').value / 100,
+    major:    +$('major').value,
+    dotsOn:   $('tdots').dataset.on === '1',
+    dotstep:  +$('dotstep').value,
+    dotsize:  +$('dotsize').value,
+    dotcolor: toneColor($('dotcolor').value),
+    dotop:    +$('dotop').value / 100,
+    webOn:    $('tweb').dataset.on === '1',
+    webstyle: $('webstyle').value,
+    webcolor: toneColor($('webcolor').value),
+    webdensity:+$('webdensity').value,
+    webop:    +$('webop').value / 100
+  };
+}
+
+function render(scale){
+  const o = readOpts();
+  const [fw, fh] = FORMATS[o.format];
+  const W = Math.round((fw >= fh ? LONG : LONG * fw / fh) * scale);
+  const H = Math.round((fw >= fh ? LONG * fh / fw : LONG) * scale);
+
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  if (!o.alpha){
+    g.fillStyle = PAL.bg;
+    g.fillRect(0, 0, W, H);
+  }
+
+  /* tile size depends on the symmetry: quad paints a quarter and mirrors it */
+  const halfX = o.sym === 'quad' || o.sym === 'mirrorx';
+  const halfY = o.sym === 'quad' || o.sym === 'mirrory';
+  const TW = halfX ? Math.ceil(W / 2) : W;
+  const TH = halfY ? Math.ceil(H / 2) : H;
+
+  const tile = document.createElement('canvas');
+  tile.width = TW; tile.height = TH;
+  const tg = tile.getContext('2d');
+
+  const artSeed = o.seed + '|' + PRESET.id + '|' + PAL.id + '|' + o.sym;
+  R = mulberry(hash(artSeed + '|surface|' + o.surface));
+  paintSurfaceTile(tg, TW, TH, o, scale);
+  R = mulberry(hash(artSeed));
+  paintTile(tg, TW, TH, o, scale);
+
+  g.save();
+  g.globalAlpha = Math.min(1, o.exposure);
+  if (o.exposure > 1) g.globalCompositeOperation = 'lighter';
+  g.drawImage(tile, 0, 0);
+  if (halfX){ g.save(); g.translate(W, 0); g.scale(-1, 1); g.drawImage(tile, 0, 0); g.restore(); }
+  if (halfY){ g.save(); g.translate(0, H); g.scale(1, -1); g.drawImage(tile, 0, 0); g.restore(); }
+  if (halfX && halfY){ g.save(); g.translate(W, H); g.scale(-1, -1); g.drawImage(tile, 0, 0); g.restore(); }
+  /* a second lighter pass past 100% exposure lifts the mid-tones */
+  if (o.exposure > 1){
+    g.globalAlpha = o.exposure - 1;
+    g.drawImage(tile, 0, 0);
+    if (halfX){ g.save(); g.translate(W, 0); g.scale(-1, 1); g.drawImage(tile, 0, 0); g.restore(); }
+  }
+  g.restore();
+
+  /* labels ride above the mirrored field but under vignette and grid */
+  g.save();
+  g.globalAlpha = Math.min(1, o.exposure);
+  paintLabels(g, W, H, halfX, halfY, scale);
+  g.restore();
+
+  if (o.vig > 0){
+    const grd = g.createRadialGradient(W/2, H/2, Math.min(W,H) * 0.2, W/2, H/2, Math.max(W,H) * 0.72);
+    if (o.alpha){
+      grd.addColorStop(0, 'rgba(0,0,0,0)');
+      grd.addColorStop(1, `rgba(0,0,0,${o.vig})`);
+      g.globalCompositeOperation = 'destination-out';
+      g.fillStyle = grd;
+      g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = 'source-over';
+    } else {
+      grd.addColorStop(0, 'rgba(0,0,0,0)');
+      grd.addColorStop(1, withAlpha(PAL.bg === '#000000' ? '#000000' : PAL.bg, o.vig));
+      g.fillStyle = grd;
+      g.globalCompositeOperation = 'multiply';
+      g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = 'source-over';
+      g.fillStyle = grd;
+      g.fillRect(0, 0, W, H);
+    }
+  }
+
+  paintTraceField(g, W, H, o, scale);
+  paintGrid(g, W, H, o, scale);
+  paintDots(g, W, H, o, scale);
+  paintGrain(g, W, H, o.grain);
+  return { cv, W, H, o };
+}
+
+let current = null;
+const UNDO_LIMIT = 60;
+let undoHistory = [];
+let lastUIState = null;
+let restoringUndo = false;
+
+function captureUIState(){
+  const values = {};
+  document.querySelectorAll('input,select,textarea').forEach(el => { if (el.id) values[el.id] = el.value; });
+  const toggles = {};
+  document.querySelectorAll('.tgl,#lock').forEach(el => {
+    if (!el.id) return;
+    toggles[el.id] = el.id === 'lock' ? (el.dataset.locked || '0') : (el.dataset.on || '0');
+  });
+  return { values, toggles, preset: PRESET.id, palette: PAL.id };
+}
+function stateKey(state){ return JSON.stringify(state); }
+function syncUndoButton(){ $('undo').disabled = undoHistory.length === 0; }
+function syncOverlayPanels(){
+  for (const [btn, sub] of [['tgrid','gridsub'], ['tdots','dotsub'], ['tweb','websub']])
+    $(sub).hidden = $(btn).dataset.on !== '1';
+}
+function recordUndoState(){
+  const state = captureUIState();
+  const key = stateKey(state);
+  if (!restoringUndo && lastUIState && lastUIState.key !== key){
+    undoHistory.push(lastUIState.state);
+    if (undoHistory.length > UNDO_LIMIT) undoHistory.shift();
+  }
+  lastUIState = { key, state };
+  syncUndoButton();
+}
+function restoreUIState(state){
+  restoringUndo = true;
+  Object.entries(state.values).forEach(([id, value]) => { if ($(id)) $(id).value = value; });
+  Object.entries(state.toggles).forEach(([id, value]) => {
+    const el = $(id); if (!el) return;
+    if (id === 'lock') el.dataset.locked = value;
+    else {
+      el.dataset.on = value;
+      el.setAttribute('aria-pressed', value === '1' ? 'true' : 'false');
+    }
+  });
+  PRESET = PRESETS.find(p => p.id === state.preset) || PRESETS[0];
+  PAL = PALETTES.find(p => p.id === state.palette) || PALETTES[0];
+  paintChips();
+  paintPal();
+  paintLock();
+  syncOverlayPanels();
+  for (const [id, out, fmt] of SLIDERS) $(out).textContent = fmt($(id).value);
+  syncWords();
+  syncColorSelects();
+  lastUIState = null;
+  draw();
+  restoringUndo = false;
+  syncUndoButton();
+}
+function undo(){
+  const state = undoHistory.pop();
+  if (!state) return;
+  restoreUIState(state);
+}
+function draw(){
+  recordUndoState();
+  syncColorSelects();
+  const r = render(1);
+  current = r;
+  const out = $('out');
+  out.width = r.W; out.height = r.H;
+  out.classList.toggle('alpha', r.o.alpha);
+  out.getContext('2d').drawImage(r.cv, 0, 0);
+  $('meta').innerHTML =
+    `<b>${PRESET.name}</b> · ${PAL.name} · ${r.o.format} · ${r.W}×${r.H} · ` +
+    `surface ${r.o.surface === 'none' ? 'current' : r.o.surface} · ` +
+    `grid ${r.o.gridOn ? r.o.gridsize + 'px' : 'off'} · ` +
+    `dots ${r.o.dotsOn ? r.o.dotstep + 'px' : 'off'} · ` +
+    `trace ${r.o.webOn ? r.o.webstyle : 'off'} · ` +
+    (r.o.alpha ? 'alpha · ' : '') +
+    (r.o.words.length ? `lex ${r.o.words.length} · ` : '') +
+    `seed <b>${r.o.seed}</b>`;
+}
+
+/* ============================================================ ui */
+function paintChips(){
+  $('chips').innerHTML = PRESETS.map(p =>
+    `<button class="chip" data-id="${p.id}" data-on="${p.id === PRESET.id ? 1 : 0}">${p.name}<em>${p.note}</em></button>`
+  ).join('');
+}
+$('chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  PRESET = PRESETS.find(p => p.id === b.dataset.id);
+  paintChips(); draw();
+});
+
+function swatch(p){
+  return `<span class="sw">${[p.ink[0], p.ink[2], p.accents[0], p.bg]
+    .map(c => `<i style="background:${c}"></i>`).join('')}</span>`;
+}
+function paintPal(){
+  $('palsw').outerHTML = swatch(PAL).replace('class="sw', 'id="palsw" class="sw');
+  $('palname').textContent = PAL.name;
+  $('pallist').innerHTML = PALETTES.map(p =>
+    `<button class="pick-row" role="option" data-id="${p.id}" data-sel="${p.id === PAL.id ? 1 : 0}">
+       ${swatch(p)}<span>${p.name}</span></button>`).join('');
+  syncColorSelects();
+}
+$('palbtn').addEventListener('click', () => {
+  const open = $('palpick').classList.toggle('open');
+  $('palbtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+$('pallist').addEventListener('click', e => {
+  const b = e.target.closest('.pick-row'); if (!b) return;
+  PAL = PALETTES.find(p => p.id === b.dataset.id);
+  $('palpick').classList.remove('open');
+  paintPal(); draw();
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#palpick')) $('palpick').classList.remove('open');
+});
+
+/* lock + dice */
+function paintLock(){
+  const on = $('lock').dataset.locked === '1';
+  $('shackle').setAttribute('d', on ? 'M8 11V8a4 4 0 0 1 8 0v3' : 'M8 11V8a4 4 0 0 1 7.5-2');
+}
+$('lock').addEventListener('click', () => {
+  const el = $('lock');
+  el.dataset.locked = el.dataset.locked === '1' ? '0' : '1';
+  paintLock();
+});
+function paintPips(n){
+  const pos = {
+    1:[[12,12]], 2:[[8,8],[16,16]], 3:[[8,8],[12,12],[16,16]],
+    4:[[8,8],[16,8],[8,16],[16,16]], 5:[[8,8],[16,8],[12,12],[8,16],[16,16]],
+    6:[[8,8],[16,8],[8,12],[16,12],[8,16],[16,16]]
+  }[n];
+  $('pips').innerHTML = pos.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.4"/>`).join('');
+}
+function newSeed(){ return String(Math.floor(Math.random() * 9000) + 1000); }
+$('dice').addEventListener('click', () => {
+  $('dice').classList.remove('rolling'); void $('dice').offsetWidth; $('dice').classList.add('rolling');
+  paintPips(1 + Math.floor(Math.random() * 6));
+  PRESET = PRESETS[Math.floor(Math.random() * PRESETS.length)];
+  PAL    = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+  if ($('lock').dataset.locked !== '1') $('seed').value = newSeed();
+  paintChips(); paintPal(); draw();
+});
+$('gen').addEventListener('click', () => {
+  if ($('lock').dataset.locked !== '1') $('seed').value = newSeed();
+  draw();
+});
+
+/* sliders + selects */
+const SLIDERS = [
+  ['dens','densval', v => v + '%'],
+  ['surfacestr','surfaceval', v => v + '%'],
+  ['depth','depthval', v => v],
+  ['snap','snapval', v => v + ' px'],
+  ['detail','detailval', v => v + '%'],
+  ['labels','labelsval', v => v + '%'],
+  ['exp','expval', v => v + '%'],
+  ['acc','accval', v => v + '%'],
+  ['vig','vigval', v => v + '%'],
+  ['grain','grainval', v => v + '%'],
+  ['wordmix','wordmixval', v => v + '%'],
+  ['gridsize','gridval', v => v + ' px'],
+  ['gridop','gridopval', v => v + '%'],
+  ['major','majorval', v => v === '0' ? 'off' : v],
+  ['dotstep','dotstepval', v => v + ' px'],
+  ['dotsize','dotsizeval', v => v + ' px'],
+  ['dotop','dotopval', v => v + '%'],
+  ['webdensity','webval', v => v + '%'],
+  ['webop','webopval', v => v + '%']
+];
+for (const [id, out, fmt] of SLIDERS){
+  $(id).addEventListener('input', () => { $(out).textContent = fmt($(id).value); draw(); });
+}
+function syncColorSelects(){
+  for (const id of ['gridcolor','dotcolor','webcolor']){
+    const el = $(id);
+    if (!el) continue;
+    const color = toneColor(el.value);
+    el.style.setProperty('--swatch', color);
+    el.title = `${el.getAttribute('aria-label') || 'Color'}: ${color}`;
+  }
+}
+for (const id of ['format','sym','surface','gridcolor','dotcolor','webcolor','webstyle']){
+  $(id).addEventListener('input', () => { syncColorSelects(); draw(); });
+}
+
+/* overlay toggles — each layer collapses its own controls when off */
+for (const [btn, sub] of [['tgrid','gridsub'], ['tdots','dotsub'], ['tweb','websub']]){
+  $(btn).addEventListener('click', () => {
+    const on = $(btn).dataset.on === '1' ? '0' : '1';
+    $(btn).dataset.on = on;
+    $(btn).setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+    $(sub).hidden = on !== '1';
+    draw();
+  });
+}
+$('tsnap').addEventListener('click', () => {
+  const el = $('tsnap');
+  const on = el.dataset.on === '1' ? '0' : '1';
+  el.dataset.on = on;
+  el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+  draw();
+});
+$('talpha').addEventListener('click', () => {
+  const el = $('talpha');
+  const on = el.dataset.on === '1' ? '0' : '1';
+  el.dataset.on = on;
+  el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+  draw();
+});
+/* lexicon — the mix slider only means anything once there are words to mix */
+function syncWords(){
+  const w = readOpts().words;
+  $('wordcount').textContent = w.length + ' / 10';
+  $('wordmix').disabled = w.length === 0;
+}
+$('words').addEventListener('input', () => { syncWords(); draw(); });
+$('seed').addEventListener('change', draw);
+$('zoom').addEventListener('change', () => { $('frame').dataset.zoom = $('zoom').value; });
+$('undo').addEventListener('click', undo);
+
+/* ============================================================ svg recorder
+   A Canvas2D-shaped sink. It answers to exactly the calls the modules above
+   already make, so paintTile and paintLabels run untouched and emit vector
+   nodes instead of pixels — same seed, same plate, one copy of the art code. */
+const MEAS = document.createElement('canvas').getContext('2d');
+const n2 = v => { const r = Math.round(v * 100) / 100; return Object.is(r, -0) ? 0 : r; };
+const n3 = v => Math.round(v * 1000) / 1000;
+const n5 = v => { const r = Math.round(v * 1e5) / 1e5; return Object.is(r, -0) ? 0 : r; };
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/* SVG keeps colour and alpha in separate attributes, and plenty of vector
+   editors still refuse a bare rgba() fill, so split them apart. */
+function splitPaint(css){
+  const m = /^rgba?\(([^)]+)\)$/.exec(css || '');
+  if (m){
+    const p = m[1].split(',').map(parseFloat);
+    return { c: `rgb(${p[0] | 0},${p[1] | 0},${p[2] | 0})`, a: p.length > 3 ? p[3] : 1 };
+  }
+  return { c: css || '#000', a: 1 };
+}
+function matMul(m, t){
+  return [
+    m[0]*t[0] + m[2]*t[1], m[1]*t[0] + m[3]*t[1],
+    m[0]*t[2] + m[2]*t[3], m[1]*t[2] + m[3]*t[3],
+    m[0]*t[4] + m[2]*t[5] + m[4], m[1]*t[4] + m[3]*t[5] + m[5]
+  ];
+}
+const SVG_STATE = ['fillStyle','strokeStyle','lineWidth','lineCap','globalAlpha',
+                   'font','letterSpacing','textAlign','textBaseline'];
+
+class SVGCtx {
+  constructor(){
+    this.out = []; this.d = []; this.stack = [];
+    this.m = [1,0,0,1,0,0];
+    this.fillStyle = '#000'; this.strokeStyle = '#000';
+    this.lineWidth = 1; this.lineCap = 'butt'; this.globalAlpha = 1;
+    this.globalCompositeOperation = 'source-over';
+    this.font = '10px monospace'; this.letterSpacing = '0px';
+    this.textAlign = 'left'; this.textBaseline = 'alphabetic';
+  }
+  save(){
+    const s = { m: this.m.slice() };
+    for (const k of SVG_STATE) s[k] = this[k];
+    this.stack.push(s);
+  }
+  restore(){
+    const s = this.stack.pop(); if (!s) return;
+    this.m = s.m;
+    for (const k of SVG_STATE) this[k] = s[k];
+  }
+  translate(x, y){ this.m = matMul(this.m, [1,0,0,1,x,y]); }
+  scale(x, y){ this.m = matMul(this.m, [x,0,0,y,0,0]); }
+  rotate(a){ const c = Math.cos(a), s = Math.sin(a); this.m = matMul(this.m, [c,s,-s,c,0,0]); }
+
+  _tf(){
+    const m = this.m;
+    if (m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1 && m[4] === 0 && m[5] === 0) return '';
+    return ` transform="matrix(${n5(m[0])} ${n5(m[1])} ${n5(m[2])} ${n5(m[3])} ${n2(m[4])} ${n2(m[5])})"`;
+  }
+  _f(){ const p = splitPaint(this.fillStyle);   p.a *= this.globalAlpha; return p; }
+  _s(){ const p = splitPaint(this.strokeStyle); p.a *= this.globalAlpha; return p; }
+  _op(p, attr){ return p.a < 1 ? ` ${attr}-opacity="${n3(p.a)}"` : ''; }
+
+  fillRect(x, y, w, h){
+    if (!(w > 0) || !(h > 0)) return;
+    const p = this._f(); if (p.a < 0.004) return;
+    this.out.push(`<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}" fill="${p.c}"${this._op(p,'fill')}${this._tf()}/>`);
+  }
+  strokeRect(x, y, w, h){
+    if (!(w > 0) || !(h > 0)) return;
+    const p = this._s(); if (p.a < 0.004) return;
+    this.out.push(`<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}" fill="none" stroke="${p.c}"${this._op(p,'stroke')} stroke-width="${n2(this.lineWidth)}"${this._tf()}/>`);
+  }
+  beginPath(){ this.d = []; }
+  moveTo(x, y){ this.d.push(`M${n2(x)} ${n2(y)}`); }
+  lineTo(x, y){ this.d.push(`L${n2(x)} ${n2(y)}`); }
+  arc(x, y, r, a0, a1){
+    const full = Math.abs(a1 - a0) >= Math.PI * 2 - 0.0001;
+    if (full){
+      this.d.push(
+        `M${n2(x + r)} ${n2(y)}` +
+        `A${n2(r)} ${n2(r)} 0 1 0 ${n2(x - r)} ${n2(y)}` +
+        `A${n2(r)} ${n2(r)} 0 1 0 ${n2(x + r)} ${n2(y)}`
+      );
+      return;
+    }
+    const x0 = x + Math.cos(a0) * r, y0 = y + Math.sin(a0) * r;
+    const x1 = x + Math.cos(a1) * r, y1 = y + Math.sin(a1) * r;
+    const large = Math.abs(a1 - a0) > Math.PI ? 1 : 0;
+    const sweep = a1 > a0 ? 1 : 0;
+    this.d.push(`M${n2(x0)} ${n2(y0)}A${n2(r)} ${n2(r)} 0 ${large} ${sweep} ${n2(x1)} ${n2(y1)}`);
+  }
+  closePath(){ this.d.push('Z'); }
+  fill(){
+    if (!this.d.length) return;
+    const p = this._f(); if (p.a < 0.004) return;
+    this.out.push(`<path d="${this.d.join('')}" fill="${p.c}"${this._op(p,'fill')}${this._tf()}/>`);
+  }
+  stroke(){
+    if (!this.d.length) return;
+    const p = this._s(); if (p.a < 0.004) return;
+    this.out.push(`<path d="${this.d.join('')}" fill="none" stroke="${p.c}"${this._op(p,'stroke')} stroke-width="${n2(this.lineWidth)}"${this.lineCap !== 'butt' ? ` stroke-linecap="${this.lineCap}"` : ''}${this._tf()}/>`);
+  }
+  measureText(t){
+    MEAS.font = this.font;
+    try { MEAS.letterSpacing = this.letterSpacing; } catch (e) { /* older engines */ }
+    return MEAS.measureText(t);
+  }
+  fillText(t, x, y){
+    if (!t) return;
+    const p = this._f(); if (p.a < 0.004) return;
+    /* Bake the baseline shift into y — dominant-baseline is the one text
+       attribute vector editors still disagree about. */
+    const met = this.measureText(t);
+    const px = parseFloat(this.font) || 10;
+    const asc = met.fontBoundingBoxAscent || px * 0.8;
+    const desc = met.fontBoundingBoxDescent || px * 0.2;
+    const dy = this.textBaseline === 'top' ? asc : this.textBaseline === 'bottom' ? -desc : 0;
+    const anchor = this.textAlign === 'right' ? ' text-anchor="end"'
+                 : this.textAlign === 'center' ? ' text-anchor="middle"' : '';
+    const ls = parseFloat(this.letterSpacing) || 0;
+    this.out.push(
+      `<text x="${n2(x)}" y="${n2(y + dy)}" font-family="ui-monospace, Menlo, Consolas, monospace" ` +
+      `font-size="${n2(px)}"${ls ? ` letter-spacing="${n2(ls)}"` : ''}${anchor} ` +
+      `fill="${p.c}"${this._op(p,'fill')}${this._tf()}>${esc(t)}</text>`
+    );
+  }
+  /* the mirror blit and the grain buffer both have native SVG answers below */
+  drawImage(){}
+  createImageData(){ return { data: [] }; }
+  putImageData(){}
+}
+
+/* ============================================================ svg build
+   Same seeding and same call order as render(), so an SVG and a PNG off one
+   set of controls are the same plate. What canvas does by brute force the
+   SVG does structurally: the mirror is a reused <use>, the overlays are
+   patterns, the grain is a turbulence filter. */
+function buildSVG(){
+  const o = readOpts();
+  const [fw, fh] = FORMATS[o.format];
+  const W = Math.round(fw >= fh ? LONG : LONG * fw / fh);
+  const H = Math.round(fw >= fh ? LONG * fh / fw : LONG);
+
+  const halfX = o.sym === 'quad' || o.sym === 'mirrorx';
+  const halfY = o.sym === 'quad' || o.sym === 'mirrory';
+  const TW = halfX ? Math.ceil(W / 2) : W;
+  const TH = halfY ? Math.ceil(H / 2) : H;
+
+  const artSeed = o.seed + '|' + PRESET.id + '|' + PAL.id + '|' + o.sym;
+  const tile = new SVGCtx();
+  R = mulberry(hash(artSeed + '|surface|' + o.surface));
+  paintSurfaceTile(tile, TW, TH, o, 1);
+  R = mulberry(hash(artSeed));
+  paintTile(tile, TW, TH, o, 1);
+  const lab = new SVGCtx();
+  paintLabels(lab, W, H, halfX, halfY, 1);
+  const trace = new SVGCtx();
+  paintTraceField(trace, W, H, o, 1);
+
+  /* Namespace every id to this plate. Two exports dropped into one HTML
+     document would otherwise share #tile, and <use> takes the first match —
+     the second plate would silently render as a copy of the first. */
+  const uid = 'f' + hash(JSON.stringify(o) + PRESET.id + PAL.id).toString(36);
+  const ref = k => `${uid}-${k}`;
+
+  const defs = [`<g id="${ref('tile')}">${tile.out.join('')}</g>`];
+  const body = o.alpha ? [] : [`<rect width="${W}" height="${H}" fill="${PAL.bg}"/>`];
+  const expo = n3(Math.min(1, o.exposure));
+  const r1 = Math.max(W, H) * 0.72, r0 = Math.min(W, H) * 0.2;
+  const masked = o.alpha && o.vig > 0;
+  if (masked){
+    const edge = Math.round(255 * (1 - o.vig));
+    defs.push(
+      `<radialGradient id="${ref('vg')}" gradientUnits="userSpaceOnUse" cx="${n2(W/2)}" cy="${n2(H/2)}" r="${n2(r1)}">` +
+      `<stop offset="${n3(r0 / r1)}" stop-color="#ffffff"/>` +
+      `<stop offset="1" stop-color="rgb(${edge},${edge},${edge})"/></radialGradient>`,
+      `<mask id="${ref('vm')}"><rect width="${W}" height="${H}" fill="url(#${ref('vg')})"/></mask>`
+    );
+  }
+  const open = masked ? `<g mask="url(#${ref('vm')})">` : '';
+  const close = masked ? '</g>' : '';
+
+  const U = t => `<use href="#${ref('tile')}" xlink:href="#${ref('tile')}"${t ? ` transform="${t}"` : ''}/>`;
+  const plate = [U('')];
+  if (halfX) plate.push(U(`translate(${W} 0) scale(-1 1)`));
+  if (halfY) plate.push(U(`translate(0 ${H}) scale(1 -1)`));
+  if (halfX && halfY) plate.push(U(`translate(${W} ${H}) scale(-1 -1)`));
+  body.push(`${open}<g opacity="${expo}">${plate.join('')}</g>`);
+
+  /* a second lighter pass past 100% exposure lifts the mid-tones */
+  if (o.exposure > 1){
+    const lift = [U('')];
+    if (halfX) lift.push(U(`translate(${W} 0) scale(-1 1)`));
+    body.push(`<g opacity="${n3(o.exposure - 1)}" style="mix-blend-mode:plus-lighter">${lift.join('')}</g>`);
+  }
+  if (lab.out.length) body.push(`<g opacity="${expo}">${lab.out.join('')}</g>`);
+  body.push(close);
+
+  if (o.vig > 0 && !o.alpha){
+    /* concentric stops reproduce the canvas r0→r1 ramp exactly, without
+       leaning on fr, which older renderers drop */
+    defs.push(
+      `<radialGradient id="${ref('vig')}" gradientUnits="userSpaceOnUse" cx="${n2(W/2)}" cy="${n2(H/2)}" r="${n2(r1)}">` +
+      `<stop offset="${n3(r0 / r1)}" stop-color="${PAL.bg}" stop-opacity="0"/>` +
+      `<stop offset="1" stop-color="${PAL.bg}" stop-opacity="${n3(o.vig)}"/></radialGradient>`
+    );
+    body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('vig')})" style="mix-blend-mode:multiply"/>`);
+    body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('vig')})"/>`);
+  }
+
+  if (trace.out.length) body.push(`<g>${trace.out.join('')}</g>`);
+
+  if (o.gridOn && o.gridop > 0 && o.gridsize >= 2){
+    /* One tile at the major pitch carrying its own minors — exact opacities,
+       no double-strike where a major lands on a minor. */
+    const step = o.gridsize, maj = o.major, base = n3(o.gridop);
+    const majorA = n3(Math.min(1, o.gridop * 2.2));
+    const span = maj > 0 ? step * maj : step;
+    const line = (x, y, w, h, a) =>
+      `<rect x="${n2(x)}" y="${n2(y)}" width="${n2(w)}" height="${n2(h)}" fill="${o.gridcolor}" fill-opacity="${a}"/>`;
+    const cell = [];
+    for (let i = 1; i < maj; i++){
+      cell.push(line(i * step, 0, 1, span, base), line(0, i * step, span, 1, base));
+    }
+    const a0 = maj > 0 ? majorA : base;
+    cell.push(line(0, 0, 1, span, a0), line(0, 0, span, 1, a0));
+    defs.push(`<pattern id="${ref('grid')}" width="${n2(span)}" height="${n2(span)}" patternUnits="userSpaceOnUse">${cell.join('')}</pattern>`);
+    body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('grid')})"/>`);
+  }
+
+  if (o.dotsOn && o.dotop > 0 && o.dotstep >= 2){
+    const r = n2(Math.max(0.5, o.dotsize * 0.5));
+    defs.push(
+      `<pattern id="${ref('dots')}" width="${o.dotstep}" height="${o.dotstep}" patternUnits="userSpaceOnUse">` +
+      `<circle cx="${r}" cy="${r}" r="${r}" fill="${o.dotcolor}" fill-opacity="${n3(o.dotop)}"/></pattern>`
+    );
+    body.push(`<rect width="${W}" height="${H}" fill="url(#${ref('dots')})"/>`);
+  }
+
+  if (o.grain > 0){
+    defs.push(
+      `<filter id="${ref('grain')}" x="0" y="0" width="100%" height="100%">` +
+      `<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>` +
+      `<feColorMatrix type="saturate" values="0"/></filter>`
+    );
+    body.push(`<rect width="${W}" height="${H}" filter="url(#${ref('grain')})" opacity="${n3(Math.min(1, o.grain * 0.5))}" style="mix-blend-mode:overlay"/>`);
+  }
+
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+    `width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">` +
+    `<defs>${defs.join('')}</defs>${body.join('')}</svg>`;
+  return { svg, o, W, H };
+}
+
+/* export — blobs rather than data URIs, because a 5760px plate overruns the
+   URI length ceiling in more than one browser */
+function saveBlob(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.download = name;
+  a.href = url;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+function plateName(o, ext, tag){
+  return `hud-${PRESET.id}-${PAL.id}-${o.seed}${o.alpha ? '-alpha' : ''}${tag}.${ext}`;
+}
+function download(scale){
+  const r = render(scale);
+  r.cv.toBlob(b => saveBlob(b, plateName(r.o, 'png', scale > 1 ? '@' + scale + 'x' : '')), 'image/png');
+}
+function downloadSVG(){
+  const r = buildSVG();
+  saveBlob(new Blob([r.svg], { type: 'image/svg+xml;charset=utf-8' }), plateName(r.o, 'svg', ''));
+}
+function heightFieldFromCanvas(cv){
+  const W = cv.width, H = cv.height;
+  const src = cv.getContext('2d').getImageData(0, 0, W, H).data;
+  const h = new Float32Array(W * H);
+  let lo = 1, hi = 0;
+  for (let i = 0, p = 0; i < src.length; i += 4, p++){
+    const v = (src[i] * 0.2126 + src[i + 1] * 0.7152 + src[i + 2] * 0.0722) / 255;
+    h[p] = v;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const span = Math.max(0.001, hi - lo);
+  for (let i = 0; i < h.length; i++) h[i] = Math.pow((h[i] - lo) / span, 0.8);
+  return { W, H, h };
+}
+function saveCanvasPNG(cv, name){
+  cv.toBlob(b => saveBlob(b, name), 'image/png');
+}
+function displacementCanvas(src){
+  const { W, H, h } = heightFieldFromCanvas(src);
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const img = g.createImageData(W, H);
+  const d = img.data;
+  for (let i = 0; i < h.length; i++){
+    const v = Math.round(h[i] * 255);
+    const p = i * 4;
+    d[p] = d[p + 1] = d[p + 2] = v;
+    d[p + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return cv;
+}
+function normalCanvas(src){
+  const { W, H, h } = heightFieldFromCanvas(src);
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const img = g.createImageData(W, H);
+  const d = img.data;
+  const at = (x, y) => h[Math.max(0, Math.min(H - 1, y)) * W + Math.max(0, Math.min(W - 1, x))];
+  const strength = 6;
+  for (let y = 0; y < H; y++){
+    for (let x = 0; x < W; x++){
+      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
+      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
+      const nz = 1;
+      const len = Math.hypot(dx, dy, nz) || 1;
+      const p = (y * W + x) * 4;
+      d[p]     = Math.round((-dx / len * 0.5 + 0.5) * 255);
+      d[p + 1] = Math.round((-dy / len * 0.5 + 0.5) * 255);
+      d[p + 2] = Math.round(( nz / len * 0.5 + 0.5) * 255);
+      d[p + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return cv;
+}
+function downloadMap(kind){
+  const r = render(1);
+  const cv = kind === 'normal' ? normalCanvas(r.cv) : displacementCanvas(r.cv);
+  saveCanvasPNG(cv, plateName(r.o, 'png', '-' + kind));
+}
+$('dl1').addEventListener('click', () => download(1));
+$('dl2').addEventListener('click', () => download(2));
+$('dl3').addEventListener('click', () => download(3));
+$('dlsvg').addEventListener('click', downloadSVG);
+$('dldisp').addEventListener('click', () => downloadMap('displace'));
+$('dlnorm').addEventListener('click', () => downloadMap('normal'));
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z'){
+    e.preventDefault();
+    undo();
+    return;
+  }
+  if (e.target.matches('input,select,textarea')) return;
+  if (e.key === 'r' || e.key === 'R') $('dice').click();
+  if (e.key === 'g' || e.key === 'G') $('gen').click();
+});
+
+/* boot */
+paintChips(); paintPal(); paintLock(); paintPips(4);
+syncColorSelects();
+for (const [id, out, fmt] of SLIDERS) $(out).textContent = fmt($(id).value);
+syncWords();
+draw();
+</script>
+</body>
+</html>
