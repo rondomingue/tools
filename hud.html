@@ -149,6 +149,14 @@
   .frame[data-zoom="fit"] #out{max-width:100%;max-height:calc(74vh - 2px);width:auto;height:auto}
   .meta{font-size:10px;color:var(--faint);letter-spacing:0.08em}
   .meta b{color:var(--dim);font-weight:400}
+  .motion-status{color:var(--accent-b)}
+  .frame.motion-live{box-shadow:0 18px 60px rgba(0,0,0,.55),0 0 34px rgba(78,224,193,.08)}
+  #motionplay{flex:0 0 74px}
+  #motionplay[data-paused="0"]{border-color:var(--accent-b);color:var(--accent-b)}
+  #motionstatus{min-height:15px;color:var(--faint)}
+  #motionstatus[data-state="recording"]{color:var(--accent-b)}
+  #motionstatus[data-state="error"]{color:#ff8a7a}
+  #dlmp4.recording{border-color:var(--accent-b);color:var(--accent-b);background:#071b18}
 
   @media (max-width: 720px){
     .app{grid-template-columns:1fr}
@@ -579,6 +587,56 @@
       </select>
 
       <div class="hint">Drop a SUB//FORGE plate underneath and switch these off — the reticle is drawn on transparent-friendly black so it composites straight over a substrate.</div>
+    </div>
+
+    <div class="grp">
+      <label class="lbl">Motion preview</label>
+      <div class="row">
+        <button class="tgl" id="tmotion" data-on="1" aria-pressed="true">Motion on</button>
+        <button id="motionplay" data-paused="0" aria-label="Pause motion">Ⅱ Pause</button>
+      </div>
+
+      <label class="lbl" style="margin-top:10px" for="motionmode">Behavior</label>
+      <select id="motionmode">
+        <option value="mix" selected>Tactical mix</option>
+        <option value="radar">Radar sweep</option>
+        <option value="orbit">Orbital rings</option>
+        <option value="acquire">Acquisition pulse</option>
+        <option value="telemetry">Telemetry scan</option>
+        <option value="glitch">Signal glitch</option>
+        <option value="sonar">Sonar echoes</option>
+        <option value="locktrack">Target lock track</option>
+        <option value="gyro">Gyro drift</option>
+        <option value="horizon">Horizon guidance</option>
+        <option value="boot">Diagnostic boot</option>
+        <option value="chromatic">Chromatic jitter</option>
+      </select>
+
+      <label class="lbl" style="margin-top:10px">Speed <b id="motionspeedval">100%</b></label>
+      <input type="range" id="motionspeed" min="20" max="300" step="5" value="100" aria-label="Motion speed">
+
+      <label class="lbl" style="margin-top:10px">Intensity <b id="motionamountval">55%</b></label>
+      <input type="range" id="motionamount" min="0" max="100" step="1" value="55" aria-label="Motion intensity">
+
+      <label class="lbl" style="margin-top:12px">MP4 export</label>
+      <div class="row">
+        <select id="motionduration" aria-label="MP4 duration">
+          <option value="3">3 seconds</option>
+          <option value="5" selected>5 seconds</option>
+          <option value="8">8 seconds</option>
+          <option value="10">10 seconds</option>
+        </select>
+        <select id="motionfps" aria-label="MP4 frame rate">
+          <option value="24">24 FPS</option>
+          <option value="30" selected>30 FPS</option>
+          <option value="60">60 FPS</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="primary" id="dlmp4" style="flex:1">● Record MP4</button>
+      </div>
+      <div class="hint" id="motionstatus" role="status" aria-live="polite">Full-resolution H.264 MP4. Recording runs in real time.</div>
+      <div class="hint">MP4 uses an opaque background. PNG, SVG, and Illustrator exports stay clean and static.</div>
     </div>
 
     <div class="grp">
@@ -2840,14 +2898,358 @@ function draw(){
   const out = $('out');
   out.width = r.W; out.height = r.H;
   out.classList.toggle('alpha', r.o.alpha);
-  out.getContext('2d').drawImage(r.cv, 0, 0);
+  paintMotionFrame(performance.now());
   $('meta').innerHTML =
     `<b>${PRESET.name}</b> · ${PAL.name} · ${r.o.format} · ${r.W}×${r.H} · ` +
     `${r.o.layout} · ${r.o.ringstyle} rings · ${r.o.crossstyle} cross · ${r.o.core} · ` +
     `${r.o.rings} layers · ` +
     (r.o.alpha ? 'alpha · ' : '') +
     (r.o.words.length ? `lex ${r.o.words.length} · ` : '') +
-    `seed <b>${r.o.seed}</b>`;
+    `seed <b>${r.o.seed}</b>` +
+    ($('tmotion').dataset.on === '1' ? ` · <span class="motion-status">motion ${$('motionmode').value}</span>` : '');
+  startMotionLoop();
+}
+
+/* ============================================================ motion preview
+   Motion is composited over the deterministic plate instead of changing its
+   seeded construction. That keeps still/vector exports identical to the
+   preview's resting frame and makes animation cheap enough to scrub live. */
+let motionRAF = 0;
+let motionEpoch = performance.now();
+let mp4Recording = false;
+
+function preferredMP4Mime(){
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return '';
+  return [
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4;codecs=avc1.4D401F',
+    'video/mp4;codecs=avc1',
+    'video/mp4'
+  ].find(type => MediaRecorder.isTypeSupported(type)) || '';
+}
+
+function motionCenter(o, W, H){
+  const Rb = Math.min(W, H) * 0.5 * o.size;
+  const C = { x:W / 2, y:H / 2 };
+  if (o.layout === 'upper') C.y = H * 0.41;
+  else if (o.layout === 'lower') C.y = H * 0.59;
+  else if (o.layout === 'left') C.x = W * 0.42;
+  else if (o.layout === 'right') C.x = W * 0.58;
+  else if (o.layout === 'drift'){
+    const mr = mulberry(hash(o.seed + '|' + PRESET.id + '|' + PAL.id + '|motion-center'));
+    C.x = W * (0.42 + mr() * 0.16); C.y = H * (0.40 + mr() * 0.20);
+  }
+  return { C, Rb };
+}
+
+function motionArc(g, C, r, a0, a1, color, width, dash){
+  g.strokeStyle = color; g.lineWidth = width;
+  if (dash) g.setLineDash(dash);
+  g.beginPath(); g.arc(C.x, C.y, r, a0, a1); g.stroke();
+  g.setLineDash([]);
+}
+
+function paintMotionFrame(now){
+  if (!current) return;
+  const out = $('out'), g = out.getContext('2d');
+  const enabled = $('tmotion').dataset.on === '1';
+  const paused = $('motionplay').dataset.paused === '1';
+  const amount = +$('motionamount').value / 100;
+  const speed = +$('motionspeed').value / 100;
+  const mode = $('motionmode').value;
+  const { C, Rb } = motionCenter(current.o, current.W, current.H);
+  const t = (now - motionEpoch) / 1000 * speed;
+  const mix = mode === 'mix';
+  const active = name => mix || mode === name;
+  const hot = PAL.accents[0], cool = PAL.accents[1] || PAL.ink[0];
+
+  g.setTransform(1,0,0,1,0,0);
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  g.clearRect(0, 0, out.width, out.height);
+
+  if (!enabled || amount <= 0){
+    g.drawImage(current.cv, 0, 0);
+    $('frame').classList.remove('motion-live');
+    return;
+  }
+  $('frame').classList.toggle('motion-live', !paused);
+
+  /* A tiny optical breath and gyro float give the plate life without making
+     labels swim. Tactical mix gets the restrained version. */
+  const breathe = active('acquire') ? Math.sin(t * 2.7) * 0.0018 * amount : 0;
+  const gyroPower = active('gyro') ? amount * (mix ? 0.28 : 1) : 0;
+  const driftX = Math.sin(t * 0.71) * Rb * 0.012 * gyroPower;
+  const driftY = Math.cos(t * 0.53) * Rb * 0.009 * gyroPower;
+  const driftRoll = Math.sin(t * 0.37) * 0.0045 * gyroPower;
+  let plateAlpha = active('telemetry') ? 0.965 + Math.sin(t * 23) * 0.015 * amount : 1;
+  if (mode === 'boot'){
+    g.globalCompositeOperation = 'source-over';
+    const phase = (t % 6) / 6;
+    const bootFade = phase < 0.18 ? phase / 0.18 : phase > 0.92 ? (1 - phase) / 0.08 : 1;
+    plateAlpha *= Math.max(0.035, Math.min(1, bootFade));
+  }
+  g.save();
+  g.translate(C.x + driftX, C.y + driftY); g.rotate(driftRoll);
+  g.scale(1 + breathe, 1 + breathe); g.translate(-C.x, -C.y);
+  g.globalAlpha = plateAlpha;
+  g.drawImage(current.cv, 0, 0);
+  g.restore();
+
+  g.save();
+  g.globalCompositeOperation = 'screen';
+
+  if (active('radar')){
+    const a = t * 0.72 - Math.PI / 2;
+    g.save(); g.beginPath(); g.arc(C.x, C.y, Rb * 1.12, 0, TAU); g.clip();
+    g.translate(C.x, C.y); g.rotate(a); g.translate(-C.x, -C.y);
+    const beam = g.createConicGradient(0, C.x, C.y);
+    beam.addColorStop(0, withAlpha(hot, 0));
+    beam.addColorStop(0.82, withAlpha(hot, 0));
+    beam.addColorStop(0.975, withAlpha(hot, 0.085 * amount));
+    beam.addColorStop(0.997, withAlpha(hot, 0.30 * amount));
+    beam.addColorStop(1, withAlpha(hot, 0));
+    g.fillStyle = beam; g.fillRect(C.x - Rb * 1.14, C.y - Rb * 1.14, Rb * 2.28, Rb * 2.28);
+    g.strokeStyle = withAlpha(hot, 0.55 * amount); g.lineWidth = Math.max(1, Rb * 0.004);
+    g.beginPath(); g.moveTo(C.x, C.y); g.lineTo(C.x + Rb * 1.08, C.y); g.stroke();
+    g.restore();
+  }
+
+  if (active('orbit')){
+    const widths = [0.74, 0.91, 1.06];
+    widths.forEach((k, i) => {
+      const dir = i === 1 ? -1 : 1;
+      const phase = t * (0.24 + i * 0.09) * dir + i * 1.7;
+      const span = 0.55 + i * 0.22;
+      motionArc(g, C, Rb * k, phase, phase + span, withAlpha(i === 1 ? cool : hot, (0.32 - i * 0.055) * amount), Math.max(1.2, Rb * (0.006 - i * 0.001)), [Rb * 0.04, Rb * 0.018]);
+      const p = PT(C, Rb * k, phase + span);
+      g.fillStyle = withAlpha(i === 1 ? cool : hot, 0.72 * amount);
+      g.fillRect(p[0] - 2, p[1] - 2, 4, 4);
+    });
+  }
+
+  if (active('acquire')){
+    const cycle = (t * 0.78) % 1;
+    const r = Rb * (0.32 + cycle * 0.33);
+    const fade = (1 - cycle) * amount;
+    motionArc(g, C, r, 0, TAU, withAlpha(hot, 0.28 * fade), Math.max(1, Rb * 0.003));
+    const arm = Rb * 0.095, box = Rb * (0.47 + Math.sin(t * 2.2) * 0.018 * amount);
+    g.strokeStyle = withAlpha(hot, (0.35 + 0.22 * Math.sin(t * 4.4)) * amount);
+    g.lineWidth = Math.max(1.5, Rb * 0.005); g.beginPath();
+    for (const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){
+      g.moveTo(C.x + sx * box, C.y + sy * (box - arm)); g.lineTo(C.x + sx * box, C.y + sy * box); g.lineTo(C.x + sx * (box - arm), C.y + sy * box);
+    }
+    g.stroke();
+  }
+
+  if (active('telemetry')){
+    const y = ((t * 0.17) % 1) * current.H;
+    const scan = g.createLinearGradient(0, y - 28, 0, y + 10);
+    scan.addColorStop(0, withAlpha(cool, 0)); scan.addColorStop(0.72, withAlpha(cool, 0.035 * amount)); scan.addColorStop(1, withAlpha(cool, 0.22 * amount));
+    g.fillStyle = scan; g.fillRect(0, y - 28, current.W, 38);
+    for (let i = 0; i < 5; i++){
+      const x = ((i * 0.217 + t * (0.018 + i * 0.003)) % 0.92 + 0.04) * current.W;
+      const yy = (0.12 + ((i * 0.173 + t * 0.027) % 0.76)) * current.H;
+      g.fillStyle = withAlpha(i % 2 ? cool : hot, 0.32 * amount);
+      g.fillRect(x, yy, 18 + i * 7, Math.max(1, current.H * 0.002));
+    }
+  }
+
+  if (active('glitch')){
+    const hit = Math.sin(t * 7.1) + Math.sin(t * 13.7) > (mix ? 1.72 : 1.05);
+    if (hit){
+      const base = Math.abs(Math.sin(t * 41.3));
+      for (let i = 0; i < (mix ? 2 : 5); i++){
+        const y = ((base + i * 0.173) % 1) * current.H;
+        const h = 2 + ((i * 11 + Math.floor(t * 19)) % 18);
+        const dx = (i % 2 ? -1 : 1) * (4 + 22 * amount);
+        g.globalAlpha = 0.24 + 0.28 * amount;
+        g.drawImage(current.cv, 0, y, current.W, h, dx, y, current.W, h);
+      }
+      g.globalAlpha = 1;
+    }
+  }
+
+  if (active('sonar')){
+    const power = amount * (mix ? 0.34 : 1);
+    for (let i = 0; i < 4; i++){
+      const phase = (t * 0.38 + i / 4) % 1;
+      const radius = Rb * (0.1 + phase * 0.98);
+      motionArc(g, C, radius, 0, TAU, withAlpha(cool, (1 - phase) * 0.34 * power), Math.max(1, Rb * 0.003));
+    }
+    for (let i = 0; i < 6; i++){
+      const a = i * 2.31 + 0.4;
+      const r = Rb * (0.22 + (i % 4) * 0.19);
+      const p = PT(C, r, a);
+      const blink = Math.max(0, Math.sin(t * 3.1 - i * 1.7));
+      g.fillStyle = withAlpha(i % 3 ? cool : hot, (0.18 + blink * 0.65) * power);
+      const z = Math.max(2, Rb * (0.005 + blink * 0.004));
+      g.fillRect(p[0] - z / 2, p[1] - z / 2, z, z);
+    }
+  }
+
+  if (active('locktrack')){
+    const power = amount * (mix ? 0.38 : 1);
+    const tx = C.x + Math.sin(t * 0.83) * Rb * 0.31;
+    const ty = C.y + Math.sin(t * 1.17 + 1.2) * Rb * 0.2;
+    const leadX = C.x + Math.sin((t + 0.42) * 0.83) * Rb * 0.31;
+    const leadY = C.y + Math.sin((t + 0.42) * 1.17 + 1.2) * Rb * 0.2;
+    const box = Rb * (0.075 + 0.008 * Math.sin(t * 5));
+    g.strokeStyle = withAlpha(hot, 0.64 * power); g.lineWidth = Math.max(1.2, Rb * 0.004);
+    g.beginPath(); g.moveTo(C.x, C.y); g.lineTo(tx, ty); g.stroke();
+    g.beginPath();
+    for (const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){
+      const arm = box * 0.46;
+      g.moveTo(tx + sx * box, ty + sy * (box - arm));
+      g.lineTo(tx + sx * box, ty + sy * box);
+      g.lineTo(tx + sx * (box - arm), ty + sy * box);
+    }
+    g.stroke();
+    motionArc(g, {x:leadX,y:leadY}, box * 0.24, 0, TAU, withAlpha(cool, 0.42 * power), Math.max(1, Rb * 0.0025), [4,4]);
+  }
+
+  if (active('horizon')){
+    const power = amount * (mix ? 0.22 : 1);
+    const roll = Math.sin(t * 0.42) * 0.16 * power;
+    const pitch = Math.sin(t * 0.57) * Rb * 0.1 * power;
+    g.save(); g.translate(C.x, C.y + pitch); g.rotate(roll);
+    g.strokeStyle = withAlpha(PAL.ink[0], 0.34 * power); g.fillStyle = withAlpha(PAL.ink[0], 0.5 * power);
+    g.lineWidth = Math.max(1, Rb * 0.0025);
+    for (let i = -4; i <= 4; i++){
+      if (i === 0) continue;
+      const y = i * Rb * 0.105;
+      const half = Rb * (i % 2 ? 0.12 : 0.19);
+      g.beginPath(); g.moveTo(-half, y); g.lineTo(-half * 0.22, y); g.lineTo(0, y + Math.sign(i) * Rb * 0.012); g.lineTo(half * 0.22, y); g.lineTo(half, y); g.stroke();
+      if (!mix){
+        setFont(g, Math.max(8, Rb * 0.022)); g.textAlign = 'right'; g.textBaseline = 'middle';
+        g.fillText(String(Math.abs(i) * 5).padStart(2,'0'), -half - Rb * 0.025, y);
+        g.textAlign = 'left'; g.fillText(String(Math.abs(i) * 5).padStart(2,'0'), half + Rb * 0.025, y);
+      }
+    }
+    g.beginPath(); g.moveTo(-Rb * 0.27,0); g.lineTo(-Rb * 0.07,0); g.lineTo(0,Rb * 0.035); g.lineTo(Rb * 0.07,0); g.lineTo(Rb * 0.27,0); g.stroke();
+    g.restore();
+  }
+
+  if (mode === 'chromatic' || (mix && Math.sin(t * 5.3) > 0.94)){
+    const hit = mode === 'chromatic' ? 0.5 + 0.5 * Math.max(0, Math.sin(t * 11.7)) : 0.35;
+    const shift = (3 + 13 * hit) * amount;
+    g.save(); g.globalAlpha = 0.09 * amount; g.globalCompositeOperation = 'screen';
+    g.filter = 'hue-rotate(85deg) saturate(2.2)'; g.drawImage(current.cv, shift, 0);
+    g.filter = 'hue-rotate(245deg) saturate(2.2)'; g.drawImage(current.cv, -shift, 0);
+    g.restore();
+  }
+
+  if (mode === 'boot'){
+    const phase = (t % 6) / 6;
+    const progress = Math.min(1, phase / 0.42);
+    const panelW = Rb * 0.82, panelX = C.x - panelW / 2, panelY = C.y + Rb * 0.62;
+    g.fillStyle = withAlpha(PAL.bg, 0.64 * (1 - progress));
+    g.fillRect(0, 0, current.W, current.H);
+    g.fillStyle = withAlpha(hot, 0.78 * amount);
+    g.fillRect(panelX, panelY, panelW * progress, Math.max(2, Rb * 0.009));
+    g.strokeStyle = withAlpha(PAL.ink[0], 0.34 * amount); g.lineWidth = 1;
+    g.strokeRect(panelX, panelY, panelW, Math.max(2, Rb * 0.009));
+    setFont(g, Math.max(9, Rb * 0.025)); g.textAlign = 'left'; g.textBaseline = 'bottom';
+    g.fillStyle = withAlpha(PAL.ink[0], 0.72 * amount);
+    const stage = progress < 0.28 ? 'BUS LINK' : progress < 0.56 ? 'SENSOR SYNC' : progress < 0.86 ? 'TARGET TABLE' : 'SYSTEM READY';
+    g.fillText(`${stage}  ${String(Math.round(progress * 100)).padStart(3,'0')}%`, panelX, panelY - Rb * 0.025);
+    if (progress < 1){
+      const revealY = current.H * progress;
+      g.fillStyle = withAlpha(hot, 0.18 * amount); g.fillRect(0, revealY, current.W, Math.max(2, Rb * 0.008));
+    }
+  }
+  g.restore();
+
+  /* Fine CRT lines unify the effects and stay nearly invisible at low power. */
+  if (active('telemetry') || mix){
+    g.fillStyle = withAlpha(PAL.ink[0], 0.018 * amount);
+    for (let y = (Math.floor(t * 22) % 6); y < current.H; y += 6) g.fillRect(0, y, current.W, 1);
+  }
+}
+
+function startMotionLoop(){
+  cancelAnimationFrame(motionRAF);
+  if ($('tmotion').dataset.on !== '1' || $('motionplay').dataset.paused === '1') return;
+  const tick = now => { paintMotionFrame(now); motionRAF = requestAnimationFrame(tick); };
+  motionRAF = requestAnimationFrame(tick);
+}
+
+async function exportMP4(){
+  if (mp4Recording) return;
+  const mimeType = preferredMP4Mime();
+  const status = $('motionstatus'), button = $('dlmp4');
+  if (!mimeType){
+    status.dataset.state = 'error';
+    status.textContent = 'This browser has no native H.264 MP4 recorder. Open the file in current Chrome, Edge, or Safari.';
+    return;
+  }
+
+  const duration = +$('motionduration').value;
+  const fps = +$('motionfps').value;
+  const priorEnabled = $('tmotion').dataset.on;
+  const priorPaused = $('motionplay').dataset.paused;
+  const capture = document.createElement('canvas');
+  capture.width = $('out').width; capture.height = $('out').height;
+  const cg = capture.getContext('2d', { alpha:false });
+  let copyRAF = 0, progressTimer = 0, stopTimer = 0, recorder, stream;
+
+  try {
+    mp4Recording = true;
+    button.disabled = true; button.classList.add('recording');
+    $('tmotion').dataset.on = '1'; $('tmotion').setAttribute('aria-pressed', 'true');
+    $('motionplay').dataset.paused = '0';
+    motionEpoch = performance.now();
+    syncMotionControls(); draw();
+
+    const copy = () => {
+      cg.fillStyle = PAL.bg; cg.fillRect(0, 0, capture.width, capture.height);
+      cg.drawImage($('out'), 0, 0);
+      copyRAF = requestAnimationFrame(copy);
+    };
+    copy();
+
+    stream = capture.captureStream(fps);
+    const pixels = capture.width * capture.height;
+    const videoBitsPerSecond = Math.round(Math.max(8e6, Math.min(30e6, pixels * fps * 0.22)));
+    recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond });
+    const chunks = [];
+    recorder.addEventListener('dataavailable', e => { if (e.data && e.data.size) chunks.push(e.data); });
+
+    const finished = new Promise((resolve, reject) => {
+      recorder.addEventListener('stop', resolve, { once:true });
+      recorder.addEventListener('error', e => reject(e.error || new Error('MP4 recording failed')), { once:true });
+    });
+    const started = performance.now();
+    status.dataset.state = 'recording'; status.textContent = `Recording 0% · ${capture.width}×${capture.height} · ${fps} FPS`;
+    recorder.start(250);
+    progressTimer = setInterval(() => {
+      const p = Math.min(99, Math.round((performance.now() - started) / (duration * 10)));
+      status.textContent = `Recording ${p}% · ${capture.width}×${capture.height} · ${fps} FPS`;
+    }, 100);
+    stopTimer = setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, duration * 1000);
+    await finished;
+    clearInterval(progressTimer); clearTimeout(stopTimer); cancelAnimationFrame(copyRAF);
+    stream.getTracks().forEach(track => track.stop());
+    if (!chunks.length) throw new Error('The browser returned an empty MP4');
+
+    const blob = new Blob(chunks, { type:mimeType });
+    const tag = `-${$('motionmode').value}-${duration}s-${fps}fps`;
+    saveBlob(blob, plateName({ ...current.o, alpha:false }, 'mp4', tag));
+    status.dataset.state = '';
+    status.textContent = `Saved ${(blob.size / 1048576).toFixed(1)} MB MP4 · ${duration}s · ${fps} FPS`;
+  } catch (error){
+    clearInterval(progressTimer); clearTimeout(stopTimer); cancelAnimationFrame(copyRAF);
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    if (stream) stream.getTracks().forEach(track => track.stop());
+    status.dataset.state = 'error';
+    status.textContent = `MP4 export failed: ${error.message || error}`;
+  } finally {
+    mp4Recording = false;
+    button.disabled = false; button.classList.remove('recording');
+    $('tmotion').dataset.on = priorEnabled;
+    $('tmotion').setAttribute('aria-pressed', priorEnabled === '1' ? 'true' : 'false');
+    $('motionplay').dataset.paused = priorPaused;
+    syncMotionControls(); draw();
+  }
 }
 
 /* ============================================================ svg recorder
@@ -3359,6 +3761,49 @@ $('tplane').addEventListener('click', () => {
   draw();
 });
 
+function syncMotionControls(){
+  const enabled = $('tmotion').dataset.on === '1';
+  const paused = $('motionplay').dataset.paused === '1';
+  const mp4 = preferredMP4Mime();
+  $('motionplay').disabled = !enabled;
+  $('motionplay').textContent = paused ? '▶ Play' : 'Ⅱ Pause';
+  $('motionplay').setAttribute('aria-label', paused ? 'Play motion' : 'Pause motion');
+  $('motionspeedval').textContent = $('motionspeed').value + '%';
+  $('motionamountval').textContent = $('motionamount').value + '%';
+  $('dlmp4').disabled = mp4Recording || !mp4;
+  if (!mp4 && !$('motionstatus').dataset.state){
+    $('motionstatus').dataset.state = 'error';
+    $('motionstatus').textContent = 'Native H.264 MP4 recording is unavailable in this browser.';
+  }
+}
+$('tmotion').addEventListener('click', () => {
+  const el = $('tmotion');
+  const on = el.dataset.on === '1' ? '0' : '1';
+  el.dataset.on = on;
+  el.setAttribute('aria-pressed', on === '1' ? 'true' : 'false');
+  if (on === '1') $('motionplay').dataset.paused = '0';
+  syncMotionControls();
+  draw();
+});
+$('motionplay').addEventListener('click', () => {
+  const el = $('motionplay');
+  el.dataset.paused = el.dataset.paused === '1' ? '0' : '1';
+  syncMotionControls();
+  if (el.dataset.paused === '0') startMotionLoop();
+  else { cancelAnimationFrame(motionRAF); paintMotionFrame(performance.now()); }
+});
+$('motionmode').addEventListener('input', draw);
+for (const [id, out] of [['motionspeed','motionspeedval'], ['motionamount','motionamountval']]){
+  $(id).addEventListener('input', () => {
+    $(out).textContent = $(id).value + '%';
+    if ($('motionplay').dataset.paused === '1') paintMotionFrame(performance.now());
+  });
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) cancelAnimationFrame(motionRAF);
+  else startMotionLoop();
+});
+
 $('skindice').addEventListener('click', () => {
   const btn = $('skindice');
   btn.classList.remove('rolling'); void btn.offsetWidth; btn.classList.add('rolling');
@@ -3510,6 +3955,7 @@ $('dl2').addEventListener('click', () => download(2));
 $('dl3').addEventListener('click', () => download(3));
 $('dlsvg').addEventListener('click', downloadSVG);
 $('dlai').addEventListener('click', downloadIllustrator);
+$('dlmp4').addEventListener('click', exportMP4);
 
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z'){
@@ -3529,6 +3975,7 @@ syncSkinRows();
 document.querySelector('.skinrow .skinchip').closest('.skinrow').dataset.focus = '1';
 syncSkinCopies();
 syncWords();
+syncMotionControls();
 draw();
 </script>
 </body>
