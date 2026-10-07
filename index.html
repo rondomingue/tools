@@ -199,6 +199,7 @@
   .iface-card.anim-5 { animation: fade-up 0.7s 1.7s ease forwards; }
   .iface-card.anim-6 { animation: fade-up 0.7s 1.85s ease forwards; }
   .iface-card.anim-7 { animation: fade-up 0.7s 2.0s ease forwards; }
+  .iface-card.anim-8 { animation: fade-up 0.7s 2.15s ease forwards; }
 
   .card-preview {
     position: relative; width: 100%; aspect-ratio: 16/9;
@@ -316,7 +317,7 @@
     <div class="hero-system-meta" aria-label="Index metadata">
       <span>Version <b>01.00.00</b></span>
       <span>Last updated <b>August 14, 2026</b></span>
-      <span><b>6</b> generators</span>
+      <span><b>8</b> generators</span>
     </div>
   </div>
 </section>
@@ -325,7 +326,7 @@
 <div class="content">
   <div class="section-header">
     <span class="section-label">Generators</span>
-    <span class="section-count">7 / ∞</span>
+    <span class="section-count">8 / ∞</span>
   </div>
 
   <div class="cards">
@@ -700,6 +701,31 @@
       </div>
     </a>
 
+    <!-- DUST / CREDIT -->
+    <a href="lonesome-titles.html" class="iface-card anim-8" style="--c:#c79a5d;" onmouseenter="playHover()">
+      <div style="position:absolute;top:0;left:0;right:0;height:1px;z-index:3;background:linear-gradient(to right,rgba(199,154,93,0.7),transparent 70%);"></div>
+      <div class="card-preview" style="background:#17140f;">
+        <div class="preview-drift">
+          <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs><linearGradient id="westernsky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#baa17b"/><stop offset=".52" stop-color="#665a48"/><stop offset="1" stop-color="#24231d"/></linearGradient><radialGradient id="westernsun"><stop stop-color="#ffe0a7" stop-opacity=".65"/><stop offset="1" stop-color="#ffe0a7" stop-opacity="0"/></radialGradient></defs>
+            <rect width="400" height="225" fill="url(#westernsky)"/><circle cx="295" cy="55" r="92" fill="url(#westernsun)"/>
+            <path d="M0 156C44 140 71 167 112 148s70-24 105 1 64 21 93-2 56-25 90-14v92H0Z" fill="#35332b"/>
+            <path d="M0 187c42-16 79 4 115-8 39-13 64-10 103 5 37 14 71-2 103-1 27 1 52 9 79 3v39H0Z" fill="#171713"/>
+            <g fill="#eee2c8" text-anchor="middle"><text x="200" y="92" font-family="din-2014,Arial,sans-serif" font-size="8" letter-spacing="4" opacity=".72">STARRING</text><text x="200" y="115" font-family="din-2014,Arial,sans-serif" font-size="18" letter-spacing="5">ROBERT DUVALL</text><text x="200" y="136" font-family="Georgia,serif" font-size="12" letter-spacing="3" opacity=".88">AUGUSTUS McCRAE</text></g>
+            <g fill="#e4c38b" opacity=".45"><circle cx="306" cy="117" r="1"/><circle cx="320" cy="111" r=".7"/><circle cx="331" cy="105" r="1.2"/><circle cx="345" cy="94" r=".8"/><circle cx="354" cy="88" r=".55"/></g>
+          </svg>
+        </div>
+        <div class="card-preview-overlay" style="background:linear-gradient(135deg,rgba(199,154,93,0.09),transparent 60%);"></div>
+        <div class="card-launch"><span>LAUNCH</span><span class="launch-arrow">↗</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta"><span class="card-type">Motion / Title Sequence</span><span class="card-status live"><span class="sd"></span>ACTIVE</span></div>
+        <h2 class="card-title">DUST<em style="color:rgba(199,154,93,0.95)"> / CREDIT</em></h2>
+        <p class="card-desc">Elegant western screen credits with editable names and roles, Adobe Fonts support, image or video plates, atmospheric grading, letterform-driven dust dissolves and Resolve-ready MP4 export.</p>
+        <div class="card-tags"><span class="tag">MP4</span><span class="tag">ADOBE FONTS</span><span class="tag">DUST DISSOLVE</span><span class="tag">1920×1080</span><span class="tag">RESOLVE</span></div>
+      </div>
+    </a>
+
   </div>
 </div>
 
@@ -735,7 +761,7 @@
 
   // Glitch the eyebrow text
   const eyebrow = document.getElementById('hero-eyebrow-data');
-  const targets = ['GENERATIVE DESIGN TOOLS / ASSET FORGES','SUB//FORGE // SUBSTRATE PLATES','TYPO//FORGE // TYPOGRAPHIC POSTERS','RET//FORGE // TARGETING RETICLES','READ//OUT // READOUTS & NODE FIELDS','TOPO//FORGE // TOPOGRAPHIC NOISE & CONTOURS','CITY//EMIT // CITY LIGHT EMISSION MAPS','MOTION//FIELD // ABSTRACT SIGNAL COMPOSITOR'];
+  const targets = ['GENERATIVE DESIGN TOOLS / ASSET FORGES','SUB//FORGE // SUBSTRATE PLATES','TYPO//FORGE // TYPOGRAPHIC POSTERS','RET//FORGE // TARGETING RETICLES','READ//OUT // READOUTS & NODE FIELDS','TOPO//FORGE // TOPOGRAPHIC NOISE & CONTOURS','CITY//EMIT // CITY LIGHT EMISSION MAPS','MOTION//FIELD // ABSTRACT SIGNAL COMPOSITOR','DUST / CREDIT // WESTERN TITLE SEQUENCES'];
   const glitch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/\\|<>[]{}!@#$%^&*';
   let ei=0;
   function cycleEyebrow(){
